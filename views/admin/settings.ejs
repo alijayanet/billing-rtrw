@@ -24,9 +24,36 @@
     </div>
     <% } %>
 
-    <form method="POST" action="/admin/settings" class="card">
-      <div class="card-hd">
-        <h6><i class="bi bi-sliders"></i> Konfigurasi Aplikasi</h6>
+    <form method="POST" action="/admin/settings">
+
+        <div class="card mb16">
+          <div class="card-hd"><h6><i class="bi bi-telegram"></i> Pengaturan Telegram Bot (Backup Admin)</h6></div>
+          <div class="card-bd">
+            <div class="form-row">
+              <div class="fg">
+                <label class="fl">Status Bot Telegram</label>
+                <select class="fs" name="telegram_enabled">
+                  <option value="true" <%= settings.telegram_enabled ? 'selected' : '' %>>Aktif</option>
+                  <option value="false" <%= !settings.telegram_enabled ? 'selected' : '' %>>Nonaktif</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label class="fl">Admin Telegram ID</label>
+                <input class="fc" name="telegram_admin_id" value="<%= settings.telegram_admin_id || '' %>" placeholder="Contoh: 12345678">
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">Telegram Bot Token</label>
+              <div style="display:flex;gap:8px">
+                <input class="fc" name="telegram_bot_token" value="<%= settings.telegram_bot_token || '' %>" placeholder="Dapatkan dari @BotFather">
+                <button type="button" class="btn btn-g" onclick="syncTelegram()" title="Sinkronkan / Hapus Webhook Lama"><i class="bi bi-arrow-repeat"></i> Sinkronkan</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb16">
+          <div class="card-hd"><h6><i class="bi bi-whatsapp"></i> Pengaturan WhatsApp</h6></div>
       </div>
       <div class="card-bd" style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
         
@@ -206,6 +233,14 @@ function copyWebhook() {
   el.select();
   document.execCommand('copy');
   alert('Link Webhook berhasil disalin!');
+}
+async function syncTelegram() {
+  try {
+    const res = await fetch('/admin/api/telegram/sync', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) alert(data.message);
+    else alert('Gagal: ' + data.error);
+  } catch (e) { alert('Error: ' + e.message); }
 }
 setTimeout(()=>document.querySelectorAll('.alert').forEach(a=>a.style.display='none'),5000);
 </script>

@@ -355,6 +355,33 @@ async function getBackup() {
   }
 }
 
+async function getSystemScripts() {
+  let conn = null;
+  try {
+    conn = await getConnection();
+    return await conn.client.menu('/system/script').get();
+  } catch (e) {
+    logger.error('Error getting MikroTik system scripts:', e);
+    return [];
+  } finally {
+    if (conn && conn.api) conn.api.close();
+  }
+}
+
+async function getSystemResource() {
+  let conn = null;
+  try {
+    conn = await getConnection();
+    const result = await conn.client.menu('/system/resource').get();
+    return result[0];
+  } catch (e) {
+    logger.error('Error getting MikroTik system resource:', e);
+    throw e;
+  } finally {
+    if (conn && conn.api) conn.api.close();
+  }
+}
+
 async function getHotspotProfiles() {
   let conn = null;
   try {
@@ -392,5 +419,7 @@ module.exports = {
   deleteHotspotUserProfile,
   getBackup,
   kickPppoeUser,
-  kickHotspotUser
+  kickHotspotUser,
+  getSystemResource,
+  getSystemScripts
 };

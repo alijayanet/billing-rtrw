@@ -145,6 +145,14 @@ function getUnpaidInvoicesByCustomerId(customerId) {
   `).all(customerId);
 }
 
+function getTodayRevenue() {
+  return db.prepare(`
+    SELECT SUM(amount) as total, COUNT(*) as count 
+    FROM invoices 
+    WHERE status='paid' AND date(paid_at, 'localtime') = date('now', 'localtime')
+  `).get();
+}
+
 module.exports = {
   getInvoicesByPhone,
   getUnpaidInvoicesByCustomerId,
@@ -152,4 +160,5 @@ module.exports = {
   markAsPaid, markAsUnpaid, deleteInvoice,
   getInvoiceSummary, getMonthlyRevenue,
   getDashboardStats, getRecentPayments, getTopUnpaid,
+  getTodayRevenue
 };

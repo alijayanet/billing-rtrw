@@ -632,6 +632,16 @@ router.get('/settings', requireAdminSession, (req, res) => {
   });
 });
 
+router.post('/api/telegram/sync', requireAdminSession, async (req, res) => {
+  try {
+    const { initTelegram } = require('../services/telegramBot');
+    initTelegram();
+    res.json({ success: true, message: 'Bot Telegram berhasil disinkronkan.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post('/settings', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
   try {
     const newSettings = { ...req.body };
@@ -649,10 +659,17 @@ router.post('/settings', requireAdminSession, express.urlencoded({ extended: tru
     if (newSettings.whatsapp_broadcast_delay) newSettings.whatsapp_broadcast_delay = parseInt(newSettings.whatsapp_broadcast_delay);
     
     newSettings.login_otp_enabled = (newSettings.login_otp_enabled === 'true');
+    newSettings.telegram_enabled = (newSettings.telegram_enabled === 'true');
 
     const success = saveSettings(newSettings);
     if (success) {
-      req.session._msg = { type: 'success', text: 'Pengaturan berhasil disimpan!' };
+      // Re-init services if needed
+      if (newSettings.telegram_enabled) {
+        require('../services/telegramBot').initTelegram();
+      } else {
+        require('../services/telegramBot').initTelegram(); // This will stop it if it was running
+      }
+      req.session._msg = { type: 'success', text: 'Pengaturan berhasil disimpan.' };
     } else {
       req.session._msg = { type: 'error', text: 'Gagal menyimpan pengaturan' };
     }

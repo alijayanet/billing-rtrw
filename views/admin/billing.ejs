@@ -109,6 +109,9 @@
                   <form method="POST" action="/admin/customers/<%= inv.customer_id %>/unisolate" style="display:inline" onsubmit="return confirm('Buka isolir pelanggan ini tanpa bayar?')">
                     <button class="btn btn-p btn-icon btn-sm" title="Buka Isolir"><i class="bi bi-wifi"></i></button>
                   </form>
+                  <form method="POST" action="/admin/billing/<%= inv.id %>/whatsapp" style="display:inline">
+                    <button class="btn btn-icon btn-sm" style="background:#25d366;color:white" title="Kirim Tagihan WA"><i class="bi bi-whatsapp"></i></button>
+                  </form>
                 <%}else{%>
                   <a href="/admin/billing/<%= inv.id %>/print" target="_blank" class="btn btn-s btn-icon btn-sm" title="Cetak Struk/Invoice"><i class="bi bi-printer"></i></a>
                   <form method="POST" action="/admin/billing/<%= inv.id %>/unpay" style="display:inline" onsubmit="return confirm('Batalkan status lunas?')">
