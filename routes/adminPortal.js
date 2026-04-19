@@ -905,12 +905,18 @@ router.post('/whatsapp/broadcast', requireAdminSession, express.urlencoded({ ext
           const totalTagihan = unpaidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
           const rincianBulan = unpaidInvoices.map(inv => `${inv.period_month}/${inv.period_year}`).join(', ');
           
+          // Generate Link Login
+          const protocol = req.protocol;
+          const host = req.get('host');
+          const loginLink = `${protocol}://${host}/customer/login`;
+
           // Format Pesan
           let formattedMsg = message
             .replace(/{{nama}}/gi, cust.name || 'Pelanggan')
             .replace(/{{tagihan}}/gi, totalTagihan.toLocaleString('id-ID'))
             .replace(/{{rincian}}/gi, rincianBulan || '-')
-            .replace(/{{paket}}/gi, cust.package_name || '-');
+            .replace(/{{paket}}/gi, cust.package_name || '-')
+            .replace(/{{link}}/gi, loginLink);
 
           await sendWA(cust.phone, formattedMsg);
           global.broadcastStatus.sent++;
