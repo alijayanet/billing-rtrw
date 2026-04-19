@@ -139,9 +139,79 @@ router.post('/login', async (req, res) => {
     return res.render('login', { error: 'Nomor telepon atau perangkat tidak ditemukan.', settings });
   }
 
-  console.log(`[Login] Login successful. Using session ID: ${effectiveTag}`);
+  // --- OTP LOGIC ---
+  if (settings.login_otp_enabled) {
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const expiry = Date.now() + 5 * 60 * 1000; // 5 menit
+    
+    // Simpan ke session sementara
+    req.session.pending_login = {
+      phone: phone,
+      effectiveTag: effectiveTag,
+      otp: otp,
+      expiry: expiry
+    };
+
+    console.log(`[Login] OTP Generated for ${phone}: ${otp}`);
+
+    // Kirim via WhatsApp
+    if (settings.whatsapp_enabled) {
+      try {
+        const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');
+        
+        if (whatsappStatus.connection !== 'open') {
+          throw new Error('Sistem WhatsApp sedang tidak aktif. Silakan hubungi Admin.');
+        }
+
+        const msg = `🛡️ *KODE VERIFIKASI (OTP)*\n\nKode Anda adalah: *${otp}*\n\nJangan berikan kode ini kepada siapapun. Kode berlaku selama 5 menit.`;
+        const sent = await sendWA(phone, msg);
+        
+        if (!sent) {
+          throw new Error('Gagal mengirim kode OTP melalui WhatsApp. Pastikan nomor Anda terdaftar di WhatsApp.');
+        }
+
+        console.log(`[Login] OTP sent to ${phone} via WA`);
+      } catch (e) {
+        console.error(`[Login] Failed to send OTP via WA:`, e.message);
+        return res.render('login', { error: e.message, settings });
+      }
+    }
+
+    return res.redirect('/customer/login-otp');
+  }
+
+  // --- DIRECT LOGIN ---
+  console.log(`[Login] Login successful (Direct). Using session ID: ${effectiveTag}`);
   req.session.phone = effectiveTag;
   return res.redirect('/customer/dashboard');
+});
+
+router.get('/login-otp', (req, res) => {
+  const settings = getSettingsWithCache();
+  if (!req.session.pending_login) return res.redirect('/customer/login');
+  res.render('login_otp', { error: null, settings, phone: req.session.pending_login.phone });
+});
+
+router.post('/login-otp', (req, res) => {
+  const { otp } = req.body;
+  const settings = getSettingsWithCache();
+  const pending = req.session.pending_login;
+
+  if (!pending) return res.redirect('/customer/login');
+
+  if (Date.now() > pending.expiry) {
+    delete req.session.pending_login;
+    return res.render('login', { error: 'Kode OTP telah kadaluarsa. Silakan login kembali.', settings });
+  }
+
+  if (otp === pending.otp) {
+    console.log(`[Login] OTP verified for ${pending.phone}. Using session ID: ${pending.effectiveTag}`);
+    req.session.phone = pending.effectiveTag;
+    delete req.session.pending_login;
+    return res.redirect('/customer/dashboard');
+  } else {
+    return res.render('login_otp', { error: 'Kode OTP salah. Silakan coba lagi.', settings, phone: pending.phone });
+  }
 });
 
 router.get('/dashboard', async (req, res) => {

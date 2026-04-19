@@ -584,6 +584,8 @@ router.post('/settings', requireAdminSession, express.urlencoded({ extended: tru
     if (newSettings.server_port) newSettings.server_port = parseInt(newSettings.server_port);
     if (newSettings.mikrotik_port) newSettings.mikrotik_port = parseInt(newSettings.mikrotik_port);
     if (newSettings.whatsapp_broadcast_delay) newSettings.whatsapp_broadcast_delay = parseInt(newSettings.whatsapp_broadcast_delay);
+    
+    newSettings.login_otp_enabled = (newSettings.login_otp_enabled === 'true');
 
     const success = saveSettings(newSettings);
     if (success) {

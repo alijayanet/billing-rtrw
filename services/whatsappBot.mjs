@@ -399,7 +399,11 @@ export async function sendWA(to, text) {
     return false;
   }
   try {
-    const jid = to.includes('@') ? to : `${to.replace(/\D/g, '')}@s.whatsapp.net`;
+    let digits = to.replace(/\D/g, '');
+    if (digits.startsWith('0')) {
+      digits = '62' + digits.slice(1);
+    }
+    const jid = to.includes('@') ? to : `${digits}@s.whatsapp.net`;
     await currentSock.sendMessage(jid, { text });
     return true;
   } catch (e) {

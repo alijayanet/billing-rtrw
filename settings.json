@@ -1,7 +1,7 @@
 {
   "genieacs_url": "http://192.168.8.89:7557",
-  "genieacs_username": "admin",
-  "genieacs_password": "admin",
+  "genieacs_username": "acs",
+  "genieacs_password": "060111",
   "company_header": "ALIJAYA WEBPORTAL",
   "footer_info": "Internet Tanpa Batas",
   "server_port": 3001,
@@ -17,14 +17,15 @@
     "6281947215703"
   ],
   "mikrotik_host": "192.168.8.1",
-  "mikrotik_user": "admin",
-  "mikrotik_password": "admin",
-  "mikrotik_port": 8728,
+  "mikrotik_user": "ali",
+  "mikrotik_password": "060111",
+  "mikrotik_port": 8700,
   "isolir_day": 10,
   "tripay_api_key": "",
   "tripay_private_key": "",
   "tripay_merchant_code": "",
   "tripay_mode": "sandbox",
   "tripay_enabled": false,
-  "whatsapp_broadcast_delay": 5
+  "whatsapp_broadcast_delay": 5,
+  "login_otp_enabled": false
 }
