@@ -57,8 +57,11 @@
               <input class="fc" type="number" name="server_port" value="<%= settings.server_port || 3001 %>">
             </div>
             <div class="fg">
-              <label class="fl">Host Server</label>
-              <input class="fc" name="server_host" value="<%= settings.server_host || 'localhost' %>">
+              <label class="fl">Login OTP Pelanggan</label>
+              <select class="fs" name="login_otp_enabled">
+                <option value="true" <%= settings.login_otp_enabled ? 'selected' : '' %>>Aktif (Kirim via WA)</option>
+                <option value="false" <%= !settings.login_otp_enabled ? 'selected' : '' %>>Nonaktif (Langsung)</option>
+              </select>
             </div>
           </div>
         </div>

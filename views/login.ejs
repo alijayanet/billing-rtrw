@@ -116,6 +116,11 @@
               <i class="bi bi-person-badge me-2"></i>ID/Tag Pelanggan
             </label>
           </div>
+          <% if (settings.login_otp_enabled) { %>
+            <div class="text-center mb-3 text-muted small">
+              <i class="bi bi-whatsapp text-success me-1"></i> Kode OTP akan dikirim via WhatsApp
+            </div>
+          <% } %>
           <button type="submit" class="btn btn-primary btn-login w-100">
             <i class="bi bi-box-arrow-in-right me-2"></i>Masuk
           </button>

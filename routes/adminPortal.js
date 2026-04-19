@@ -287,35 +287,54 @@ router.post('/customers/import', requireAdminSession, upload.single('file'), asy
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws);
+    console.log(`[Import] Found ${rows.length} rows in Excel file.`);
     
     const packages = customerSvc.getAllPackages();
     let count = 0;
 
-    for (const row of rows) {
-      const pkg = packages.find(p => p.name === row['Paket']);
+    for (let row of rows) {
+      // Normalize row keys (trim whitespace)
+      const cleanRow = {};
+      Object.keys(row).forEach(key => {
+        cleanRow[key.trim()] = row[key];
+      });
+
+      const name = cleanRow['Nama'] || cleanRow['name'] || cleanRow['Name'];
+      if (!name) {
+        console.log(`[Import] Skipping row - Name is empty:`, cleanRow);
+        continue; 
+      }
+
+      const pkgName = cleanRow['Paket'] || cleanRow['package'] || cleanRow['Package'];
+      const pkg = packages.find(p => p.name === pkgName);
+      
       const data = {
-        name: row['Nama'],
-        phone: row['Telepon'],
-        address: row['Alamat'],
+        name: name,
+        phone: cleanRow['Telepon'] || cleanRow['phone'] || cleanRow['Phone'],
+        address: cleanRow['Alamat'] || cleanRow['address'] || cleanRow['Address'],
         package_id: pkg ? pkg.id : null,
-        genieacs_tag: row['Tag ONU'],
-        pppoe_username: row['PPPoE Username'],
-        isolir_profile: row['Isolir Profile'] || 'isolir',
-        status: (row['Status'] || 'active').toLowerCase(),
-        install_date: row['Tanggal Pasang'],
-        auto_isolate: row['Auto Isolir'] === 'TIDAK' ? 0 : 1,
-        isolate_day: parseInt(row['Tgl Isolir']) || 10,
-        notes: row['Catatan']
+        genieacs_tag: cleanRow['Tag ONU'] || cleanRow['genieacs_tag'],
+        pppoe_username: cleanRow['PPPoE Username'] || cleanRow['pppoe_username'],
+        isolir_profile: cleanRow['Isolir Profile'] || cleanRow['isolir_profile'] || 'isolir',
+        status: (cleanRow['Status'] || cleanRow['status'] || 'active').toLowerCase(),
+        install_date: cleanRow['Tanggal Pasang'] || cleanRow['install_date'],
+        auto_isolate: (cleanRow['Auto Isolir'] === 'TIDAK' || cleanRow['auto_isolate'] === 0) ? 0 : 1,
+        isolate_day: parseInt(cleanRow['Tgl Isolir'] || cleanRow['isolate_day']) || 10,
+        notes: cleanRow['Catatan'] || cleanRow['notes']
       };
       
-      if (row['ID'] && !isNaN(row['ID'])) {
-        customerSvc.updateCustomer(row['ID'], data);
+      const id = cleanRow['ID'] || cleanRow['id'];
+      if (id && !isNaN(id) && id !== '') {
+        console.log(`[Import] Updating customer ID: ${id}`);
+        customerSvc.updateCustomer(id, data);
       } else {
+        console.log(`[Import] Creating new customer: ${name}`);
         customerSvc.createCustomer(data);
       }
       count++;
     }
     
+    console.log(`[Import] Finished. Total processed: ${count}`);
     req.session._msg = { type: 'success', text: `Berhasil mengimpor ${count} data pelanggan.` };
   } catch (e) {
     logger.error('Import error:', e);
@@ -851,10 +870,17 @@ router.post('/whatsapp/broadcast', requireAdminSession, express.urlencoded({ ext
       customers = allCust.filter(c => c.unpaid_count > 0);
     }
 
-    // Ambil nomor HP unik yang valid
-    const targetNumbers = [...new Set(customers.map(c => c.phone).filter(p => p && p.length > 8))];
+    // Ambil pelanggan unik berdasarkan nomor HP
+    const uniqueCustomers = [];
+    const seenPhones = new Set();
+    for (const c of customers) {
+      if (c.phone && c.phone.length > 8 && !seenPhones.has(c.phone)) {
+        uniqueCustomers.push(c);
+        seenPhones.add(c.phone);
+      }
+    }
 
-    if (targetNumbers.length === 0) {
+    if (uniqueCustomers.length === 0) {
       throw new Error('Tidak ada nomor pelanggan yang valid untuk target tersebut.');
     }
 
@@ -863,20 +889,33 @@ router.post('/whatsapp/broadcast', requireAdminSession, express.urlencoded({ ext
     // Initialize Tracker
     global.broadcastStatus = {
       active: true,
-      total: targetNumbers.length,
+      total: uniqueCustomers.length,
       sent: 0,
       failed: 0,
       startTime: new Date()
     };
 
     const sendMessageAsync = async () => {
-      for (const phone of targetNumbers) {
+      for (const cust of uniqueCustomers) {
         try {
           await new Promise(r => setTimeout(r, delayMs)); 
-          await sendWA(phone, message);
+          
+          // Hitung Tagihan
+          const unpaidInvoices = billingSvc.getUnpaidInvoicesByCustomerId(cust.id);
+          const totalTagihan = unpaidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+          const rincianBulan = unpaidInvoices.map(inv => `${inv.period_month}/${inv.period_year}`).join(', ');
+          
+          // Format Pesan
+          let formattedMsg = message
+            .replace(/{{nama}}/gi, cust.name || 'Pelanggan')
+            .replace(/{{tagihan}}/gi, totalTagihan.toLocaleString('id-ID'))
+            .replace(/{{rincian}}/gi, rincianBulan || '-')
+            .replace(/{{paket}}/gi, cust.package_name || '-');
+
+          await sendWA(cust.phone, formattedMsg);
           global.broadcastStatus.sent++;
         } catch (e) {
-          logger.error(`[Broadcast] Gagal kirim ke ${phone}: ${e.message}`);
+          logger.error(`[Broadcast] Gagal kirim ke ${cust.phone}: ${e.message}`);
           global.broadcastStatus.failed++;
         }
       }

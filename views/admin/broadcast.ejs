@@ -60,7 +60,9 @@
               <label class="fl">Isi Pesan WhatsApp</label>
               <textarea class="fc" name="message" id="messageBox" rows="8" required style="width: 100%;"></textarea>
               <div style="font-size: 11px; color: var(--muted); margin-top: 6px;">
-                <i class="bi bi-chat-text"></i> Gunakan *Tebal*, _Miring_, atau ~Coret~ sesuai standar WhatsApp. Anda bisa mengedit template di atas.
+                <i class="bi bi-info-circle"></i> Gunakan variabel: <b>{{nama}}</b> (Nama), <b>{{tagihan}}</b> (Total Rp), <b>{{rincian}}</b> (Bulan Tagihan), <b>{{paket}}</b> (Nama Paket).
+                <br>
+                <i class="bi bi-chat-text"></i> Gunakan *Tebal*, _Miring_, atau ~Coret~ sesuai standar WhatsApp.
               </div>
             </div>
           </div>
@@ -76,13 +78,13 @@
 
 <script>
 const templates = {
-  all: `Yth. Pelanggan <%= company %>,\n\nBersama ini kami informasikan bahwa akan ada pemeliharaan jaringan rutin pada:\nHari/Tanggal: ...\nPukul: ...\n\nSelama proses tersebut, layanan internet akan terganggu sementara waktu. Kami memohon maaf atas ketidaknyamanan ini.\n\nTerima kasih atas pengertian Anda.\nSalam,\nAdmin <%= company %>`,
+  all: `Yth. Pelanggan {{nama}},\n\nBersama ini kami informasikan bahwa akan ada pemeliharaan jaringan rutin pada:\nHari/Tanggal: ...\nPukul: ...\n\nSelama proses tersebut, layanan internet (Paket {{paket}}) akan terganggu sementara waktu. Kami memohon maaf atas ketidaknyamanan ini.\n\nTerima kasih atas pengertian Anda.\nSalam,\nAdmin <%= company %>`,
   
-  active: `Yth. Pelanggan Setia <%= company %>,\n\nTerima kasih telah mempercayakan kebutuhan internet Anda kepada kami. Nikmati terus layanan terbaik tanpa hambatan.\n\nJika ada kendala, jangan ragu untuk menghubungi layanan pelanggan kami.\n\nSalam,\nAdmin <%= company %>`,
+  active: `Yth. Pelanggan Setia {{nama}},\n\nTerima kasih telah mempercayakan kebutuhan internet Anda kepada kami. Nikmati terus layanan terbaik Paket {{paket}} tanpa hambatan.\n\nJika ada kendala, jangan ragu untuk menghubungi layanan pelanggan kami.\n\nSalam,\nAdmin <%= company %>`,
   
-  suspended: `Yth. Pelanggan <%= company %>,\n\nMohon maaf, layanan internet Anda saat ini sedang dinonaktifkan (Terisolir). \n\nSilakan abaikan pesan ini jika Anda sudah melakukan pembayaran. Jika belum, mohon segera melakukan pelunasan agar layanan dapat diaktifkan kembali.\n\nTerima kasih.\nSalam,\nAdmin <%= company %>`,
+  suspended: `Yth. Pelanggan {{nama}},\n\nMohon maaf, layanan internet Anda saat ini sedang dinonaktifkan (Terisolir). \n\nTotal tunggakan Anda: *Rp {{tagihan}}* (Periode: {{rincian}}).\n\nSilakan abaikan pesan ini jika Anda sudah melakukan pembayaran. Jika belum, mohon segera melakukan pelunasan agar layanan dapat diaktifkan kembali.\n\nTerima kasih.\nSalam,\nAdmin <%= company %>`,
   
-  unpaid: `Yth. Pelanggan <%= company %>,\n\nBerdasarkan data sistem kami, Anda memiliki tagihan internet yang *BELUM LUNAS*.\n\nUntuk menghindari pemutusan layanan (Isolir Otomatis), mohon untuk segera melakukan pembayaran bulan ini. Anda dapat membayar melalui portal pelanggan atau menghubungi admin.\n\nTerima kasih atas kerja samanya.\nSalam,\nAdmin <%= company %>`
+  unpaid: `Yth. Pelanggan {{nama}},\n\nBerdasarkan data sistem kami, Anda memiliki tagihan internet yang *BELUM LUNAS*.\n\n📦 *Paket:* {{paket}}\n💰 *Total Tagihan:* Rp {{tagihan}}\n📅 *Periode:* {{rincian}}\n\nUntuk menghindari pemutusan layanan (Isolir Otomatis), mohon untuk segera melakukan pembayaran. Anda dapat membayar melalui portal pelanggan atau menghubungi admin.\n\nTerima kasih atas kerja samanya.\nSalam,\nAdmin <%= company %>`
 };
 
 const targetSelect = document.getElementById('targetSelect');
