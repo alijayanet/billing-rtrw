@@ -518,6 +518,50 @@ router.post('/billing/:id/unpay', requireAdminSession, (req, res) => {
   res.redirect('back');
 });
 
+router.post('/billing/:id/whatsapp', requireAdminSession, async (req, res) => {
+  try {
+    const inv = billingSvc.getInvoiceById(req.params.id);
+    if (!inv) throw new Error('Tagihan tidak ditemukan');
+    
+    const customer = customerSvc.getCustomerById(inv.customer_id);
+    if (!customer || !customer.phone) throw new Error('Nomor WhatsApp pelanggan tidak ditemukan');
+
+    const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');
+    
+    if (whatsappStatus.connection !== 'open') {
+      throw new Error('Bot WhatsApp belum terhubung. Silakan cek status WhatsApp di menu Admin.');
+    }
+
+    // Hitung Tagihan
+    const unpaidInvoices = billingSvc.getUnpaidInvoicesByCustomerId(customer.id);
+    const totalTagihan = unpaidInvoices.reduce((sum, i) => sum + i.amount, 0);
+    const rincianBulan = unpaidInvoices.map(i => `${i.period_month}/${i.period_year}`).join(', ');
+    
+    // Generate Link Login
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const loginLink = `${protocol}://${host}/customer/login`;
+
+    // Pesan Template (Sama dengan Broadcast Unpaid)
+    const template = `Yth. *{{nama}}*,\n\nBerdasarkan data sistem kami, Anda memiliki tagihan internet yang *BELUM LUNAS*.\n\n📦 *Paket:* {{paket}}\n💰 *Total Tagihan:* Rp {{tagihan}}\n📅 *Periode:* {{rincian}}\n\nMohon segera melakukan pembayaran melalui portal pelanggan: {{link}}\n\nTerima kasih atas kerja samanya.\nSalam,\nAdmin ${getSetting('company_header', 'ISP')}`;
+
+    const formattedMsg = template
+      .replace(/{{nama}}/gi, customer.name || 'Pelanggan')
+      .replace(/{{tagihan}}/gi, totalTagihan.toLocaleString('id-ID'))
+      .replace(/{{rincian}}/gi, rincianBulan || '-')
+      .replace(/{{paket}}/gi, inv.package_name || '-')
+      .replace(/{{link}}/gi, loginLink);
+
+    const sent = await sendWA(customer.phone, formattedMsg);
+    if (!sent) throw new Error('Gagal mengirim pesan melalui WhatsApp Bot.');
+
+    req.session._msg = { type: 'success', text: `Tagihan WhatsApp berhasil dikirim ke ${customer.name}.` };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal kirim WA: ' + e.message };
+  }
+  res.redirect('back');
+});
+
 router.post('/billing/:id/delete', requireAdminSession, (req, res) => {
   try {
     billingSvc.deleteInvoice(req.params.id);
