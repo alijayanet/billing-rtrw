@@ -4,7 +4,13 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Pelanggan | <%= company %></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    #picker-map { height: 400px; width: 100%; border-radius: 8px; margin-bottom: 15px; }
+    .picker-icon { color: #3b82f6; font-size: 32px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); display: block; width: 32px; height: 32px; text-align: center; line-height: 32px; text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff; }
+  </style>
 </head>
 <body>
 <%- include('partials/sidebar', { activePage: 'customers', company }) %>
@@ -194,6 +200,44 @@
             <input class="fc" type="number" name="isolate_day" value="10" min="1" max="31">
           </div>
         </div>
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Perangkat OLT</label>
+            <select class="fs" name="olt_id">
+              <option value="">-- Tanpa OLT --</option>
+              <% if (typeof olts !== 'undefined') { %>
+                <% olts.forEach(o => { %>
+                  <option value="<%= o.id %>"><%= o.name %> (<%= o.brand %>)</option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">ODP</label>
+            <select class="fs" name="odp_id">
+              <option value="">-- Tanpa ODP --</option>
+              <% if (typeof odps !== 'undefined') { %>
+                <% odps.forEach(o => { %>
+                  <option value="<%= o.id %>"><%= o.name %></option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+        </div>
+        <div class="fg"><label class="fl">Port PON / ODP</label><input class="fc" name="pon_port" placeholder="Contoh: PON 1/1, ODP-01"></div>
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Latitude</label>
+            <input class="fc" name="lat" id="add_lat" placeholder="-6.xxx">
+          </div>
+          <div class="fg">
+            <label class="fl">Longitude</label>
+            <div style="display:flex;gap:4px">
+              <input class="fc" name="lng" id="add_lng" placeholder="106.xxx">
+              <button type="button" class="btn btn-g btn-sm" onclick="openPicker('add')" title="Pilih di Peta"><i class="bi bi-geo-alt"></i></button>
+            </div>
+          </div>
+        </div>
         <div class="fg"><label class="fl">Catatan</label><textarea class="fc" name="notes" placeholder="Opsional..."></textarea></div>
       </div>
       <div class="mf">
@@ -306,6 +350,44 @@
             <input class="fc" type="number" name="isolate_day" id="e_isolate_day" min="1" max="31">
           </div>
         </div>
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Perangkat OLT</label>
+            <select class="fs" name="olt_id" id="e_olt_id">
+              <option value="">-- Tanpa OLT --</option>
+              <% if (typeof olts !== 'undefined') { %>
+                <% olts.forEach(o => { %>
+                  <option value="<%= o.id %>"><%= o.name %> (<%= o.brand %>)</option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">ODP</label>
+            <select class="fs" name="odp_id" id="e_odp_id">
+              <option value="">-- Tanpa ODP --</option>
+              <% if (typeof odps !== 'undefined') { %>
+                <% odps.forEach(o => { %>
+                  <option value="<%= o.id %>"><%= o.name %></option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+        </div>
+        <div class="fg"><label class="fl">Port PON / ODP</label><input class="fc" name="pon_port" id="e_pon_port"></div>
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Latitude</label>
+            <input class="fc" name="lat" id="e_lat" placeholder="-6.xxx">
+          </div>
+          <div class="fg">
+            <label class="fl">Longitude</label>
+            <div style="display:flex;gap:4px">
+              <input class="fc" name="lng" id="e_lng" placeholder="106.xxx">
+              <button type="button" class="btn btn-g btn-sm" onclick="openPicker('edit')" title="Pilih di Peta"><i class="bi bi-geo-alt"></i></button>
+            </div>
+          </div>
+        </div>
         <div class="fg"><label class="fl">Catatan</label><textarea class="fc" name="notes" id="e_notes"></textarea></div>
       </div>
       <div class="mf">
@@ -316,11 +398,90 @@
   </div>
 </div>
 
+<!-- Modal Map Picker -->
+<div class="mo" id="mapPickerModal">
+  <div class="mb" style="max-width:800px">
+    <div class="mh"><span class="mt"><i class="bi bi-geo-alt"></i> Pilih Lokasi Pelanggan</span><button class="mc" onclick="closeModal('mapPickerModal')">&times;</button></div>
+    <div class="mbody">
+      <div id="picker-map"></div>
+      <div class="alert alert-i" style="margin-bottom:0">
+        <i class="bi bi-info-circle"></i> Geser penanda (marker) atau klik pada peta untuk menentukan lokasi yang akurat.
+      </div>
+    </div>
+    <div class="mf">
+      <button type="button" class="btn btn-p" onclick="closeModal('mapPickerModal')">Selesai</button>
+    </div>
+  </div>
+</div>
+
 <script id="customers-data" type="application/json"><%- JSON.stringify(customers) %></script>
+<script id="settings-data" type="application/json"><%- JSON.stringify(settings) %></script>
 <script>
 const customersData = JSON.parse(document.getElementById('customers-data').textContent);
+const appSettings = JSON.parse(document.getElementById('settings-data').textContent);
+let pickerMap, pickerMarker, activePickerType;
+
+const officeCoords = {
+  lat: parseFloat(appSettings.office_lat) || -6.200000,
+  lng: parseFloat(appSettings.office_lng) || 106.816666
+};
+
 function openModal(id){document.getElementById(id).classList.add('show')}
 function closeModal(id){document.getElementById(id).classList.remove('show')}
+
+function openPicker(type) {
+  activePickerType = type;
+  openModal('mapPickerModal');
+  
+  let currentLat = document.getElementById(type === 'add' ? 'add_lat' : 'e_lat').value;
+  let currentLng = document.getElementById(type === 'add' ? 'add_lng' : 'e_lng').value;
+  
+  let startLat = parseFloat(currentLat) || officeCoords.lat;
+  let startLng = parseFloat(currentLng) || officeCoords.lng;
+
+  setTimeout(() => {
+    if (!pickerMap) {
+      pickerMap = L.map('picker-map').setView([startLat, startLng], 16);
+      L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      }).addTo(pickerMap);
+      
+      const customIcon = L.divIcon({
+        html: '<i class="bi bi-geo-alt-fill picker-icon"></i>',
+        className: 'custom-div-icon',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32]
+      });
+
+      pickerMarker = L.marker([startLat, startLng], { 
+        draggable: true,
+        icon: customIcon
+      }).addTo(pickerMap);
+      
+      pickerMarker.on('dragend', function() {
+        const pos = pickerMarker.getLatLng();
+        updateInputs(pos.lat, pos.lng);
+      });
+
+      pickerMap.on('click', function(e) {
+        pickerMarker.setLatLng(e.latlng);
+        updateInputs(e.latlng.lat, e.latlng.lng);
+      });
+    } else {
+      pickerMap.setView([startLat, startLng], 16);
+      pickerMarker.setLatLng([startLat, startLng]);
+      pickerMap.invalidateSize();
+    }
+  }, 300);
+}
+
+function updateInputs(lat, lng) {
+  const prefix = activePickerType === 'add' ? 'add_' : 'e_';
+  document.getElementById(prefix + 'lat').value = lat.toFixed(8);
+  document.getElementById(prefix + 'lng').value = lng.toFixed(8);
+}
+
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show')}));
 function editCust(idx) {
   const c = customersData[idx];
@@ -334,6 +495,11 @@ function editCust(idx) {
   document.getElementById('e_router_id').value=c.router_id||'';
   document.getElementById('e_tag').value=c.genieacs_tag||'';
   document.getElementById('e_pppoe').value=c.pppoe_username||'';
+  document.getElementById('e_olt_id').value=c.olt_id||'';
+  document.getElementById('e_odp_id').value=c.odp_id||'';
+  document.getElementById('e_pon_port').value=c.pon_port||'';
+  document.getElementById('e_lat').value=c.lat||'';
+  document.getElementById('e_lng').value=c.lng||'';
   document.getElementById('e_isolir_profile').value=c.isolir_profile||'isolir';
   document.getElementById('e_status').value=c.status||'active';
   document.getElementById('e_install').value=c.install_date||'';

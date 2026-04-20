@@ -1,0 +1,233 @@
+<!-- views/tech/map.ejs -->
+<%- include('partials/header') %>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  #map { height: calc(100vh - 145px); border-radius: 12px; margin-top: 10px; z-index: 1; border: 1px solid #334155; background: #0f172a; }
+  .map-info { background: #1e293b; padding: 12px; border-radius: 12px; margin-bottom: 10px; font-size: 13px; border: 1px solid #334155; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+  
+  /* Tech Stats */
+  .tech-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .tsc { background: #1e293b; border: 1px solid #334155; padding: 10px; border-radius: 10px; text-align: center; }
+  .tsc .val { display: block; font-size: 16px; font-weight: 700; color: #f8fafc; }
+  .tsc .lbl { display: block; font-size: 9px; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-top: 2px; }
+  .tsc-w { border-bottom: 3px solid #f59e0b; }
+  .tsc-s { border-bottom: 3px solid #10b981; }
+  .tsc-d { border-bottom: 3px solid #ef4444; }
+
+  /* Tech Legend Grid */
+  .legend-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .lc { background: #1e293b; border: 1px solid #334155; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .lc i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+  .lc span { font-size: 11px; font-weight: 700; color: #f1f5f9; }
+
+  .marker-odp { color: #f59e0b; font-size: 16px; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; }
+  .marker-cust-active { color: #3b82f6; font-size: 18px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; }
+  .marker-cust-suspended { color: #ef4444; font-size: 18px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; }
+  .popup-dark { color: #1e293b; }
+  .popup-dark h6 { margin: 0 0 5px 0; border-bottom: 1px solid #ddd; padding-bottom: 5px; font-weight: bold; }
+  .btn-wa { background: #25d366; color: white; border: none; padding: 5px 10px; border-radius: 5px; text-decoration: none; display: inline-block; margin-top: 8px; font-size: 12px; }
+
+  /* Flowing line animation */
+  @keyframes flow {
+    from { stroke-dashoffset: 20; }
+    to { stroke-dashoffset: 0; }
+  }
+  .flowing-line {
+    animation: flow 1s linear infinite;
+  }
+</style>
+
+<div class="tech-stats">
+  <div class="tsc tsc-w">
+    <span class="val"><%= odps.length %></span>
+    <span class="lbl">Total ODP</span>
+  </div>
+  <div class="tsc tsc-s">
+    <span class="val"><%= customers.filter(c => c.status === 'active').length %></span>
+    <span class="lbl">Aktif</span>
+  </div>
+  <div class="tsc tsc-d">
+    <span class="val"><%= customers.filter(c => c.status !== 'active').length %></span>
+    <span class="lbl">Isolir</span>
+  </div>
+</div>
+
+<div class="legend-grid">
+  <div class="lc">
+    <i style="background: #f59e0b;"></i>
+    <span>ODP</span>
+  </div>
+  <div class="lc">
+    <i style="background: #3b82f6;"></i>
+    <span>Aktif</span>
+  </div>
+  <div class="lc">
+    <i style="background: #ef4444;"></i>
+    <span>Isolir</span>
+  </div>
+</div>
+
+<div class="map-info">
+  <div class="d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-info-circle me-1"></i> Mode: <b>Satelit (Navigasi)</b></span>
+    <span class="badge bg-primary">GPS Ready</span>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script id="settings-data" type="application/json"><%- JSON.stringify(settings) %></script>
+<script>
+  const appSettings = JSON.parse(document.getElementById('settings-data').textContent);
+  const officeCoords = {
+    lat: parseFloat(appSettings.office_lat) || -6.200000,
+    lng: parseFloat(appSettings.office_lng) || 106.816666
+  };
+
+  // Initialize Map
+  const map = L.map('map').setView([officeCoords.lat, officeCoords.lng], 13);
+
+  // Layers
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OSM'
+  });
+
+  const googleHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '© Google Sat'
+  });
+
+  osm.addTo(map); // Default set to OSM first
+  googleHybrid.addTo(map); // Then overlay satellite
+
+  const baseMaps = {
+    "Satelit": googleHybrid,
+    "Standard": osm
+  };
+
+  L.control.layers(baseMaps).addTo(map);
+
+  // Data Injection with safety
+  let customers = [];
+  let odps = [];
+  try {
+    customers = <%- JSON.stringify(customers).replace(/<\/script/g, '<\\/script').replace(/<!--/g, '<\\!--') %>;
+    odps = <%- JSON.stringify(odps).replace(/<\/script/g, '<\\/script').replace(/<!--/g, '<\\!--') %>;
+  } catch (e) {
+    console.error("Data mapping error:", e);
+  }
+
+  // Add ODP Markers
+  const odpMarkers = {};
+  odps.forEach(odp => {
+    if (odp.lat && odp.lng) {
+      odpMarkers[odp.id] = [odp.lat, odp.lng];
+      const marker = L.marker([odp.lat, odp.lng], {
+        icon: L.divIcon({
+          html: '<i class="bi bi-box-seam-fill marker-odp"></i>',
+          className: 'custom-div-icon',
+          iconSize: [16, 16],
+          iconAnchor: [8, 8]
+        })
+      }).addTo(map);
+      
+      marker.bindPopup(`
+        <div class="popup-dark">
+          <h6>${odp.name}</h6>
+          <div style="font-size:11px">
+            <b>OLT:</b> ${odp.olt_name || '-'}<br>
+            <b>Port:</b> ${odp.pon_port || '-'}<br>
+            <b>Ket:</b> ${odp.description || '-'}
+          </div>
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${odp.lat},${odp.lng}" target="_blank" class="btn btn-wa w-100 text-center mt-2" style="background:#3b82f6">
+            <i class="bi bi-signpost-2"></i> Petunjuk Arah
+          </a>
+        </div>
+      `);
+    }
+  });
+
+  // Add Customer Markers
+  customers.forEach(cust => {
+    if (cust.lat && cust.lng) {
+      const is_active = cust.status === 'active';
+      const iconClass = is_active ? 'marker-cust-active' : 'marker-cust-suspended';
+      
+      // Draw line to ODP if connected
+      if (cust.odp_id && odpMarkers[cust.odp_id]) {
+        L.polyline([
+          [cust.lat, cust.lng],
+          odpMarkers[cust.odp_id]
+        ], {
+          color: is_active ? '#3b82f6' : '#ef4444',
+          weight: 3,
+          opacity: 0.8,
+          dashArray: '10, 10',
+          className: 'flowing-line',
+          interactive: false
+        }).addTo(map);
+      }
+
+      const marker = L.marker([cust.lat, cust.lng], {
+        icon: L.divIcon({
+          html: `<i class="bi bi-person-fill ${iconClass}"></i>`,
+          className: 'custom-div-icon',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        })
+      }).addTo(map);
+
+      marker.bindPopup(`
+        <div class="popup-dark">
+          <h6>${cust.name}</h6>
+          <div style="font-size:11px">
+            <b>Alamat:</b> ${cust.address}<br>
+            <b>Paket:</b> ${cust.package_name || '-'}<br>
+            <b>Status:</b> ${cust.status}
+          </div>
+          <div class="d-flex gap-1">
+            <a href="https://wa.me/${cust.phone}" class="btn btn-wa flex-grow-1 text-center">
+              <i class="bi bi-whatsapp"></i> Chat
+            </a>
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${cust.lat},${cust.lng}" target="_blank" class="btn btn-wa flex-grow-1 text-center" style="background:#3b82f6">
+              <i class="bi bi-geo-alt"></i> Rute
+            </a>
+          </div>
+        </div>
+      `);
+    }
+  });
+
+  // Geolocation for Tech
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(position => {
+      const myLat = position.coords.latitude;
+      const myLng = position.coords.longitude;
+      
+      L.marker([myLat, myLng], {
+        icon: L.divIcon({
+          html: '<i class="bi bi-person-circle text-white" style="font-size:24px; text-shadow: 0 0 10px #3b82f6"></i>',
+          className: 'custom-div-icon',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        })
+      }).addTo(map).bindPopup("<div class='popup-dark text-center'><b>Posisi Anda</b></div>");
+    });
+  }
+
+  // Auto zoom
+  const group = L.featureGroup([...map._layers].filter(l => l instanceof L.Marker || l instanceof L.CircleMarker));
+  if (group.getLayers().length > 0) {
+    map.fitBounds(group.getBounds().pad(0.1));
+  }
+
+  // Fix for blank map on load
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 500);
+</script>
+
+<%- include('partials/bottom_nav') %>

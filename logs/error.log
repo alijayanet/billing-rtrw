@@ -1,0 +1,38 @@
+2026-04-20 07:22:18 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:22:18 error: Error getting PPPoE secrets:
+2026-04-20 07:22:18 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:22:18 error: Error getting active Hotspot sessions:
+2026-04-20 07:22:18 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:22:18 error: Error getting active PPPoE sessions:
+2026-04-20 07:22:18 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:22:18 error: Error getting Hotspot users:
+2026-04-20 07:22:18 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:22:18 error: Error getting PPPoE profiles:
+2026-04-20 07:22:18 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:22:18 error: Error getting Hotspot profiles:
+2026-04-20 07:23:16 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:23:16 error: Error getting PPPoE secrets:
+2026-04-20 07:23:16 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:23:16 error: Error getting Hotspot profiles:
+2026-04-20 07:23:16 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:23:16 error: Error getting Hotspot users:
+2026-04-20 07:23:16 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:23:16 error: Error getting PPPoE profiles:
+2026-04-20 07:23:16 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:23:16 error: Error getting active PPPoE sessions:
+2026-04-20 07:23:16 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:23:16 error: Error getting active Hotspot sessions:
+2026-04-20 07:23:33 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:23:33 error: Error getting PPPoE users:
+2026-04-20 07:23:33 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:23:33 error: Error getting PPPoE profiles:
+2026-04-20 07:23:35 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:23:35 error: Error getting PPPoE profiles:
+2026-04-20 07:40:15 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 07:40:15 error: Error getting PPPoE profiles:
+2026-04-20 08:14:50 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 08:14:50 error: Error getting PPPoE profiles:
+2026-04-20 08:14:50 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 08:14:50 error: Error getting PPPoE users:
+2026-04-20 08:15:06 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-20 08:15:06 error: Error getting PPPoE profiles:

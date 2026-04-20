@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const techSvc = require('../services/techService');
+const customerSvc = require('../services/customerService');
+const odpSvc = require('../services/odpService');
 const { getSetting } = require('../config/settingsManager');
 
 function requireTechSession(req, res, next) {
@@ -80,6 +82,22 @@ router.get('/history', requireTechSession, (req, res) => {
     activePage: 'history',
     tickets: historyTickets,
     msg: flashMsg(req)
+  });
+});
+
+// --- NETWORK MAP ---
+router.get('/map', requireTechSession, (req, res) => {
+  const customers = customerSvc.getAllCustomers();
+  const odps = odpSvc.getAllOdps();
+  
+  res.render('tech/map', { 
+    title: 'Peta Jaringan', 
+    company: company(), 
+    activePage: 'map', 
+    customers, 
+    odps,
+    msg: flashMsg(req),
+    settings: getSetting('office_lat') ? { office_lat: getSetting('office_lat'), office_lng: getSetting('office_lng') } : {}
   });
 });
 

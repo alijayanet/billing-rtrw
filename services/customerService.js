@@ -9,10 +9,14 @@ function getAllCustomers(search = '') {
     SELECT c.*, p.name as package_name, p.price as package_price,
            p.speed_down, p.speed_up,
            r.name as router_name,
+           o.name as olt_name,
+           odp.name as odp_name,
            (SELECT COUNT(*) FROM invoices WHERE customer_id=c.id AND status='unpaid') as unpaid_count
     FROM customers c
     LEFT JOIN packages p ON c.package_id = p.id
     LEFT JOIN routers r ON c.router_id = r.id
+    LEFT JOIN olts o ON c.olt_id = o.id
+    LEFT JOIN odps odp ON c.odp_id = odp.id
   `;
   if (search) {
     const s = `%${search}%`;
@@ -23,22 +27,29 @@ function getAllCustomers(search = '') {
 
 function getCustomerById(id) {
   return db.prepare(`
-    SELECT c.*, p.name as package_name, p.price as package_price, r.name as router_name
+    SELECT c.*, p.name as package_name, p.price as package_price, r.name as router_name, o.name as olt_name, odp.name as odp_name
     FROM customers c 
     LEFT JOIN packages p ON c.package_id = p.id 
     LEFT JOIN routers r ON c.router_id = r.id
+    LEFT JOIN olts o ON c.olt_id = o.id
+    LEFT JOIN odps odp ON c.odp_id = odp.id
     WHERE c.id = ?
   `).get(id);
 }
 
 function createCustomer(data) {
   return db.prepare(`
-    INSERT INTO customers (name, phone, email, address, package_id, router_id, genieacs_tag, pppoe_username, isolir_profile, status, install_date, notes, auto_isolate, isolate_day)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO customers (name, phone, email, address, package_id, router_id, olt_id, odp_id, pon_port, lat, lng, genieacs_tag, pppoe_username, isolir_profile, status, install_date, notes, auto_isolate, isolate_day)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.name, data.phone || '', data.email || '', data.address || '',
     data.package_id ? parseInt(data.package_id) : null,
     data.router_id ? parseInt(data.router_id) : null,
+    data.olt_id ? parseInt(data.olt_id) : null,
+    data.odp_id ? parseInt(data.odp_id) : null,
+    data.pon_port || '',
+    data.lat || '',
+    data.lng || '',
     data.genieacs_tag || '', data.pppoe_username || '', 
     data.isolir_profile || 'isolir',
     data.status || 'active',
@@ -50,12 +61,17 @@ function createCustomer(data) {
 
 function updateCustomer(id, data) {
   return db.prepare(`
-    UPDATE customers SET name=?, phone=?, email=?, address=?, package_id=?, router_id=?, genieacs_tag=?, pppoe_username=?, isolir_profile=?, status=?, install_date=?, notes=?, auto_isolate=?, isolate_day=?
+    UPDATE customers SET name=?, phone=?, email=?, address=?, package_id=?, router_id=?, olt_id=?, odp_id=?, pon_port=?, lat=?, lng=?, genieacs_tag=?, pppoe_username=?, isolir_profile=?, status=?, install_date=?, notes=?, auto_isolate=?, isolate_day=?
     WHERE id=?
   `).run(
     data.name, data.phone || '', data.email || '', data.address || '',
     data.package_id ? parseInt(data.package_id) : null,
     data.router_id ? parseInt(data.router_id) : null,
+    data.olt_id ? parseInt(data.olt_id) : null,
+    data.odp_id ? parseInt(data.odp_id) : null,
+    data.pon_port || '',
+    data.lat || '',
+    data.lng || '',
     data.genieacs_tag || '', data.pppoe_username || '', 
     data.isolir_profile || 'isolir',
     data.status || 'active',

@@ -10,6 +10,8 @@ const customerSvc = require('../services/customerService');
 const billingSvc = require('../services/billingService');
 const mikrotikService = require('../services/mikrotikService');
 const adminSvc = require('../services/adminService');
+const oltSvc = require('../services/oltService');
+const odpSvc = require('../services/odpService');
 const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
@@ -78,6 +80,116 @@ router.post('/login', express.urlencoded({ extended: true }), (req, res) => {
 });
 
 router.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/admin/login'); });
+
+// ─── OLT MANAGEMENT ────────────────────────────────────────────────────────
+router.get('/olts', requireAdminSession, async (req, res) => {
+  const olts = oltSvc.getAllOlts();
+  
+  // Ambil statistik real-time untuk setiap OLT menggunakan Promise.allSettled
+  // supaya jika ada satu OLT yang timeout/offline, halaman tetap bisa terbuka
+  const statsResults = await Promise.allSettled(olts.map(olt => oltSvc.getOltStats(olt.id)));
+  
+  const oltsWithStats = olts.map((olt, index) => {
+    const result = statsResults[index];
+    const stats = result.status === 'fulfilled' ? result.value : {
+      status: 'Offline',
+      uptime: 'Timeout',
+      temp: 'N/A',
+      cpu: 'N/A',
+      ram: 'N/A',
+      onus_total: 0,
+      onus_online: 0,
+      voltage: 'N/A',
+      uplink_rx: 0,
+      uplink_tx: 0
+    };
+    return { ...olt, stats };
+  });
+  
+  res.render('admin/olts', { 
+    title: 'Manajemen OLT', 
+    company: company(), 
+    activePage: 'olts', 
+    olts: oltsWithStats, 
+    msg: flashMsg(req) 
+  });
+});
+
+router.post('/olts', requireAdminSession, restrictToAdmin, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    oltSvc.createOlt(req.body);
+    req.session._msg = { type: 'success', text: 'OLT berhasil ditambahkan.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+  }
+  res.redirect('/admin/olts');
+});
+
+router.post('/olts/:id/update', requireAdminSession, restrictToAdmin, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    oltSvc.updateOlt(req.params.id, req.body);
+    req.session._msg = { type: 'success', text: 'OLT berhasil diperbarui.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+  }
+  res.redirect('/admin/olts');
+});
+
+router.post('/olts/:id/delete', requireAdminSession, restrictToAdmin, (req, res) => {
+  try {
+    oltSvc.deleteOlt(req.params.id);
+    req.session._msg = { type: 'success', text: 'OLT berhasil dihapus.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+  }
+  res.redirect('/admin/olts');
+});
+
+// ─── ODP & MAP MANAGEMENT ───────────────────────────────────────────────────
+router.get('/map', requireAdminSession, (req, res) => {
+  const customers = customerSvc.getAllCustomers();
+  const odps = odpSvc.getAllOdps();
+  
+  res.render('admin/map', { 
+    title: 'Peta Jaringan', 
+    company: company(), 
+    activePage: 'map', 
+    customers, 
+    odps,
+    msg: flashMsg(req),
+    settings: getSettings()
+  });
+});
+
+router.post('/odps', requireAdminSession, restrictToAdmin, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    odpSvc.createOdp(req.body);
+    req.session._msg = { type: 'success', text: 'ODP berhasil ditambahkan.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+  }
+  res.redirect('/admin/map');
+});
+
+router.post('/odps/:id/update', requireAdminSession, restrictToAdmin, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    odpSvc.updateOdp(req.params.id, req.body);
+    req.session._msg = { type: 'success', text: 'ODP berhasil diperbarui.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+  }
+  res.redirect('/admin/map');
+});
+
+router.post('/odps/:id/delete', requireAdminSession, restrictToAdmin, (req, res) => {
+  try {
+    odpSvc.deleteOdp(req.params.id);
+    req.session._msg = { type: 'success', text: 'ODP berhasil dihapus.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+  }
+  res.redirect('/admin/map');
+});
 
 // --- TECHNICIAN MANAGEMENT ---
 router.get('/technicians', requireAdminSession, restrictToAdmin, (req, res) => {
@@ -174,6 +286,8 @@ router.get('/customers', requireAdminSession, (req, res) => {
   const stats = customerSvc.getCustomerStats();
   const packages = customerSvc.getAllPackages();
   const routers = mikrotikService.getAllRouters();
+  const olts = oltSvc.getAllOlts();
+  const odps = odpSvc.getAllOdps();
 
   // Apply status filter in JS if provided
   const filteredCustomers = filterStatus 
@@ -182,7 +296,8 @@ router.get('/customers', requireAdminSession, (req, res) => {
 
   res.render('admin/customers', {
     title: 'Data Pelanggan', company: company(), activePage: 'customers',
-    customers: filteredCustomers, stats, packages, routers, search, filterStatus, msg: flashMsg(req)
+    customers: filteredCustomers, stats, packages, routers, olts, odps, search, filterStatus, msg: flashMsg(req),
+    settings: getSettings()
   });
 });
 

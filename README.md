@@ -1,4 +1,4 @@
-# 🚀 ALIJAYA BILLING SYSTEM
+# 🚀 ISP Management & Billing System
 
 ![ISP Management Hero](public/img/hero.png)
 

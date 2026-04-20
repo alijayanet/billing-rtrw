@@ -86,6 +86,16 @@
             <label class="fl">Alamat Kantor</label>
             <input class="fc" name="company_address" value="<%= settings.company_address || '' %>" placeholder="Jl. Utama No. 123">
           </div>
+          <div class="form-row">
+            <div class="fg">
+              <label class="fl">Latitude Kantor</label>
+              <input class="fc" name="office_lat" value="<%= settings.office_lat || '' %>" placeholder="-6.xxx">
+            </div>
+            <div class="fg">
+              <label class="fl">Longitude Kantor</label>
+              <input class="fc" name="office_lng" value="<%= settings.office_lng || '' %>" placeholder="106.xxx">
+            </div>
+          </div>
           <div class="fg">
             <label class="fl">Jam Operasional</label>
             <input class="fc" name="operational_hours" value="<%= settings.operational_hours || '' %>" placeholder="Setiap Hari: 08.00 - 22.00 WIB">

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title><%= title %> | <%= company %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    #map { height: calc(100vh - 200px); border-radius: 8px; margin-top: 10px; z-index: 1; background: #e5e7eb; }
+    .map-controls { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .legend { background: rgba(255, 255, 255, 0.98); padding: 12px 15px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-size: 13px; line-height: 2.2; font-weight: 700; color: #1e293b; border: 2px solid #cbd5e1; backdrop-filter: blur(5px); }
+    .legend i { width: 16px; height: 16px; display: inline-block; margin-right: 12px; border-radius: 50%; vertical-align: middle; border: 3px solid white; box-shadow: 0 0 8px rgba(0,0,0,0.3); }
+    
+    /* Stats Cards on Map */
+    .map-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 10px; }
+    .msc { padding: 12px; border-radius: 12px; background: white; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .msc-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .msc-p { background: #eff6ff; color: #3b82f6; }
+    .msc-s { background: #f0fdf4; color: #10b981; }
+    .msc-d { background: #fef2f2; color: #ef4444; }
+    .msc-w { background: #fff7ed; color: #f59e0b; }
+    .msc-info .val { font-size: 18px; font-weight: 700; line-height: 1.2; color: #1e293b; }
+    .msc-info .lbl { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+
+    /* Legend Cards */
+    .legend-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+    .lc { background: white; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+    .lc i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.2); }
+    .lc span { font-size: 12px; font-weight: 700; color: #334155; }
+
+    /* Picker Map in Modal */
+    #picker-map { height: 250px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #cbd5e1; z-index: 1; }
+    #edit-picker-map { height: 250px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #cbd5e1; z-index: 1; }
+    .picker-icon-odp { color: #f59e0b; font-size: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); display: block; width: 24px; height: 24px; text-align: center; line-height: 24px; text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff; }
+
+    .marker-odp { color: #f59e0b; font-size: 18px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff; }
+    .marker-cust-active { color: #3b82f6; font-size: 20px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff; }
+    .marker-cust-suspended { color: #ef4444; font-size: 20px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff; }
+    .popup-content { font-size: 13px; }
+    .popup-content h6 { margin: 0 0 5px 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    .popup-actions { margin-top: 10px; display: flex; gap: 5px; }
+
+    /* Flowing line animation */
+    @keyframes flow {
+      from { stroke-dashoffset: 20; }
+      to { stroke-dashoffset: 0; }
+    }
+    .flowing-line {
+      animation: flow 1s linear infinite;
+    }
+  </style>
+</head>
+<body>
+<%- include('partials/sidebar', { activePage: 'map', company }) %>
+
+<div class="mw">
+  <div class="topbar">
+    <div class="tb-title">
+      <button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+      <i class="bi bi-map"></i>
+      <span><%= title %></span>
+    </div>
+    <div class="tb-right">
+      <button class="btn btn-p btn-sm" onclick="openModal('addOdpModal')"><i class="bi bi-plus-circle"></i> Tambah ODP</button>
+    </div>
+  </div>
+
+  <div class="page">
+    <% if (msg) { %>
+      <div class="alert alert-<%= msg.type==='error'?'d':'s' %>"><%= msg.text %></div>
+    <% } %>
+
+    <div class="map-stats">
+        <div class="msc">
+            <div class="msc-icon msc-w"><i class="bi bi-box-seam-fill"></i></div>
+            <div class="msc-info">
+                <div class="val"><%= odps.length %></div>
+                <div class="lbl">Total ODP</div>
+            </div>
+        </div>
+        <div class="msc">
+            <div class="msc-icon msc-s"><i class="bi bi-person-check-fill"></i></div>
+            <div class="msc-info">
+                <div class="val"><%= customers.filter(c => c.status === 'active').length %></div>
+                <div class="lbl">Pelanggan Aktif</div>
+            </div>
+        </div>
+        <div class="msc">
+            <div class="msc-icon msc-d"><i class="bi bi-person-x-fill"></i></div>
+            <div class="msc-info">
+                <div class="val"><%= customers.filter(c => c.status !== 'active').length %></div>
+                <div class="lbl">Isolir / Nonaktif</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="legend-grid">
+        <div class="lc">
+            <i style="background: #f59e0b;"></i>
+            <span>ODP (Box)</span>
+        </div>
+        <div class="lc">
+            <i style="background: #3b82f6;"></i>
+            <span>Aktif</span>
+        </div>
+        <div class="lc">
+            <i style="background: #ef4444;"></i>
+            <span>Isolir</span>
+        </div>
+    </div>
+
+    <div id="map"></div>
+  </div>
+</div>
+
+<!-- Modal Tambah ODP -->
+<div class="mo" id="addOdpModal">
+  <div class="mb">
+    <form action="/admin/odps" method="POST">
+      <div class="mh"><span class="mt">Tambah ODP Baru</span><button type="button" class="mc" onclick="closeModal('addOdpModal')">&times;</button></div>
+      <div class="mbody">
+        <div class="fg"><label class="fl">Nama ODP</label><input type="text" name="name" class="fc" placeholder="Contoh: ODP-A-01" required></div>
+        
+        <label class="fl">Pilih Lokasi di Peta</label>
+        <div id="picker-map"></div>
+
+        <div class="form-row">
+            <div class="fg"><label class="fl">Latitude</label><input type="text" name="lat" id="new_lat" class="fc" placeholder="-6.xxx" required></div>
+            <div class="fg"><label class="fl">Longitude</label><input type="text" name="lng" id="new_lng" class="fc" placeholder="106.xxx" required></div>
+        </div>
+        <p class="text-muted" style="font-size: 11px;">*Tips: Geser marker atau klik pada peta untuk menentukan posisi presisi</p>
+        <div class="fg"><label class="fl">Deskripsi</label><textarea name="description" class="fc" rows="2"></textarea></div>
+      </div>
+      <div class="mf">
+        <button type="button" class="btn btn-g" onclick="closeModal('addOdpModal')">Batal</button>
+        <button type="submit" class="btn btn-p">Simpan ODP</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Edit ODP -->
+<div class="mo" id="editOdpModal">
+  <div class="mb">
+    <form id="editOdpForm" method="POST">
+      <div class="mh"><span class="mt">Edit Data ODP</span><button type="button" class="mc" onclick="closeModal('editOdpModal')">&times;</button></div>
+      <div class="mbody">
+        <div class="fg"><label class="fl">Nama ODP</label><input type="text" name="name" id="e_odp_name" class="fc" required></div>
+        
+        <label class="fl">Sesuaikan Lokasi di Peta</label>
+        <div id="edit-picker-map"></div>
+
+        <div class="form-row">
+            <div class="fg"><label class="fl">Latitude</label><input type="text" name="lat" id="e_odp_lat" class="fc" required></div>
+            <div class="fg"><label class="fl">Longitude</label><input type="text" name="lng" id="e_odp_lng" class="fc" required></div>
+        </div>
+        <div class="fg"><label class="fl">Deskripsi</label><textarea name="description" id="e_odp_description" class="fc" rows="2"></textarea></div>
+      </div>
+      <div class="mf">
+        <button type="button" class="btn btn-g" onclick="closeModal('editOdpModal')">Batal</button>
+        <button type="submit" class="btn btn-p">Update ODP</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script id="settings-data" type="application/json"><%- JSON.stringify(settings) %></script>
+<script>
+  const appSettings = JSON.parse(document.getElementById('settings-data').textContent);
+  const officeCoords = {
+    lat: parseFloat(appSettings.office_lat) || -6.200000,
+    lng: parseFloat(appSettings.office_lng) || 106.816666
+  };
+
+  // Initialize Map
+  const map = L.map('map').setView([officeCoords.lat, officeCoords.lng], 13);
+
+  // Layers
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  });
+
+  const googleHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '© Google Satellite'
+  });
+
+  osm.addTo(map); // Default set to OSM first to ensure it's not blank
+  googleHybrid.addTo(map); // Then overlay satellite
+
+  const baseMaps = {
+    "OpenStreetMap": osm,
+    "Satelit (Hybrid)": googleHybrid
+  };
+
+  L.control.layers(baseMaps).addTo(map);
+
+  // Data Injection with safety
+  let customers = [];
+  let odps = [];
+  try {
+    customers = <%- JSON.stringify(customers).replace(/<\/script/g, '<\\/script').replace(/<!--/g, '<\\!--') %>;
+    odps = <%- JSON.stringify(odps).replace(/<\/script/g, '<\\/script').replace(/<!--/g, '<\\!--') %>;
+  } catch (e) {
+    console.error("Data mapping error:", e);
+  }
+
+  // Add ODP Markers
+  const odpMarkers = {}; // Store ODP coordinates for line mapping
+  odps.forEach(odp => {
+    if (odp.lat && odp.lng) {
+      odpMarkers[odp.id] = [odp.lat, odp.lng];
+      const marker = L.marker([odp.lat, odp.lng], {
+        icon: L.divIcon({
+          html: '<i class="bi bi-box-seam-fill marker-odp"></i>',
+          className: 'custom-div-icon',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        })
+      }).addTo(map);
+      
+      marker.bindPopup(`
+        <div class="popup-content">
+          <h6>${odp.name}</h6>
+          <div><strong>Deskripsi:</strong> ${odp.description || '-'}</div>
+          <div><strong>Lokasi:</strong> ${odp.lat}, ${odp.lng}</div>
+          <div class="popup-actions">
+            <button class="btn btn-sm btn-p" onclick='editOdp(${JSON.stringify(odp)})'>Edit</button>
+          </div>
+        </div>
+      `);
+    }
+  });
+
+  // Add Customer Markers
+  customers.forEach(cust => {
+    if (cust.lat && cust.lng) {
+      const is_active = cust.status === 'active';
+      const iconClass = is_active ? 'marker-cust-active' : 'marker-cust-suspended';
+      
+      // Draw line to ODP if connected
+      if (cust.odp_id && odpMarkers[cust.odp_id]) {
+        L.polyline([
+          [cust.lat, cust.lng],
+          odpMarkers[cust.odp_id]
+        ], {
+          color: is_active ? '#3b82f6' : '#ef4444',
+          weight: 3,
+          opacity: 0.8,
+          dashArray: '10, 10',
+          className: 'flowing-line',
+          interactive: false
+        }).addTo(map);
+      }
+
+      const marker = L.marker([cust.lat, cust.lng], {
+        icon: L.divIcon({
+          html: `<i class="bi bi-person-fill ${iconClass}"></i>`,
+          className: 'custom-div-icon',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(map);
+
+      marker.bindPopup(`
+        <div class="popup-content">
+          <h6>${cust.name}</h6>
+          <div><strong>Status:</strong> <span class="badge ${is_active ? 'bs' : 'bd'}">${cust.status}</span></div>
+          <div><strong>Paket:</strong> ${cust.package_name || '-'}</div>
+          <div><strong>Alamat:</strong> ${cust.address}</div>
+          <div class="popup-actions">
+             <a href="/admin/customers?search=${cust.name}" class="btn btn-sm btn-g">Lihat Detail</a>
+          </div>
+        </div>
+      `);
+    }
+  });
+
+  // Modal functions
+  let pickerMap, pickerMarker;
+  let editPickerMap, editPickerMarker;
+
+  function initPickerMap(lat, lng) {
+    if (!pickerMap) {
+      pickerMap = L.map('picker-map').setView([lat, lng], 16);
+      L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      }).addTo(pickerMap);
+      
+      const odpIcon = L.divIcon({
+        html: '<i class="bi bi-box-seam-fill picker-icon-odp"></i>',
+        className: 'custom-div-icon',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      pickerMarker = L.marker([lat, lng], { 
+        draggable: true,
+        icon: odpIcon
+      }).addTo(pickerMap);
+      
+      pickerMarker.on('dragend', function(e) {
+        const pos = pickerMarker.getLatLng();
+        document.getElementById('new_lat').value = pos.lat.toFixed(6);
+        document.getElementById('new_lng').value = pos.lng.toFixed(6);
+      });
+
+      pickerMap.on('click', function(e) {
+        pickerMarker.setLatLng(e.latlng);
+        document.getElementById('new_lat').value = e.latlng.lat.toFixed(6);
+        document.getElementById('new_lng').value = e.latlng.lng.toFixed(6);
+      });
+    } else {
+      pickerMap.setView([lat, lng], 16);
+      pickerMarker.setLatLng([lat, lng]);
+    }
+    setTimeout(() => pickerMap.invalidateSize(), 300);
+  }
+
+  function initEditPickerMap(lat, lng) {
+    if (!editPickerMap) {
+      editPickerMap = L.map('edit-picker-map').setView([lat, lng], 16);
+      L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      }).addTo(editPickerMap);
+      
+      const odpIcon = L.divIcon({
+        html: '<i class="bi bi-box-seam-fill picker-icon-odp"></i>',
+        className: 'custom-div-icon',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      editPickerMarker = L.marker([lat, lng], { 
+        draggable: true,
+        icon: odpIcon
+      }).addTo(editPickerMap);
+      
+      editPickerMarker.on('dragend', function(e) {
+        const pos = editPickerMarker.getLatLng();
+        document.getElementById('e_odp_lat').value = pos.lat.toFixed(6);
+        document.getElementById('e_odp_lng').value = pos.lng.toFixed(6);
+      });
+
+      editPickerMap.on('click', function(e) {
+        editPickerMarker.setLatLng(e.latlng);
+        document.getElementById('e_odp_lat').value = e.latlng.lat.toFixed(6);
+        document.getElementById('e_odp_lng').value = e.latlng.lng.toFixed(6);
+      });
+    } else {
+      editPickerMap.setView([lat, lng], 16);
+      editPickerMarker.setLatLng([lat, lng]);
+    }
+    setTimeout(() => editPickerMap.invalidateSize(), 300);
+  }
+
+  function openModal(id) { 
+    document.getElementById(id).style.display = 'flex'; 
+    if (id === 'addOdpModal') {
+      const lat = document.getElementById('new_lat').value || officeCoords.lat;
+      const lng = document.getElementById('new_lng').value || officeCoords.lng;
+      initPickerMap(lat, lng);
+    }
+  }
+
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+  function editOdp(odp) {
+    document.getElementById('editOdpForm').action = '/admin/odps/' + odp.id + '/update';
+    document.getElementById('e_odp_name').value = odp.name;
+    document.getElementById('e_odp_lat').value = odp.lat;
+    document.getElementById('e_odp_lng').value = odp.lng;
+    document.getElementById('e_odp_description').value = odp.description;
+    openModal('editOdpModal');
+    initEditPickerMap(odp.lat, odp.lng);
+  }
+
+  // Right Click to get coordinates
+  map.on('contextmenu', function(e) {
+    const lat = e.latlng.lat.toFixed(6);
+    const lng = e.latlng.lng.toFixed(6);
+    
+    document.getElementById('new_lat').value = lat;
+    document.getElementById('new_lng').value = lng;
+    openModal('addOdpModal');
+  });
+
+  // Auto zoom to markers if exist
+  const group = L.featureGroup([...map._layers].filter(l => l instanceof L.Marker || l instanceof L.CircleMarker));
+  if (group.getLayers().length > 0) {
+    map.fitBounds(group.getBounds().pad(0.1));
+  }
+
+  // Fix for blank map on load
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 500);
+
+  window.onclick = function(e) {
+    if (e.target.className === 'mo') {
+      e.target.style.display = 'none';
+    }
+  }
+</script>
+</body>
+</html>

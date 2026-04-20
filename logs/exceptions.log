@@ -1,0 +1,42 @@
+2026-04-20 08:28:51 error: uncaughtException: findDeviceWithTagVariants is not defined
+ReferenceError: findDeviceWithTagVariants is not defined
+    at D:\app-customer\routes\customerPortal.js:152:26
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Promise.all (index 1)
+    at async D:\app-customer\routes\customerPortal.js:148:21
+2026-04-20 20:12:24 error: uncaughtException: await is only valid in async functions and the top level bodies of modules
+D:\app-customer\routes\customerPortal.js:460
+        const { sendWA } = await import('../services/whatsappBot.mjs');
+                           ^^^^^
+
+SyntaxError: await is only valid in async functions and the top level bodies of modules
+    at wrapSafe (node:internal/modules/cjs/loader:1512:18)
+    at Module._compile (node:internal/modules/cjs/loader:1534:20)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+    at Module.require (node:internal/modules/cjs/loader:1335:12)
+    at require (node:internal/modules/helpers:136:16)
+    at Object.<anonymous> (D:\app-customer\app-customer.js:89:24)
+2026-04-21 05:19:55 error: uncaughtException: Cannot find module 'net-snmp'
+Require stack:
+- D:\app-customer\services\oltService.js
+- D:\app-customer\routes\adminPortal.js
+- D:\app-customer\app-customer.js
+Error: Cannot find module 'net-snmp'
+Require stack:
+- D:\app-customer\services\oltService.js
+- D:\app-customer\routes\adminPortal.js
+- D:\app-customer\app-customer.js
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
+    at Function._load (node:internal/modules/cjs/loader:1070:27)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+    at Module.require (node:internal/modules/cjs/loader:1335:12)
+    at require (node:internal/modules/helpers:136:16)
+    at Object.<anonymous> (D:\app-customer\services\oltService.js:3:14)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)

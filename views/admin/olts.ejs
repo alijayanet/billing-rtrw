@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title><%= title %> | <%= company %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    .olt-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 5px; }
+    .stat-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+    .stat-badge i { margin-right: 3px; }
+    .brand-badge { font-weight: 700; text-transform: uppercase; font-size: 10px; padding: 2px 5px; border-radius: 4px; }
+    .brand-zte { background: #eff6ff; color: #2563eb; }
+    .brand-huawei { background: #fef2f2; color: #dc2626; }
+    .brand-vsol { background: #f0fdf4; color: #16a34a; }
+    .brand-hioso { background: #fffbeb; color: #d97706; }
+    .brand-hsgq { background: #f5f3ff; color: #7c3aed; }
+    .onu-count { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 5px; }
+    .onu-online { color: #10b981; }
+    .onu-total { color: #64748b; }
+    .traffic-badge { background: #f8fafc; border: 1px solid #e2e8f0; padding: 2px 8px; border-radius: 20px; font-size: 11px; display: flex; align-items: center; gap: 8px; }
+    .traffic-in { color: #059669; }
+    .traffic-out { color: #2563eb; }
+  </style>
+</head>
+<body>
+<%- include('partials/sidebar', { activePage: 'olts', company }) %>
+
+<div class="mw">
+  <div class="topbar">
+    <div class="tb-title">
+      <button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+      <i class="bi bi-hdd-rack"></i>
+      <span><%= title %></span>
+    </div>
+    <div class="tb-right">
+      <span class="adm-badge">
+        <i class="bi bi-person-fill"></i> 
+        <%= (typeof session !== 'undefined' && session.isCashier) ? 'Kasir' : 'Admin' %>
+      </span>
+      <button class="btn btn-p btn-sm" onclick="openModal('addOltModal')"><i class="bi bi-plus-lg"></i> Tambah OLT</button>
+    </div>
+  </div>
+
+  <div class="page">
+    <% if (msg) { %>
+      <div class="alert alert-<%= msg.type==='error'?'d':'s' %>"><%= msg.text %></div>
+    <% } %>
+
+    <div class="card">
+      <div class="card-hd">
+        <h6><i class="bi bi-list-ul"></i> Daftar Perangkat OLT</h6>
+      </div>
+      <div class="tbl-wrap">
+        <table class="dtbl">
+          <thead>
+            <tr>
+              <th>Nama OLT</th>
+              <th>Host / IP</th>
+              <th>Brand</th>
+              <th>Community</th>
+              <th>Status Monitoring</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (olts.length === 0) { %>
+              <tr><td colspan="6" class="text-center text-muted" style="padding:20px">Belum ada data OLT.</td></tr>
+            <% } else { %>
+              <% olts.forEach(olt => { %>
+                <tr>
+                  <td>
+                    <strong><%= olt.name %></strong>
+                    <div class="text-muted small"><%= olt.description || 'Tidak ada deskripsi' %></div>
+                  </td>
+                  <td>
+                    <code><%= olt.host %></code><span class="text-muted">:<%= olt.snmp_port %></span>
+                  </td>
+                  <td>
+                    <span class="brand-badge brand-<%= olt.brand %>"><%= olt.brand %></span>
+                  </td>
+                  <td><span class="text-muted"><%= olt.snmp_community %></span></td>
+                  <td>
+                    <% if (olt.is_active) { %>
+                      <div class="d-flex align-items-center gap-3">
+                        <span class="badge bs">Online</span>
+                        <div class="onu-count">
+                          <span class="onu-online" title="Online"><i class="bi bi-cloud-check-fill"></i> <%= olt.stats.onus_online %></span>
+                          <span class="onu-total" title="Total ONU">/ <%= olt.stats.onus_total %></span>
+                        </div>
+                        <div class="olt-stats">
+                          <span class="stat-badge"><i class="bi bi-thermometer-half"></i> <%= olt.stats.temp %></span>
+                          <span class="stat-badge"><i class="bi bi-cpu"></i> <%= olt.stats.cpu %></span>
+                          <span class="stat-badge" title="Voltage"><i class="bi bi-lightning-charge"></i> <%= olt.stats.voltage %></span>
+                        </div>
+                        <% 
+                          function formatBytes(bytes) {
+                            if (!bytes || bytes === 0) return '0 B';
+                            const k = 1024;
+                            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                            const i = Math.floor(Math.log(bytes) / Math.log(k));
+                            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                          }
+                        %>
+                        <div class="traffic-badge" title="Uplink Traffic (64-bit counter)">
+                          <span class="traffic-in"><i class="bi bi-arrow-down-short"></i> In: <%= formatBytes(olt.stats.uplink_rx) %></span>
+                          <span class="traffic-out"><i class="bi bi-arrow-up-short"></i> Out: <%= formatBytes(olt.stats.uplink_tx) %></span>
+                        </div>
+                      </div>
+                    <% } else { %>
+                      <span class="badge bd">Disabled</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-g btn-icon btn-sm" onclick='editOlt(<%- JSON.stringify(olt) %>)'><i class="bi bi-pencil"></i></button>
+                      <form action="/admin/olts/<%= olt.id %>/delete" method="POST" onsubmit="return confirm('Hapus OLT ini?')">
+                        <button type="submit" class="btn btn-d btn-icon btn-sm"><i class="bi bi-trash"></i></button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tambah -->
+<div class="mo" id="addOltModal">
+  <div class="mb">
+    <form action="/admin/olts" method="POST">
+      <div class="mh"><span class="mt">Tambah OLT Baru</span><button type="button" class="mc" onclick="closeModal('addOltModal')">&times;</button></div>
+      <div class="mbody">
+        <div class="fg"><label class="fl">Nama OLT</label><input type="text" name="name" class="fc" placeholder="Contoh: OLT Pusat" required></div>
+        <div class="fg"><label class="fl">IP Address / Host</label><input type="text" name="host" class="fc" placeholder="192.168.1.10" required></div>
+        <div class="form-row">
+            <div class="fg"><label class="fl">SNMP Port</label><input type="number" name="snmp_port" class="fc" value="161"></div>
+            <div class="fg"><label class="fl">Brand / Type</label>
+                <select name="brand" class="fs">
+                    <option value="zte">ZTE</option>
+                    <option value="huawei">Huawei</option>
+                    <option value="vsol">V-SOL</option>
+                    <option value="hioso">HIOSO</option>
+                    <option value="hsqg">HSGQ</option>
+                    <option value="other">Lainnya</option>
+                </select>
+            </div>
+        </div>
+        <div class="fg"><label class="fl">SNMP Community</label><input type="text" name="snmp_community" class="fc" value="public"></div>
+        <div class="fg"><label class="fl">Deskripsi / Lokasi</label><textarea name="description" class="fc" rows="2"></textarea></div>
+      </div>
+      <div class="mf">
+        <button type="button" class="btn btn-g" onclick="closeModal('addOltModal')">Batal</button>
+        <button type="submit" class="btn btn-p">Simpan Perangkat</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Edit -->
+<div class="mo" id="editOltModal">
+  <div class="mb">
+    <form id="editOltForm" method="POST">
+      <div class="mh"><span class="mt">Edit Data OLT</span><button type="button" class="mc" onclick="closeModal('editOltModal')">&times;</button></div>
+      <div class="mbody">
+        <div class="fg"><label class="fl">Nama OLT</label><input type="text" name="name" id="e_name" class="fc" required></div>
+        <div class="fg"><label class="fl">IP Address / Host</label><input type="text" name="host" id="e_host" class="fc" required></div>
+        <div class="form-row">
+            <div class="fg"><label class="fl">SNMP Port</label><input type="number" name="snmp_port" id="e_snmp_port" class="fc"></div>
+            <div class="fg"><label class="fl">Brand / Type</label>
+                <select name="brand" id="e_brand" class="fs">
+                    <option value="zte">ZTE</option>
+                    <option value="huawei">Huawei</option>
+                    <option value="vsol">V-SOL</option>
+                    <option value="hioso">HIOSO</option>
+                    <option value="hsqg">HSGQ</option>
+                    <option value="other">Lainnya</option>
+                </select>
+            </div>
+        </div>
+        <div class="fg"><label class="fl">SNMP Community</label><input type="text" name="snmp_community" id="e_snmp_community" class="fc"></div>
+        <div class="fg"><label class="fl">Deskripsi / Lokasi</label><textarea name="description" id="e_description" class="fc" rows="2"></textarea></div>
+        <div class="fg">
+          <label class="fl">Status Monitoring</label>
+          <select name="is_active" id="e_is_active" class="fs">
+            <option value="1">Aktif</option>
+            <option value="0">Nonaktif</option>
+          </select>
+        </div>
+      </div>
+      <div class="mf">
+        <button type="button" class="btn btn-g" onclick="closeModal('editOltModal')">Batal</button>
+        <button type="submit" class="btn btn-p">Update Perangkat</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function editOlt(olt) {
+  document.getElementById('editOltForm').action = '/admin/olts/' + olt.id + '/update';
+  document.getElementById('e_name').value = olt.name;
+  document.getElementById('e_host').value = olt.host;
+  document.getElementById('e_snmp_port').value = olt.snmp_port;
+  document.getElementById('e_brand').value = olt.brand;
+  document.getElementById('e_snmp_community').value = olt.snmp_community;
+  document.getElementById('e_description').value = olt.description;
+  document.getElementById('e_is_active').value = olt.is_active ? "1" : "0";
+  openModal('editOltModal');
+}
+
+window.onclick = function(e) {
+  if (e.target.className === 'mo') {
+    e.target.style.display = 'none';
+  }
+}
+</script>
+</body>
+</html>
