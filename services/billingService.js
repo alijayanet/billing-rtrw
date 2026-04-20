@@ -153,6 +153,23 @@ function getTodayRevenue() {
   `).get();
 }
 
+function updatePaymentInfo(invoiceId, data) {
+  const { 
+    gateway, order_id, link, reference, payload, expires_at 
+  } = data;
+  
+  return db.prepare(`
+    UPDATE invoices SET 
+      payment_gateway = ?,
+      payment_order_id = ?,
+      payment_link = ?,
+      payment_reference = ?,
+      payment_payload = ?,
+      payment_expires_at = ?
+    WHERE id = ?
+  `).run(gateway, order_id, link, reference, payload ? JSON.stringify(payload) : null, expires_at, invoiceId);
+}
+
 module.exports = {
   getInvoicesByPhone,
   getUnpaidInvoicesByCustomerId,
@@ -160,5 +177,6 @@ module.exports = {
   markAsPaid, markAsUnpaid, deleteInvoice,
   getInvoiceSummary, getMonthlyRevenue,
   getDashboardStats, getRecentPayments, getTopUnpaid,
-  getTodayRevenue
+  getTodayRevenue,
+  updatePaymentInfo
 };

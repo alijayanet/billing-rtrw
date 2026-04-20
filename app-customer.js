@@ -138,6 +138,11 @@ if (getSetting('whatsapp_enabled', false)) {
     .catch((err) => logger.error('Gagal memulai WhatsApp bot:', err));
 }
 
+if (getSetting('telegram_enabled', false)) {
+  const { initTelegram } = require('./services/telegramBot');
+  initTelegram();
+}
+
 // Mulai cron jobs (generate tagihan otomatis, dll)
 const { startCronJobs } = require('./services/cronService');
 startCronJobs();

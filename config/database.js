@@ -91,6 +91,18 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS routers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    host TEXT NOT NULL,
+    port INTEGER DEFAULT 8728,
+    user TEXT NOT NULL,
+    password TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Tambahkan kolom baru jika belum ada
@@ -100,5 +112,19 @@ try {
 try {
   db.exec("ALTER TABLE customers ADD COLUMN isolate_day INTEGER DEFAULT 10");
 } catch (e) { /* ignore if already exists */ }
+try {
+  db.exec("ALTER TABLE customers ADD COLUMN email TEXT DEFAULT ''");
+} catch (e) { /* ignore if already exists */ }
+try {
+  db.exec("ALTER TABLE customers ADD COLUMN router_id INTEGER REFERENCES routers(id) ON DELETE SET NULL");
+} catch (e) { /* ignore if already exists */ }
+
+// Kolom untuk Payment Gateway di tabel invoices
+try { db.exec("ALTER TABLE invoices ADD COLUMN payment_gateway TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE invoices ADD COLUMN payment_order_id TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE invoices ADD COLUMN payment_link TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE invoices ADD COLUMN payment_reference TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE invoices ADD COLUMN payment_payload TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE invoices ADD COLUMN payment_expires_at DATETIME"); } catch (e) {}
 
 module.exports = db;

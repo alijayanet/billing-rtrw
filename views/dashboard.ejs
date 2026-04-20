@@ -573,10 +573,15 @@
   </div>
 
   <footer class="footer">
-    <div class="mb-2">
-      <a href="/customer/tos" class="text-muted text-decoration-none mx-2">Syarat & Ketentuan</a>
+    <div class="d-flex justify-content-center flex-wrap gap-3 mb-3">
+      <a href="/customer/about" class="text-decoration-none text-muted small">Tentang Kami</a>
+      <a href="/customer/tos" class="text-decoration-none text-muted small">Ketentuan Layanan</a>
+      <a href="/customer/privacy" class="text-decoration-none text-muted small">Kebijakan Privasi</a>
+      <a href="/customer/contact" class="text-decoration-none text-muted small">Kontak</a>
     </div>
-    &copy; <%= new Date().getFullYear() %> <%= settings.company_header || 'ALIJAYA DIGITAL NETWORK' %>
+    <div class="small opacity-75">
+      &copy; <%= new Date().getFullYear() %> <%= settings.company_header || 'ALIJAYA DIGITAL NETWORK' %>
+    </div>
   </footer>
 
 <!-- Modal Pilih Pembayaran -->
@@ -591,47 +596,91 @@
         <p class="text-muted small mb-4">Silakan pilih metode pembayaran untuk tagihan sebesar <strong id="pay_amount_text" class="text-primary"></strong></p>
         
         <div class="payment-methods-grid">
-          <!-- QRIS -->
-          <div class="pay-method-item" onclick="submitPayment('QRIS')">
-            <div class="p-icon"><i class="bi bi-qr-code-scan"></i></div>
-            <div class="p-info">
-              <span class="p-name">QRIS</span>
-              <span class="p-sub">DANA, OVO, ShopeePay, LinkAja</span>
+          <% if (paymentChannels && paymentChannels.length > 0) { %>
+            <!-- Dynamic Tripay Channels - Sorted by E-Wallet first -->
+            <% 
+              // Urutkan: E-Wallet -> QRIS -> Virtual Account -> Lainnya
+              const sortedChannels = [...paymentChannels].sort((a, b) => {
+                const priority = { 'E-Wallet': 1, 'QRIS': 2, 'Virtual Account': 3, 'Convenience Store': 4 };
+                const prioA = priority[a.group] || 99;
+                const prioB = priority[b.group] || 99;
+                return prioA - prioB;
+              });
+              
+              sortedChannels.filter(c => c.active).forEach(channel => { 
+            %>
+              <div class="pay-method-item" onclick="submitPayment('<%= channel.code %>')">
+                <div class="p-icon">
+                  <% if (channel.group === 'Virtual Account') { %>
+                    <i class="bi bi-bank"></i>
+                  <% } else if (channel.group === 'E-Wallet') { %>
+                    <i class="bi bi-wallet2"></i>
+                  <% } else if (channel.group === 'Convenience Store') { %>
+                    <i class="bi bi-shop"></i>
+                  <% } else { %>
+                    <i class="bi bi-qr-code-scan"></i>
+                  <% } %>
+                </div>
+                <div class="p-info">
+                  <span class="p-name"><%= channel.name %></span>
+                  <span class="p-sub"><%= channel.group %></span>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <!-- Default Curated Methods (For Midtrans, Xendit, Duitku, or Tripay Fallback) -->
+            
+            <!-- E-Wallet / QRIS (Top Priority) -->
+            <div class="pay-method-item" onclick="submitPayment('QRIS')">
+              <div class="p-icon"><i class="bi bi-qr-code-scan"></i></div>
+              <div class="p-info">
+                <span class="p-name">QRIS / E-Wallet</span>
+                <span class="p-sub">DANA, OVO, ShopeePay, LinkAja</span>
+              </div>
             </div>
-          </div>
 
-          <!-- Virtual Account -->
-          <div class="pay-method-item" onclick="submitPayment('MANDIRIVA')">
-            <div class="p-icon"><i class="bi bi-bank"></i></div>
-            <div class="p-info">
-              <span class="p-name">Mandiri Virtual Account</span>
-              <span class="p-sub">Transfer via Bank Mandiri</span>
+            <!-- Virtual Accounts -->
+            <div class="pay-method-item" onclick="submitPayment('MANDIRIVA')">
+              <div class="p-icon"><i class="bi bi-bank"></i></div>
+              <div class="p-info">
+                <span class="p-name">Mandiri Virtual Account</span>
+                <span class="p-sub">Transfer via Bank Mandiri</span>
+              </div>
             </div>
-          </div>
 
-          <div class="pay-method-item" onclick="submitPayment('BRIVA')">
-            <div class="p-icon"><i class="bi bi-bank"></i></div>
-            <div class="p-info">
-              <span class="p-name">BRI Virtual Account</span>
-              <span class="p-sub">Transfer via Bank BRI (BRIVA)</span>
+            <div class="pay-method-item" onclick="submitPayment('BRIVA')">
+              <div class="p-icon"><i class="bi bi-bank"></i></div>
+              <div class="p-info">
+                <span class="p-name">BRI Virtual Account</span>
+                <span class="p-sub">Transfer via Bank BRI (BRIVA)</span>
+              </div>
             </div>
-          </div>
 
-          <div class="pay-method-item" onclick="submitPayment('BNIVA')">
-            <div class="p-icon"><i class="bi bi-bank"></i></div>
-            <div class="p-info">
-              <span class="p-name">BNI Virtual Account</span>
-              <span class="p-sub">Transfer via Bank BNI</span>
+            <div class="pay-method-item" onclick="submitPayment('BNIVA')">
+              <div class="p-icon"><i class="bi bi-bank"></i></div>
+              <div class="p-info">
+                <span class="p-name">BNI Virtual Account</span>
+                <span class="p-sub">Transfer via Bank BNI</span>
+              </div>
             </div>
-          </div>
 
-          <div class="pay-method-item" onclick="submitPayment('BCAVA')">
-            <div class="p-icon"><i class="bi bi-bank"></i></div>
-            <div class="p-info">
-              <span class="p-name">BCA Virtual Account</span>
-              <span class="p-sub">Transfer via Bank BCA</span>
+            <div class="pay-method-item" onclick="submitPayment('BCAVA')">
+              <div class="p-icon"><i class="bi bi-bank"></i></div>
+              <div class="p-info">
+                <span class="p-name">BCA Virtual Account</span>
+                <span class="p-sub">Transfer via Bank BCA</span>
+              </div>
             </div>
-          </div>
+
+            <!-- All-in-one Fallback -->
+            <div class="pay-method-item mt-2" onclick="submitPayment('<%= settings.default_gateway === 'midtrans' ? 'snap' : (settings.default_gateway === 'xendit' ? 'xendit' : 'duitku') %>')" style="background: #f0f7ff; border-color: #667eea;">
+              <div class="p-icon" style="background: #667eea; color: white;"><i class="bi bi-credit-card-2-back"></i></div>
+              <div class="p-info">
+                <span class="p-name">Metode Lainnya</span>
+                <span class="p-sub">Pilih metode lain di halaman pembayaran</span>
+              </div>
+            </div>
+          <% } %>
         </div>
       </div>
     </div>

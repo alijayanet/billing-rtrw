@@ -152,6 +152,12 @@
               <label class="form-label"><i class="bi bi-whatsapp me-1"></i>Nomor WhatsApp Aktif</label>
               <input type="text" class="form-control" name="phone" placeholder="Contoh: 081234567890" required>
             </div>
+
+            <div>
+              <label class="form-label"><i class="bi bi-envelope me-1"></i>Email (Opsional)</label>
+              <input type="email" class="form-control" name="email" placeholder="Contoh: budi@gmail.com">
+              <div style="font-size: 11px; color: #6c757d; margin-top: -10px; margin-bottom: 15px;">Email digunakan untuk pengiriman invoice otomatis.</div>
+            </div>
             
             <div>
               <label class="form-label"><i class="bi bi-geo-alt me-1"></i>Alamat Pemasangan</label>
@@ -174,8 +180,17 @@
           </form>
         <% } %>
 
-        <div class="footer-text">
-          Sudah punya akun? <a href="/customer/login">Login di sini</a>
+        <div class="footer-text mt-4">
+          <p class="mb-2">Sudah punya akun? <a href="/customer/login">Login di sini</a></p>
+          <div class="d-flex justify-content-center flex-wrap gap-3 mb-3" style="font-size: 11px;">
+            <a href="/customer/about" class="text-decoration-none text-muted">Tentang Kami</a>
+            <a href="/customer/tos" class="text-decoration-none text-muted">Ketentuan Layanan</a>
+            <a href="/customer/privacy" class="text-decoration-none text-muted">Kebijakan Privasi</a>
+            <a href="/customer/contact" class="text-decoration-none text-muted">Kontak</a>
+          </div>
+          <div style="font-size: 11px;">
+            &copy; <%= new Date().getFullYear() %> <%= settings.company_header %>
+          </div>
         </div>
       </div>
     </div>

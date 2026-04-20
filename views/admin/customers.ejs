@@ -126,6 +126,7 @@
           <div class="fg"><label class="fl">Nama Lengkap *</label><input class="fc" name="name" required placeholder="John Doe"></div>
           <div class="fg"><label class="fl">No. Telepon / WA</label><input class="fc" name="phone" placeholder="08xxx"></div>
         </div>
+        <div class="fg"><label class="fl">Email (Untuk Notifikasi Payment)</label><input class="fc" name="email" type="email" placeholder="customer@example.com"></div>
         <div class="fg"><label class="fl">Alamat</label><textarea class="fc" name="address" placeholder="Jl. Example..."></textarea></div>
         <div class="form-row">
           <div class="fg">
@@ -141,14 +142,27 @@
         </div>
         <div class="form-row">
           <div class="fg">
-            <label class="fl">PPPoE Username (MikroTik)</label>
+            <label class="fl">Router MikroTik</label>
+            <select class="fs" name="router_id" id="add_router_select" onchange="loadMikrotikUsers(this.value)">
+              <option value="">-- Default (Pengaturan) --</option>
+              <% if (typeof routers !== 'undefined') { %>
+                <% routers.forEach(r => { %>
+                  <option value="<%= r.id %>"><%= r.name %> (<%= r.host %>)</option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">PPPoE Username</label>
             <div style="display:flex;gap:8px">
               <select class="fs" id="add_pppoe_select" style="max-width:200px" onchange="document.getElementById('add_pppoe').value=this.value">
                 <option value="">-- Pilih dari MikroTik --</option>
               </select>
-              <input class="fc" name="pppoe_username" id="add_pppoe" placeholder="Username PPPoE pelanggan atau ketik manual...">
+              <input class="fc" name="pppoe_username" id="add_pppoe" placeholder="Username PPPoE...">
             </div>
           </div>
+        </div>
+        <div class="form-row">
           <div class="fg" style="max-width:200px">
             <label class="fl">Profile Isolir</label>
             <select class="fs" name="isolir_profile" id="add_isolir_select">
@@ -224,6 +238,7 @@
           <div class="fg"><label class="fl">Nama Lengkap *</label><input class="fc" name="name" id="e_name" required></div>
           <div class="fg"><label class="fl">No. Telepon / WA</label><input class="fc" name="phone" id="e_phone"></div>
         </div>
+        <div class="fg"><label class="fl">Email (Untuk Notifikasi Payment)</label><input class="fc" name="email" id="e_email" type="email"></div>
         <div class="fg"><label class="fl">Alamat</label><textarea class="fc" name="address" id="e_address"></textarea></div>
         <div class="form-row">
           <div class="fg">
@@ -239,7 +254,18 @@
         </div>
         <div class="form-row">
           <div class="fg">
-            <label class="fl">PPPoE Username (MikroTik)</label>
+            <label class="fl">Router MikroTik</label>
+            <select class="fs" name="router_id" id="e_router_id" onchange="loadMikrotikUsers(this.value)">
+              <option value="">-- Default (Pengaturan) --</option>
+              <% if (typeof routers !== 'undefined') { %>
+                <% routers.forEach(r => { %>
+                  <option value="<%= r.id %>"><%= r.name %> (<%= r.host %>)</option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">PPPoE Username</label>
             <div style="display:flex;gap:8px">
               <select class="fs" id="e_pppoe_select" style="max-width:200px" onchange="document.getElementById('e_pppoe').value=this.value">
                 <option value="">-- Pilih dari MikroTik --</option>
@@ -247,6 +273,8 @@
               <input class="fc" name="pppoe_username" id="e_pppoe">
             </div>
           </div>
+        </div>
+        <div class="form-row">
           <div class="fg" style="max-width:200px">
             <label class="fl">Profile Isolir</label>
             <select class="fs" name="isolir_profile" id="e_isolir_profile">
@@ -300,8 +328,10 @@ function editCust(idx) {
   document.getElementById('editForm').action='/admin/customers/'+c.id+'/update';
   document.getElementById('e_name').value=c.name||'';
   document.getElementById('e_phone').value=c.phone||'';
+  document.getElementById('e_email').value=c.email||'';
   document.getElementById('e_address').value=c.address||'';
   document.getElementById('e_package').value=c.package_id||'';
+  document.getElementById('e_router_id').value=c.router_id||'';
   document.getElementById('e_tag').value=c.genieacs_tag||'';
   document.getElementById('e_pppoe').value=c.pppoe_username||'';
   document.getElementById('e_isolir_profile').value=c.isolir_profile||'isolir';
@@ -313,13 +343,19 @@ function editCust(idx) {
   openModal('editModal');
 }
 
-async function loadMikrotikUsers() {
+async function loadMikrotikUsers(routerId = '') {
   try {
-    const res = await fetch('/admin/api/mikrotik/users');
+    const url = routerId ? `/admin/api/mikrotik/users/${routerId}` : '/admin/api/mikrotik/users';
+    const res = await fetch(url);
     if (!res.ok) return;
     const users = await res.json();
     const selAdd = document.getElementById('add_pppoe_select');
     const selEdit = document.getElementById('e_pppoe_select');
+    
+    const defaultOpt = '<option value="">-- Pilih dari MikroTik --</option>';
+    selAdd.innerHTML = defaultOpt;
+    selEdit.innerHTML = defaultOpt;
+
     users.forEach(u => {
       const opt = `<option value="${u.name}">${u.name}</option>`;
       selAdd.innerHTML += opt;
@@ -330,14 +366,21 @@ async function loadMikrotikUsers() {
   }
 }
 
-async function loadMikrotikProfiles() {
+async function loadMikrotikProfiles(routerId = '') {
   try {
-    const res = await fetch('/admin/api/mikrotik/profiles');
+    const url = routerId ? `/admin/api/mikrotik/profiles/${routerId}` : '/admin/api/mikrotik/profiles';
+    const res = await fetch(url);
     if (!res.ok) return;
     const profiles = await res.json();
     const selAdd = document.getElementById('add_isolir_select');
     const selEdit = document.getElementById('e_isolir_profile');
+    
+    const defaultOpt = '<option value="isolir">isolir</option>';
+    selAdd.innerHTML = defaultOpt;
+    selEdit.innerHTML = defaultOpt;
+
     profiles.forEach(p => {
+      if(p.name === 'isolir') return;
       const opt = `<option value="${p.name}">${p.name}</option>`;
       selAdd.innerHTML += opt;
       selEdit.innerHTML += opt;

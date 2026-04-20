@@ -19,8 +19,17 @@
 <div class="mw">
   <div class="topbar">
     <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-router"></i> Monitoring MikroTik</div>
-    <div class="tb-right">
-      <a href="/admin/api/mikrotik/backup" class="btn btn-p btn-sm" style="margin-right:10px"><i class="bi bi-download"></i> Backup RSC</a>
+    <div class="tb-right" style="display:flex;align-items:center;gap:15px">
+      <div class="router-selector" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);padding:4px 12px;border-radius:20px">
+        <i class="bi bi-hdd-network small"></i>
+        <select id="global-router-id" class="fs" style="background:transparent;border:none;color:white;padding:0;font-size:13px;width:auto;cursor:pointer" onchange="changeRouter()">
+          <option value="" style="color:black">-- Default Router --</option>
+          <% routers.forEach(r => { %>
+            <option value="<%= r.id %>" style="color:black"><%= r.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <a href="#" onclick="downloadBackup(event)" class="btn btn-p btn-sm"><i class="bi bi-download"></i> Backup RSC</a>
       <span class="adm-badge"><i class="bi bi-person-fill"></i> Admin</span>
       <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>
     </div>
@@ -280,10 +289,27 @@
   let pppoeProfilesData = [];
   let hotspotProfilesData = [];
 
+  function getRouterId() {
+    return document.getElementById('global-router-id').value;
+  }
+
+  function changeRouter() {
+    loadSecrets();
+    loadHotspotUsers();
+    loadProfiles();
+    loadPppoeProfiles();
+    loadHotspotUserProfiles();
+  }
+
+  function downloadBackup(e) {
+    e.preventDefault();
+    const routerId = getRouterId();
+    window.location.href = `/admin/api/mikrotik/backup?routerId=${routerId}`;
+  }
 
   async function loadPppoeProfiles() {
     try {
-      const res = await fetch('/admin/api/mikrotik/profiles');
+      const res = await fetch(`/admin/api/mikrotik/profiles?routerId=${getRouterId()}`);
       pppoeProfilesData = await res.json();
       const tbody = document.getElementById('pppoe-profiles-list');
       tbody.innerHTML = pppoeProfilesData.map((p, i) => `
@@ -303,7 +329,7 @@
 
   async function loadHotspotUserProfiles() {
     try {
-      const res = await fetch('/admin/api/mikrotik/hotspot-user-profiles');
+      const res = await fetch(`/admin/api/mikrotik/hotspot-user-profiles?routerId=${getRouterId()}`);
       hotspotProfilesData = await res.json();
       const tbody = document.getElementById('hotspot-profiles-list');
       tbody.innerHTML = hotspotProfilesData.map((p, i) => `
@@ -323,14 +349,13 @@
 
   async function loadSecrets() {
     try {
+      const routerId = getRouterId();
       const [sRes, aRes] = await Promise.all([
-        fetch('/admin/api/mikrotik/secrets'),
-        fetch('/admin/api/mikrotik/active-pppoe')
+        fetch(`/admin/api/mikrotik/secrets?routerId=${routerId}`),
+        fetch(`/admin/api/mikrotik/active-pppoe?routerId=${routerId}`)
       ]);
       pppoeData = await sRes.json();
       const activeSessions = await aRes.json();
-      console.log('PPPoE Data:', pppoeData);
-      console.log('Active PPPoE:', activeSessions);
       
       document.getElementById('pppoe-online-count').innerText = activeSessions.length;
       document.getElementById('total-secrets-count').innerText = pppoeData.length;
@@ -365,14 +390,13 @@
 
   async function loadHotspotUsers() {
     try {
+      const routerId = getRouterId();
       const [uRes, aRes] = await Promise.all([
-        fetch('/admin/api/mikrotik/hotspot-users'),
-        fetch('/admin/api/mikrotik/active-hotspot')
+        fetch(`/admin/api/mikrotik/hotspot-users?routerId=${routerId}`),
+        fetch(`/admin/api/mikrotik/active-hotspot?routerId=${routerId}`)
       ]);
       hotspotData = await uRes.json();
       const activeSessions = await aRes.json();
-      console.log('Hotspot Users:', hotspotData);
-      console.log('Active Hotspot:', activeSessions);
 
       document.getElementById('hotspot-online-count').innerText = activeSessions.length;
       document.getElementById('total-hotspot-count').innerText = hotspotData.length;
@@ -407,9 +431,10 @@
   }
 
   async function loadProfiles() {
+    const routerId = getRouterId();
     const [pRes, hRes] = await Promise.all([
-      fetch('/admin/api/mikrotik/profiles'),
-      fetch('/admin/api/mikrotik/hotspot-profiles')
+      fetch(`/admin/api/mikrotik/profiles?routerId=${routerId}`),
+      fetch(`/admin/api/mikrotik/hotspot-profiles?routerId=${routerId}`)
     ]);
     const pProfiles = await pRes.json();
     const hProfiles = await hRes.json();
@@ -454,14 +479,15 @@
       'remote-address': document.getElementById('s_remote').value,
       comment: document.getElementById('s_comment').value
     };
-    const url = id ? `/admin/api/mikrotik/secrets/${id}/update` : '/admin/api/mikrotik/secrets';
+    const routerId = getRouterId();
+    const url = id ? `/admin/api/mikrotik/secrets/${id}/update?routerId=${routerId}` : `/admin/api/mikrotik/secrets?routerId=${routerId}`;
     const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     if(res.ok) { closeModal('secretModal'); loadSecrets(); } else alert('Gagal menyimpan');
   };
 
   async function deleteSecret(id) {
     if(!confirm('Hapus secret ini?')) return;
-    const res = await fetch(`/admin/api/mikrotik/secrets/${id}/delete`, { method: 'POST' });
+    const res = await fetch(`/admin/api/mikrotik/secrets/${id}/delete?routerId=${getRouterId()}`, { method: 'POST' });
     if(res.ok) loadSecrets(); else alert('Gagal menghapus');
   }
 
@@ -498,14 +524,15 @@
       comment: document.getElementById('h_comment').value,
       server: 'all'
     };
-    const url = id ? `/admin/api/mikrotik/hotspot-users/${id}/update` : '/admin/api/mikrotik/hotspot-users';
+    const routerId = getRouterId();
+    const url = id ? `/admin/api/mikrotik/hotspot-users/${id}/update?routerId=${routerId}` : `/admin/api/mikrotik/hotspot-users?routerId=${routerId}`;
     const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     if(res.ok) { closeModal('hotspotModal'); loadHotspotUsers(); } else alert('Gagal menyimpan');
   };
 
   async function deleteHotspot(id) {
     if(!confirm('Hapus user hotspot ini?')) return;
-    const res = await fetch(`/admin/api/mikrotik/hotspot-users/${id}/delete`, { method: 'POST' });
+    const res = await fetch(`/admin/api/mikrotik/hotspot-users/${id}/delete?routerId=${getRouterId()}`, { method: 'POST' });
     if(res.ok) loadHotspotUsers(); else alert('Gagal menghapus');
   }
 
@@ -535,13 +562,14 @@
       'remote-address': document.getElementById('pp_remote').value,
       'rate-limit': document.getElementById('pp_rate').value
     };
-    const url = id && id !== data.name ? `/admin/api/mikrotik/pppoe-profiles/${id}/update` : '/admin/api/mikrotik/pppoe-profiles';
+    const routerId = getRouterId();
+    const url = id && id !== data.name ? `/admin/api/mikrotik/pppoe-profiles/${id}/update?routerId=${routerId}` : `/admin/api/mikrotik/pppoe-profiles?routerId=${routerId}`;
     const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     if(res.ok) { closeModal('pppoeProfileModal'); loadPppoeProfiles(); loadProfiles(); } else alert('Gagal menyimpan');
   };
   async function deletePppoeProfile(id) {
     if(!confirm('Hapus profile ini?')) return;
-    const res = await fetch(`/admin/api/mikrotik/pppoe-profiles/${id}/delete`, { method: 'POST' });
+    const res = await fetch(`/admin/api/mikrotik/pppoe-profiles/${id}/delete?routerId=${getRouterId()}`, { method: 'POST' });
     if(res.ok) { loadPppoeProfiles(); loadProfiles(); } else alert('Gagal menghapus');
   }
 
@@ -571,13 +599,14 @@
       'shared-users': document.getElementById('hp_shared').value,
       'session-timeout': document.getElementById('hp_session').value
     };
-    const url = id && id !== data.name ? `/admin/api/mikrotik/hotspot-user-profiles/${id}/update` : '/admin/api/mikrotik/hotspot-user-profiles';
+    const routerId = getRouterId();
+    const url = id && id !== data.name ? `/admin/api/mikrotik/hotspot-user-profiles/${id}/update?routerId=${routerId}` : `/admin/api/mikrotik/hotspot-user-profiles?routerId=${routerId}`;
     const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     if(res.ok) { closeModal('hotspotProfileModal'); loadHotspotUserProfiles(); loadProfiles(); } else alert('Gagal menyimpan');
   };
   async function deleteHotspotProfile(id) {
     if(!confirm('Hapus profile ini?')) return;
-    const res = await fetch(`/admin/api/mikrotik/hotspot-user-profiles/${id}/delete`, { method: 'POST' });
+    const res = await fetch(`/admin/api/mikrotik/hotspot-user-profiles/${id}/delete?routerId=${getRouterId()}`, { method: 'POST' });
     if(res.ok) { loadHotspotUserProfiles(); loadProfiles(); } else alert('Gagal menghapus');
   }
 

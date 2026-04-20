@@ -1,13 +1,25 @@
 const { RouterOSClient } = require('routeros-client');
 const { getSettingsWithCache } = require('../config/settingsManager');
 const { logger } = require('../config/logger');
+const db = require('../config/database');
 
-async function getConnection() {
-  const settings = getSettingsWithCache();
-  const host = settings.mikrotik_host;
-  const port = settings.mikrotik_port || 8728;
-  const user = settings.mikrotik_user;
-  const password = settings.mikrotik_password;
+async function getConnection(routerId = null) {
+  let host, port, user, password;
+
+  if (routerId) {
+    const router = db.prepare('SELECT * FROM routers WHERE id = ?').get(routerId);
+    if (!router) throw new Error(`Router with ID ${routerId} not found`);
+    host = router.host;
+    port = router.port || 8728;
+    user = router.user;
+    password = router.password;
+  } else {
+    const settings = getSettingsWithCache();
+    host = settings.mikrotik_host;
+    port = settings.mikrotik_port || 8728;
+    user = settings.mikrotik_user;
+    password = settings.mikrotik_password;
+  }
 
   if (!host || !user) {
     throw new Error('MikroTik settings not configured');
@@ -25,15 +37,15 @@ async function getConnection() {
     const client = await api.connect();
     return { client, api };
   } catch (err) {
-    logger.error('Failed to connect to MikroTik:', err);
+    logger.error(`Failed to connect to MikroTik (${host}):`, err);
     throw err;
   }
 }
 
-async function getPppoeProfiles() {
+async function getPppoeProfiles(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     const results = await conn.client.menu('/ppp/profile').get();
     return results.map(r => ({
       name: r.name,
@@ -49,10 +61,10 @@ async function getPppoeProfiles() {
   }
 }
 
-async function getPppoeUsers() {
+async function getPppoeUsers(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     // Only get secrets for pppoe service
     const results = await conn.client.menu('/ppp/secret').where('service', 'pppoe').get();
     return results.map(r => ({
@@ -69,10 +81,10 @@ async function getPppoeUsers() {
 }
 
 // Function to isolate a user
-async function setPppoeProfile(username, profileName) {
+async function setPppoeProfile(username, profileName, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     const secretMenu = conn.client.menu('/ppp/secret');
     const secret = await secretMenu.where('name', username).get();
     
@@ -83,7 +95,7 @@ async function setPppoeProfile(username, profileName) {
     await secretMenu.where('name', username).set({ profile: profileName });
     
     // Disconnect active connection so they reconnect with new profile
-    await kickPppoeUser(username);
+    await kickPppoeUser(username, routerId);
 
     return true;
   } catch (e) {
@@ -94,31 +106,31 @@ async function setPppoeProfile(username, profileName) {
   }
 }
 
-async function kickPppoeUser(username) {
+async function kickPppoeUser(username, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     const activeMenu = conn.client.menu('/ppp/active');
-    const sessions = await activeMenu.where('name', username).get();
-    if (sessions && sessions.length > 0) {
-      for (const s of sessions) {
-        await activeMenu.remove(s.id || s['.id']);
+    const activeSession = await activeMenu.where('name', username).get();
+    
+    if (activeSession && activeSession.length > 0) {
+      for (const s of activeSession) {
+        await activeMenu.remove(s['.id']);
       }
-      return true;
     }
-    return false;
+    return true;
   } catch (e) {
-    logger.warn(`Could not kick active connection for ${username}: ${e.message}`);
+    logger.error(`Error kicking PPPoE user ${username}:`, e);
     return false;
   } finally {
     if (conn && conn.api) conn.api.close();
   }
 }
 
-async function kickHotspotUser(username) {
+async function kickHotspotUser(username, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     const activeMenu = conn.client.menu('/ip/hotspot/active');
     const sessions = await activeMenu.where('user', username).get();
     if (sessions && sessions.length > 0) {
@@ -136,10 +148,10 @@ async function kickHotspotUser(username) {
   }
 }
 
-async function getPppoeSecrets() {
+async function getPppoeSecrets(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ppp/secret').get();
   } catch (e) {
     logger.error('Error getting PPPoE secrets:', e);
@@ -149,40 +161,40 @@ async function getPppoeSecrets() {
   }
 }
 
-async function addPppoeSecret(data) {
+async function addPppoeSecret(data, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ppp/secret').add(data);
   } finally {
     if (conn && conn.api) conn.api.close();
   }
 }
 
-async function updatePppoeSecret(id, data) {
+async function updatePppoeSecret(id, data, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ppp/secret').set(data, id);
   } finally {
     if (conn && conn.api) conn.api.close();
   }
 }
 
-async function deletePppoeSecret(id) {
+async function deletePppoeSecret(id, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ppp/secret').remove(id);
   } finally {
     if (conn && conn.api) conn.api.close();
   }
 }
 
-async function getPppoeActive() {
+async function getPppoeActive(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ppp/active').get();
   } catch (e) {
     logger.error('Error getting active PPPoE sessions:', e);
@@ -192,10 +204,10 @@ async function getPppoeActive() {
   }
 }
 
-async function getHotspotActive() {
+async function getHotspotActive(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ip/hotspot/active').get();
   } catch (e) {
     logger.error('Error getting active Hotspot sessions:', e);
@@ -206,10 +218,10 @@ async function getHotspotActive() {
 }
 
 // PPPoE Profiles CRUD
-async function addPppoeProfile(data) {
+async function addPppoeProfile(data, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ppp/profile').add(data);
   } catch (e) {
     logger.error('Error adding PPPoE profile:', e);
@@ -219,10 +231,10 @@ async function addPppoeProfile(data) {
   }
 }
 
-async function updatePppoeProfile(id, data) {
+async function updatePppoeProfile(id, data, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ppp/profile').update(id, data);
   } catch (e) {
     logger.error('Error updating PPPoE profile:', e);
@@ -232,10 +244,10 @@ async function updatePppoeProfile(id, data) {
   }
 }
 
-async function deletePppoeProfile(id) {
+async function deletePppoeProfile(id, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ppp/profile').remove(id);
   } catch (e) {
     logger.error('Error deleting PPPoE profile:', e);
@@ -246,10 +258,10 @@ async function deletePppoeProfile(id) {
 }
 
 // Hotspot Profiles CRUD (User Profiles)
-async function getHotspotUserProfiles() {
+async function getHotspotUserProfiles(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ip/hotspot/user/profile').get();
   } catch (e) {
     logger.error('Error getting Hotspot user profiles:', e);
@@ -259,10 +271,10 @@ async function getHotspotUserProfiles() {
   }
 }
 
-async function addHotspotUserProfile(data) {
+async function addHotspotUserProfile(data, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ip/hotspot/user/profile').add(data);
   } catch (e) {
     logger.error('Error adding Hotspot user profile:', e);
@@ -272,10 +284,10 @@ async function addHotspotUserProfile(data) {
   }
 }
 
-async function updateHotspotUserProfile(id, data) {
+async function updateHotspotUserProfile(id, data, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ip/hotspot/user/profile').update(id, data);
   } catch (e) {
     logger.error('Error updating Hotspot user profile:', e);
@@ -285,10 +297,10 @@ async function updateHotspotUserProfile(id, data) {
   }
 }
 
-async function deleteHotspotUserProfile(id) {
+async function deleteHotspotUserProfile(id, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ip/hotspot/user/profile').remove(id);
   } catch (e) {
     logger.error('Error deleting Hotspot user profile:', e);
@@ -298,10 +310,10 @@ async function deleteHotspotUserProfile(id) {
   }
 }
 
-async function getHotspotUsers() {
+async function getHotspotUsers(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ip/hotspot/user').get();
   } catch (e) {
     logger.error('Error getting Hotspot users:', e);
@@ -311,40 +323,40 @@ async function getHotspotUsers() {
   }
 }
 
-async function addHotspotUser(data) {
+async function addHotspotUser(data, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ip/hotspot/user').add(data);
   } finally {
     if (conn && conn.api) conn.api.close();
   }
 }
 
-async function updateHotspotUser(id, data) {
+async function updateHotspotUser(id, data, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ip/hotspot/user').set(data, id);
   } finally {
     if (conn && conn.api) conn.api.close();
   }
 }
 
-async function deleteHotspotUser(id) {
+async function deleteHotspotUser(id, routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/ip/hotspot/user').remove(id);
   } finally {
     if (conn && conn.api) conn.api.close();
   }
 }
 
-async function getBackup() {
+async function getBackup(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     const result = await conn.client.menu('/').exec('export');
     return result;
   } catch (e) {
@@ -355,10 +367,10 @@ async function getBackup() {
   }
 }
 
-async function getSystemScripts() {
+async function getSystemScripts(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     return await conn.client.menu('/system/script').get();
   } catch (e) {
     logger.error('Error getting MikroTik system scripts:', e);
@@ -368,10 +380,10 @@ async function getSystemScripts() {
   }
 }
 
-async function getSystemResource() {
+async function getSystemResource(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
+    conn = await getConnection(routerId);
     const result = await conn.client.menu('/system/resource').get();
     return result[0];
   } catch (e) {
@@ -382,11 +394,11 @@ async function getSystemResource() {
   }
 }
 
-async function getHotspotProfiles() {
+async function getHotspotProfiles(routerId = null) {
   let conn = null;
   try {
-    conn = await getConnection();
-    return await conn.client.menu('/ip/hotspot/user/profile').get();
+    conn = await getConnection(routerId);
+    return await conn.client.menu('/ip/hotspot/profile').get();
   } catch (e) {
     logger.error('Error getting Hotspot profiles:', e);
     return [];
@@ -395,7 +407,65 @@ async function getHotspotProfiles() {
   }
 }
 
+async function addHotspotProfile(data, routerId = null) {
+  let conn = null;
+  try {
+    conn = await getConnection(routerId);
+    return await conn.client.menu('/ip/hotspot/profile').add(data);
+  } finally {
+    if (conn && conn.api) conn.api.close();
+  }
+}
+
+async function updateHotspotProfile(id, data, routerId = null) {
+  let conn = null;
+  try {
+    conn = await getConnection(routerId);
+    return await conn.client.menu('/ip/hotspot/profile').set(data, id);
+  } finally {
+    if (conn && conn.api) conn.api.close();
+  }
+}
+
+async function deleteHotspotProfile(id, routerId = null) {
+  let conn = null;
+  try {
+    conn = await getConnection(routerId);
+    return await conn.client.menu('/ip/hotspot/profile').remove(id);
+  } finally {
+    if (conn && conn.api) conn.api.close();
+  }
+}
+
+// Router CRUD Services
+function getAllRouters() {
+  return db.prepare('SELECT * FROM routers ORDER BY name ASC').all();
+}
+
+function getRouterById(id) {
+  return db.prepare('SELECT * FROM routers WHERE id = ?').get(id);
+}
+
+function createRouter(data) {
+  return db.prepare(`
+    INSERT INTO routers (name, host, port, user, password, description, is_active)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(data.name, data.host, data.port || 8728, data.user, data.password, data.description || '', data.is_active || 1);
+}
+
+function updateRouter(id, data) {
+  return db.prepare(`
+    UPDATE routers SET name=?, host=?, port=?, user=?, password=?, description=?, is_active=?
+    WHERE id=?
+  `).run(data.name, data.host, data.port || 8728, data.user, data.password, data.description || '', data.is_active || 1, id);
+}
+
+function deleteRouter(id) {
+  return db.prepare('DELETE FROM routers WHERE id = ?').run(id);
+}
+
 module.exports = {
+  getConnection,
   getPppoeProfiles,
   getPppoeUsers,
   setPppoeProfile,
@@ -421,5 +491,10 @@ module.exports = {
   kickPppoeUser,
   kickHotspotUser,
   getSystemResource,
-  getSystemScripts
+  getSystemScripts,
+  getAllRouters,
+  getRouterById,
+  createRouter,
+  updateRouter,
+  deleteRouter
 };

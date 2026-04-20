@@ -187,45 +187,137 @@
 
         <!-- Payment Gateway -->
         <div style="grid-column: span 2">
-          <h6 style="font-size:13px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px"><i class="bi bi-wallet2"></i> Payment Gateway (Tripay)</h6>
+          <h6 style="font-size:13px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px"><i class="bi bi-wallet2"></i> Pengaturan Payment Gateway</h6>
           
-          <div class="form-row3">
+          <div class="form-row3" style="margin-bottom: 20px;">
             <div class="fg">
-              <label class="fl">Status Payment Gateway</label>
-              <select class="fs" name="tripay_enabled">
-                <option value="true" <%= settings.tripay_enabled === true ? 'selected' : '' %>>Aktif</option>
-                <option value="false" <%= settings.tripay_enabled === false ? 'selected' : '' %>>Nonaktif</option>
+              <label class="fl">Default Gateway</label>
+              <select class="fs" name="default_gateway">
+                <option value="tripay" <%= settings.default_gateway === 'tripay' ? 'selected' : '' %>>Tripay</option>
+                <option value="midtrans" <%= settings.default_gateway === 'midtrans' ? 'selected' : '' %>>Midtrans</option>
+                <option value="xendit" <%= settings.default_gateway === 'xendit' ? 'selected' : '' %>>Xendit</option>
+                <option value="duitku" <%= settings.default_gateway === 'duitku' ? 'selected' : '' %>>Duitku</option>
               </select>
-            </div>
-            <div class="fg">
-              <label class="fl">Tripay API Key</label>
-              <input class="fc" name="tripay_api_key" value="<%= settings.tripay_api_key || '' %>" type="password">
-            </div>
-            <div class="fg">
-              <label class="fl">Tripay Private Key</label>
-              <input class="fc" name="tripay_private_key" value="<%= settings.tripay_private_key || '' %>" type="password">
             </div>
           </div>
 
-          <div class="form-row3">
-            <div class="fg">
-              <label class="fl">Tripay Merchant Code</label>
-              <input class="fc" name="tripay_merchant_code" value="<%= settings.tripay_merchant_code || '' %>" placeholder="Txxxx">
-            </div>
-            <div class="fg">
-              <label class="fl">Tripay Mode</label>
-              <select class="fs" name="tripay_mode">
-                <option value="sandbox" <%= settings.tripay_mode === 'sandbox' ? 'selected' : '' %>>Sandbox (Testing)</option>
-                <option value="live" <%= settings.tripay_mode === 'live' ? 'selected' : '' %>>Live (Produksi)</option>
-              </select>
-            </div>
-            <div class="fg">
-              <label class="fl">Link Webhook (Copy ke Dashboard Tripay)</label>
-              <div style="display:flex;gap:8px">
-                <input class="fc" id="webhook_url" readonly value="">
-                <button type="button" class="btn btn-g" onclick="copyWebhook()"><i class="bi bi-copy"></i></button>
+          <!-- Tripay Section -->
+          <div style="background: rgba(0,0,0,0.02); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+            <h6 style="font-size:12px; margin-bottom: 10px;">Tripay Configuration</h6>
+            <div class="form-row3">
+              <div class="fg">
+                <label class="fl">Status Tripay</label>
+                <select class="fs" name="tripay_enabled">
+                  <option value="true" <%= settings.tripay_enabled === true ? 'selected' : '' %>>Aktif</option>
+                  <option value="false" <%= settings.tripay_enabled === false ? 'selected' : '' %>>Nonaktif</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label class="fl">Tripay API Key</label>
+                <input class="fc" name="tripay_api_key" value="<%= settings.tripay_api_key || '' %>" type="password">
+              </div>
+              <div class="fg">
+                <label class="fl">Tripay Private Key</label>
+                <input class="fc" name="tripay_private_key" value="<%= settings.tripay_private_key || '' %>" type="password">
               </div>
             </div>
+            <div class="form-row3">
+              <div class="fg">
+                <label class="fl">Tripay Merchant Code</label>
+                <input class="fc" name="tripay_merchant_code" value="<%= settings.tripay_merchant_code || '' %>" placeholder="Txxxx">
+              </div>
+              <div class="fg">
+                <label class="fl">Tripay Mode</label>
+                <select class="fs" name="tripay_mode">
+                  <option value="sandbox" <%= settings.tripay_mode === 'sandbox' ? 'selected' : '' %>>Sandbox</option>
+                  <option value="live" <%= settings.tripay_mode === 'live' ? 'selected' : '' %>>Live</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Midtrans Section -->
+          <div style="background: rgba(0,0,0,0.02); padding: 15px; border-radius: 12px;">
+            <h6 style="font-size:12px; margin-bottom: 10px;">Midtrans Configuration</h6>
+            <div class="form-row3">
+              <div class="fg">
+                <label class="fl">Status Midtrans</label>
+                <select class="fs" name="midtrans_enabled">
+                  <option value="true" <%= settings.midtrans_enabled === true ? 'selected' : '' %>>Aktif</option>
+                  <option value="false" <%= settings.midtrans_enabled === false ? 'selected' : '' %>>Nonaktif</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label class="fl">Midtrans Server Key</label>
+                <input class="fc" name="midtrans_server_key" value="<%= settings.midtrans_server_key || '' %>" type="password">
+              </div>
+              <div class="fg">
+                <label class="fl">Midtrans Mode</label>
+                <select class="fs" name="midtrans_mode">
+                  <option value="sandbox" <%= settings.midtrans_mode === 'sandbox' ? 'selected' : '' %>>Sandbox</option>
+                  <option value="live" <%= settings.midtrans_mode === 'live' ? 'selected' : '' %>>Live</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Xendit Section -->
+          <div style="background: rgba(0,0,0,0.02); padding: 15px; border-radius: 12px; margin-top: 15px;">
+            <h6 style="font-size:12px; margin-bottom: 10px;">Xendit Configuration</h6>
+            <div class="form-row2">
+              <div class="fg">
+                <label class="fl">Status Xendit</label>
+                <select class="fs" name="xendit_enabled">
+                  <option value="true" <%= settings.xendit_enabled === true ? 'selected' : '' %>>Aktif</option>
+                  <option value="false" <%= settings.xendit_enabled === false ? 'selected' : '' %>>Nonaktif</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label class="fl">Xendit Secret API Key</label>
+                <input class="fc" name="xendit_api_key" value="<%= settings.xendit_api_key || '' %>" type="password" placeholder="xnd_development_...">
+              </div>
+            </div>
+            <div style="font-size: 10px; color: var(--muted); margin-top: 4px;">Xendit menggunakan callback token yang disetting di dashboard Xendit.</div>
+          </div>
+
+          <!-- Duitku Section -->
+          <div style="background: rgba(0,0,0,0.02); padding: 15px; border-radius: 12px; margin-top: 15px;">
+            <h6 style="font-size:12px; margin-bottom: 10px;">Duitku Configuration</h6>
+            <div class="form-row3">
+              <div class="fg">
+                <label class="fl">Status Duitku</label>
+                <select class="fs" name="duitku_enabled">
+                  <option value="true" <%= settings.duitku_enabled === true ? 'selected' : '' %>>Aktif</option>
+                  <option value="false" <%= settings.duitku_enabled === false ? 'selected' : '' %>>Nonaktif</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label class="fl">Duitku Merchant Code</label>
+                <input class="fc" name="duitku_merchant_code" value="<%= settings.duitku_merchant_code || '' %>" placeholder="Dxxxx">
+              </div>
+              <div class="fg">
+                <label class="fl">Duitku API Key</label>
+                <input class="fc" name="duitku_api_key" value="<%= settings.duitku_api_key || '' %>" type="password">
+              </div>
+            </div>
+            <div class="form-row2">
+              <div class="fg">
+                <label class="fl">Duitku Mode</label>
+                <select class="fs" name="duitku_mode">
+                  <option value="sandbox" <%= settings.duitku_mode === 'sandbox' ? 'selected' : '' %>>Sandbox</option>
+                  <option value="live" <%= settings.duitku_mode === 'live' ? 'selected' : '' %>>Live</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="fg" style="margin-top: 15px;">
+            <label class="fl">Link Webhook (Copy ke Dashboard Gateway)</label>
+            <div style="display:flex;gap:8px">
+              <input class="fc" id="webhook_url" readonly value="">
+              <button type="button" class="btn btn-g" onclick="copyWebhook()"><i class="bi bi-copy"></i></button>
+            </div>
+            <div style="font-size: 10px; color: var(--muted); margin-top: 4px;">Gunakan link ini untuk kolom Webhook URL di Tripay atau Midtrans Notification URL.</div>
           </div>
         </div>
 

@@ -92,8 +92,8 @@
       <p><%= company %> tidak bertanggung jawab atas kerugian yang disebabkan oleh gangguan teknis dari penyedia hulu (Upstream), kerusakan perangkat akibat kelalaian pelanggan, atau kejadian luar biasa (Force Majeure).</p>
 
       <div class="mt-5 text-center">
-        <a href="/customer/login" class="btn btn-back">
-          <i class="bi bi-arrow-left me-2"></i>Kembali ke Portal
+        <a href="<%= isLoggedIn ? '/customer/dashboard' : '/customer/login' %>" class="btn btn-back">
+          <i class="bi bi-arrow-left me-2"></i>Kembali ke <%= isLoggedIn ? 'Dashboard' : 'Portal' %>
         </a>
       </div>
     </div>

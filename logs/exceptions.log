@@ -319,3 +319,44 @@ TypeError: logger.error is not a function
     at Object.updatePassword (D:\app-customer\services\customerDeviceService.js:364:12)
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
     at async D:\app-customer\routes\adminPortal.js:546:14
+2026-04-19 15:03:17 error: uncaughtException: mikrotik.getConnection is not a function
+[eval]:1
+const mikrotik = require('./services/mikrotikService'); mikrotik.getConnection().then(async conn => { const res = await conn.client.menu('/system/script').get(); console.log(JSON.stringify(res.slice(0, 5), null, 2)); conn.api.close(); })
+                                                                 ^
+
+TypeError: mikrotik.getConnection is not a function
+    at [eval]:1:66
+    at runScriptInThisContext (node:internal/vm:209:10)
+    at node:internal/process/execution:118:14
+    at [eval]-wrapper:6:24
+    at runScript (node:internal/process/execution:101:62)
+    at evalScript (node:internal/process/execution:136:3)
+    at node:internal/main/eval_string:55:3
+2026-04-19 20:52:07 error: uncaughtException: getTodayRevenue is not defined
+ReferenceError: getTodayRevenue is not defined
+    at Object.<anonymous> (D:\app-customer\services\billingService.js:172:3)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+    at Module.require (node:internal/modules/cjs/loader:1335:12)
+    at require (node:internal/modules/helpers:136:16)
+    at Object.<anonymous> (D:\app-customer\routes\customerPortal.js:5:20)
+2026-04-20 07:00:50 error: uncaughtException: await is only valid in async functions and the top level bodies of modules
+D:\app-customer\services\mikrotikService.js:439
+    conn = await getConnection();
+           ^^^^^
+
+SyntaxError: await is only valid in async functions and the top level bodies of modules
+    at wrapSafe (node:internal/modules/cjs/loader:1512:18)
+    at Module._compile (node:internal/modules/cjs/loader:1534:20)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+    at Module.require (node:internal/modules/cjs/loader:1335:12)
+    at require (node:internal/modules/helpers:136:16)
+    at Object.<anonymous> (D:\app-customer\routes\customerPortal.js:8:25)

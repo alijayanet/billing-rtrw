@@ -48,13 +48,8 @@ function startCronJobs() {
             try {
               logger.info(`[CRON] Isolir otomatis pelanggan: ${c.name} (${c.pppoe_username}) - Tanggal Tagihan: ${customerIsolirDay}`);
               
-              // 1. Update status di DB
-              customerSvc.updateCustomer(c.id, { ...c, status: 'suspended' });
-              
-              // 2. Sync ke MikroTik
-              if (c.pppoe_username) {
-                await mikrotikService.setPppoeProfile(c.pppoe_username, c.isolir_profile || 'isolir');
-              }
+              // Gunakan fungsi terpusat untuk isolir
+              await customerSvc.suspendCustomer(c.id);
               
               isolatedCount++;
             } catch (err) {

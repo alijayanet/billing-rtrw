@@ -170,12 +170,19 @@ router.get('/bulk', requireAdminSession, (req, res) => {
 // ─── CUSTOMERS ─────────────────────────────────────────────────────────────
 router.get('/customers', requireAdminSession, (req, res) => {
   const { search = '', status: filterStatus = '' } = req.query;
-  let customers = customerSvc.getAllCustomers(search);
-  if (filterStatus) customers = customers.filter(c => c.status === filterStatus);
+  const customers = customerSvc.getAllCustomers(search);
+  const stats = customerSvc.getCustomerStats();
+  const packages = customerSvc.getAllPackages();
+  const routers = mikrotikService.getAllRouters();
+
+  // Apply status filter in JS if provided
+  const filteredCustomers = filterStatus 
+    ? customers.filter(c => c.status === filterStatus)
+    : customers;
+
   res.render('admin/customers', {
-    title: 'Pelanggan', company: company(), activePage: 'customers',
-    customers, packages: customerSvc.getAllPackages(), stats: customerSvc.getCustomerStats(),
-    search, filterStatus, msg: flashMsg(req)
+    title: 'Data Pelanggan', company: company(), activePage: 'customers',
+    customers: filteredCustomers, stats, packages, routers, search, filterStatus, msg: flashMsg(req)
   });
 });
 
@@ -194,7 +201,7 @@ router.post('/customers', requireAdminSession, express.urlencoded({ extended: tr
       }
       if (targetProfile) {
         try {
-          await mikrotikService.setPppoeProfile(req.body.pppoe_username, targetProfile);
+          await mikrotikService.setPppoeProfile(req.body.pppoe_username, targetProfile, req.body.router_id);
         } catch (mErr) {
           console.error('Mikrotik sync error (create):', mErr);
         }
@@ -223,7 +230,7 @@ router.post('/customers/:id/update', requireAdminSession, express.urlencoded({ e
       }
       if (targetProfile) {
         try {
-          await mikrotikService.setPppoeProfile(req.body.pppoe_username, targetProfile);
+          await mikrotikService.setPppoeProfile(req.body.pppoe_username, targetProfile, req.body.router_id);
         } catch (mErr) {
           console.error('Mikrotik sync error (update):', mErr);
         }
@@ -255,6 +262,7 @@ router.get('/customers/export', requireAdminSession, (req, res) => {
       'ID': c.id,
       'Nama': c.name,
       'Telepon': c.phone,
+      'Email': c.email || '',
       'Alamat': c.address,
       'Paket': c.package_name || '-',
       'Tag ONU': c.genieacs_tag,
@@ -311,6 +319,7 @@ router.post('/customers/import', requireAdminSession, upload.single('file'), asy
       const data = {
         name: name,
         phone: cleanRow['Telepon'] || cleanRow['phone'] || cleanRow['Phone'],
+        email: cleanRow['Email'] || cleanRow['email'] || cleanRow['email_address'],
         address: cleanRow['Alamat'] || cleanRow['address'] || cleanRow['Address'],
         package_id: pkg ? pkg.id : null,
         genieacs_tag: cleanRow['Tag ONU'] || cleanRow['genieacs_tag'],
@@ -651,6 +660,11 @@ router.post('/settings', requireAdminSession, express.urlencoded({ extended: tru
     if (newSettings.tripay_enabled === 'true') newSettings.tripay_enabled = true;
     else if (newSettings.tripay_enabled === 'false') newSettings.tripay_enabled = false;
     
+    if (newSettings.midtrans_enabled === 'true') newSettings.midtrans_enabled = true;
+    else if (newSettings.midtrans_enabled === 'false') newSettings.midtrans_enabled = false;
+
+    if (newSettings.default_gateway) newSettings.default_gateway = newSettings.default_gateway.toLowerCase();
+
     if (typeof newSettings.whatsapp_admin_numbers === 'string') {
       newSettings.whatsapp_admin_numbers = newSettings.whatsapp_admin_numbers.split(',').map(n => n.trim()).filter(Boolean);
     }
@@ -796,83 +810,85 @@ router.get('/api/mikrotik/users', requireAdmin, async (req, res) => {
 
 // ─── MIKROTIK MONITORING ───────────────────────────────────────────────────
 router.get('/mikrotik', requireAdminSession, (req, res) => {
+  const routers = mikrotikService.getAllRouters();
   res.render('admin/mikrotik', {
-    title: 'Monitoring MikroTik', company: company(), activePage: 'mikrotik', msg: flashMsg(req)
+    title: 'Monitoring MikroTik', company: company(), activePage: 'mikrotik', 
+    routers, msg: flashMsg(req)
   });
 });
 
 router.get('/api/mikrotik/secrets', requireAdmin, async (req, res) => {
-  try { res.json(await mikrotikService.getPppoeSecrets()); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(await mikrotikService.getPppoeSecrets(req.query.routerId)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/api/mikrotik/secrets', requireAdmin, express.json(), async (req, res) => {
-  try { await mikrotikService.addPppoeSecret(req.body); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.addPppoeSecret(req.body, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/api/mikrotik/secrets/:id/update', requireAdmin, express.json(), async (req, res) => {
-  try { await mikrotikService.updatePppoeSecret(req.params.id, req.body); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.updatePppoeSecret(req.params.id, req.body, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/api/mikrotik/secrets/:id/delete', requireAdmin, async (req, res) => {
-  try { await mikrotikService.deletePppoeSecret(req.params.id); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.deletePppoeSecret(req.params.id, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.get('/api/mikrotik/hotspot-users', requireAdmin, async (req, res) => {
-  try { res.json(await mikrotikService.getHotspotUsers()); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(await mikrotikService.getHotspotUsers(req.query.routerId)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/api/mikrotik/hotspot-users', requireAdmin, express.json(), async (req, res) => {
-  try { await mikrotikService.addHotspotUser(req.body); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.addHotspotUser(req.body, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/api/mikrotik/hotspot-users/:id/update', requireAdmin, express.json(), async (req, res) => {
-  try { await mikrotikService.updateHotspotUser(req.params.id, req.body); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.updateHotspotUser(req.params.id, req.body, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/api/mikrotik/hotspot-users/:id/delete', requireAdmin, async (req, res) => {
-  try { await mikrotikService.deleteHotspotUser(req.params.id); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.deleteHotspotUser(req.params.id, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.get('/api/mikrotik/hotspot-profiles', requireAdmin, async (req, res) => {
-  try { res.json(await mikrotikService.getHotspotProfiles()); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(await mikrotikService.getHotspotProfiles(req.query.routerId)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.get('/api/mikrotik/active-pppoe', requireAdmin, async (req, res) => {
-  try { res.json(await mikrotikService.getPppoeActive()); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(await mikrotikService.getPppoeActive(req.query.routerId)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.get('/api/mikrotik/active-hotspot', requireAdmin, async (req, res) => {
-  try { res.json(await mikrotikService.getHotspotActive()); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(await mikrotikService.getHotspotActive(req.query.routerId)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // PPPoE Profiles CRUD
 router.post('/api/mikrotik/pppoe-profiles', requireAdmin, express.json(), async (req, res) => {
-  try { await mikrotikService.addPppoeProfile(req.body); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.addPppoeProfile(req.body, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.post('/api/mikrotik/pppoe-profiles/:id/update', requireAdmin, express.json(), async (req, res) => {
-  try { await mikrotikService.updatePppoeProfile(req.params.id, req.body); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.updatePppoeProfile(req.params.id, req.body, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.post('/api/mikrotik/pppoe-profiles/:id/delete', requireAdmin, async (req, res) => {
-  try { await mikrotikService.deletePppoeProfile(req.params.id); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.deletePppoeProfile(req.params.id, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Hotspot User Profiles CRUD
 router.get('/api/mikrotik/hotspot-user-profiles', requireAdmin, async (req, res) => {
-  try { res.json(await mikrotikService.getHotspotUserProfiles()); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(await mikrotikService.getHotspotUserProfiles(req.query.routerId)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.post('/api/mikrotik/hotspot-user-profiles', requireAdmin, express.json(), async (req, res) => {
-  try { await mikrotikService.addHotspotUserProfile(req.body); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.addHotspotUserProfile(req.body, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.post('/api/mikrotik/hotspot-user-profiles/:id/update', requireAdmin, express.json(), async (req, res) => {
-  try { await mikrotikService.updateHotspotUserProfile(req.params.id, req.body); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.updateHotspotUserProfile(req.params.id, req.body, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.post('/api/mikrotik/hotspot-user-profiles/:id/delete', requireAdmin, async (req, res) => {
-  try { await mikrotikService.deleteHotspotUserProfile(req.params.id); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await mikrotikService.deleteHotspotUserProfile(req.params.id, req.query.routerId); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.get('/api/mikrotik/backup', requireAdmin, async (req, res) => {
   try {
-    const backup = await mikrotikService.getBackup();
+    const backup = await mikrotikService.getBackup(req.query.routerId);
     res.setHeader('Content-disposition', 'attachment; filename=mikrotik_backup_' + new Date().toISOString().slice(0,10) + '.rsc');
     res.setHeader('Content-type', 'text/plain');
     res.send(backup);
@@ -1035,6 +1051,75 @@ router.post('/whatsapp/reset', requireAdminSession, (req, res) => {
     logger.error('Failed to reset WA session:', e.message);
     req.session._msg = { text: 'Gagal menghapus sesi: ' + e.message + '. (Kemungkinan file sedang digunakan, silakan matikan aplikasi dulu lalu hapus folder ' + getSetting('whatsapp_auth_folder', 'auth_info_baileys') + ' secara manual)', type: 'danger' };
     res.redirect('/admin/whatsapp');
+  }
+});
+
+// ─── ROUTERS (MULTI-ROUTER) ──────────────────────────────────────────────────
+router.get('/routers', requireAdminSession, (req, res) => {
+  res.render('admin/routers', {
+    title: 'Manajemen Router', company: company(), activePage: 'routers',
+    routers: mikrotikService.getAllRouters(), msg: flashMsg(req)
+  });
+});
+
+router.post('/routers', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    mikrotikService.createRouter(req.body);
+    req.session._msg = { type: 'success', text: `Router "${req.body.name}" berhasil ditambahkan.` };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+  }
+  res.redirect('/admin/routers');
+});
+
+router.post('/routers/:id/update', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    mikrotikService.updateRouter(req.params.id, req.body);
+    req.session._msg = { type: 'success', text: 'Router berhasil diperbarui.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+  }
+  res.redirect('/admin/routers');
+});
+
+router.post('/routers/:id/delete', requireAdminSession, (req, res) => {
+  try {
+    mikrotikService.deleteRouter(req.params.id);
+    req.session._msg = { type: 'success', text: 'Router berhasil dihapus.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+  }
+  res.redirect('/admin/routers');
+});
+
+router.get('/api/routers/:id/test', requireAdmin, async (req, res) => {
+  try {
+    const conn = await mikrotikService.getConnection(req.params.id);
+    if (conn && conn.api) {
+      conn.api.close();
+      return res.json({ success: true, message: 'Koneksi ke Router Berhasil!' });
+    }
+    throw new Error('Gagal terhubung ke router');
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+router.get('/api/mikrotik/profiles/:routerId', requireAdmin, async (req, res) => {
+  try {
+    const profiles = await mikrotikService.getPppoeProfiles(req.params.routerId);
+    res.json(profiles);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/api/mikrotik/users/:routerId', requireAdmin, async (req, res) => {
+  try {
+    const users = await mikrotikService.getPppoeUsers(req.params.routerId);
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

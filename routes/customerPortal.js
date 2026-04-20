@@ -16,25 +16,41 @@ function dashboardNotif(message, type = 'success') {
 // Route: Syarat & Ketentuan (TOS)
 router.get('/tos', (req, res) => {
   const settings = getSettingsWithCache();
-  res.render('tos', { settings, company: settings.company_header || 'ISP Kami' });
+  res.render('tos', { 
+    settings, 
+    company: settings.company_header || 'ISP Kami',
+    isLoggedIn: !!req.session.phone 
+  });
 });
 
 // Route: Kebijakan Privasi
 router.get('/privacy', (req, res) => {
   const settings = getSettingsWithCache();
-  res.render('privacy', { settings, company: settings.company_header || 'ISP Kami' });
+  res.render('privacy', { 
+    settings, 
+    company: settings.company_header || 'ISP Kami',
+    isLoggedIn: !!req.session.phone 
+  });
 });
 
 // Route: Tentang Kami
 router.get('/about', (req, res) => {
   const settings = getSettingsWithCache();
-  res.render('about', { settings, company: settings.company_header || 'ISP Kami' });
+  res.render('about', { 
+    settings, 
+    company: settings.company_header || 'ISP Kami',
+    isLoggedIn: !!req.session.phone 
+  });
 });
 
 // Route: Kontak Support
 router.get('/contact', (req, res) => {
   const settings = getSettingsWithCache();
-  res.render('contact', { settings, company: settings.company_header || 'ISP Kami' });
+  res.render('contact', { 
+    settings, 
+    company: settings.company_header || 'ISP Kami',
+    isLoggedIn: !!req.session.phone 
+  });
 });
 
 const {
@@ -63,7 +79,7 @@ router.get('/register', (req, res) => {
 router.post('/register', async (req, res) => {
   const settings = getSettingsWithCache();
   const packages = customerSvc.getAllPackages().filter(p => p.is_active !== 0);
-  const { name, phone, address, package_id } = req.body;
+  const { name, phone, email, address, package_id } = req.body;
 
   try {
     if (!name || !phone || !address || !package_id) {
@@ -74,6 +90,7 @@ router.post('/register', async (req, res) => {
     customerSvc.createCustomer({
       name,
       phone,
+      email,
       address,
       package_id,
       status: 'inactive',
@@ -266,11 +283,19 @@ router.get('/dashboard', async (req, res) => {
     tickets = ticketSvc.getTicketsByCustomerId(profile.id);
   }
 
+  const settings = getSettingsWithCache();
+  let paymentChannels = [];
+  if (settings.default_gateway === 'tripay' && settings.tripay_enabled) {
+    paymentChannels = await paymentSvc.getTripayChannels();
+  }
+
   res.render('dashboard', {
     customer: deviceData || fallbackCustomer(loginId),
     profile: profile || null,
     invoices: invoices || [],
     tickets: tickets || [],
+    settings,
+    paymentChannels,
     connectedUsers: deviceData ? deviceData.connectedUsers : [],
     notif: msgNotif || (deviceData ? null : dashboardNotif('Data perangkat tidak ditemukan di sistem ONU.', 'warning'))
   });
@@ -392,17 +417,55 @@ router.get('/payment/create/:invoiceId', async (req, res) => {
   if (!loginId) return res.redirect('/customer/login');
   
   try {
+    const settings = getSettingsWithCache();
     const inv = billingSvc.getInvoiceById(req.params.invoiceId);
+    
     if (!inv) throw new Error('Tagihan tidak ditemukan');
     if (inv.status === 'paid') throw new Error('Tagihan ini sudah lunas.');
 
+    // Cek apakah sudah ada link pembayaran yang aktif (belum expire)
+    if (inv.payment_link && inv.payment_expires_at) {
+      const expiresAt = new Date(inv.payment_expires_at).getTime();
+      if (expiresAt > Date.now()) {
+        logger.info(`[Payment] Reusing existing link for INV-${inv.id}`);
+        return res.redirect(inv.payment_link);
+      }
+    }
+
+    const gateway = settings.default_gateway || 'tripay';
     const method = req.query.method || 'QRIS';
     const cust = customerSvc.getCustomerById(inv.customer_id);
-    const result = await paymentSvc.createTripayTransaction(inv, cust, method);
+    
+    // Tentukan base URL aplikasi untuk callback
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const appUrl = settings.app_url || `${protocol}://${host}`;
+
+    let result;
+    if (gateway === 'midtrans') {
+      result = await paymentSvc.createMidtransTransaction(inv, cust, method, appUrl);
+    } else if (gateway === 'xendit') {
+      result = await paymentSvc.createXenditTransaction(inv, cust, method, appUrl);
+    } else if (gateway === 'duitku') {
+      result = await paymentSvc.createDuitkuTransaction(inv, cust, method, appUrl);
+    } else {
+      // Default ke Tripay
+      result = await paymentSvc.createTripayTransaction(inv, cust, method, appUrl);
+    }
     
     if (result.success) {
-      // Redirect ke halaman checkout Tripay
-      res.redirect(result.data.checkout_url);
+      // Simpan info pembayaran ke database
+      billingSvc.updatePaymentInfo(inv.id, {
+        gateway: gateway,
+        order_id: result.order_id,
+        link: result.link,
+        reference: result.reference,
+        payload: result.payload,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // Default 24 jam
+      });
+
+      logger.info(`[Payment] New link created for INV-${inv.id} via ${gateway}`);
+      res.redirect(result.link);
     } else {
       throw new Error(result.message || 'Gagal membuat transaksi');
     }
@@ -413,51 +476,101 @@ router.get('/payment/create/:invoiceId', async (req, res) => {
 });
 
 /**
- * Webhook Callback dari Tripay
+ * Webhook Callback (Multi-Gateway)
  */
 router.post('/payment/callback', express.json(), async (req, res) => {
   const settings = getSettingsWithCache();
-  const signature = req.headers['x-callback-signature'];
+  const tripaySignature = req.headers['x-callback-signature'];
+  const midtransSignature = req.headers['x-callback-token']; // Midtrans usually uses Basic Auth or IP whitelist, but let's check payload
+  
   const jsonBody = JSON.stringify(req.body);
+  let invoiceId = null;
+  let status = null;
+  let gateway = null;
 
-  // Verifikasi Signature
-  if (!paymentSvc.verifyWebhook(jsonBody, signature, settings.tripay_private_key)) {
-    return res.status(401).json({ success: false, message: 'Invalid signature' });
+  // --- DETEKSI TRIPAY ---
+  if (tripaySignature) {
+    if (paymentSvc.verifyTripayWebhook(jsonBody, tripaySignature, settings.tripay_private_key)) {
+      const { merchant_ref, status: tpStatus } = req.body;
+      const parts = merchant_ref.split('-');
+      invoiceId = parts[1];
+      status = tpStatus === 'PAID' ? 'paid' : tpStatus;
+      gateway = 'Tripay';
+    } else {
+      logger.error('[Webhook] Signature Tripay tidak valid');
+      return res.status(401).json({ success: false, message: 'Invalid signature' });
+    }
+  } 
+  // --- DETEKSI MIDTRANS ---
+  else if (req.body.transaction_status && req.body.order_id) {
+    const serverKey = settings.midtrans_server_key;
+    if (paymentSvc.verifyMidtransWebhook(req.body, serverKey)) {
+      const { order_id, transaction_status } = req.body;
+      const parts = order_id.split('-');
+      invoiceId = parts[1];
+      status = (transaction_status === 'settlement' || transaction_status === 'capture') ? 'paid' : transaction_status;
+      gateway = 'Midtrans';
+    } else {
+      logger.error('[Webhook] Signature Midtrans tidak valid');
+      return res.status(401).json({ success: false, message: 'Invalid signature' });
+    }
+  }
+  // --- DETEKSI XENDIT ---
+  else if (req.body.external_id && req.body.status && !tripaySignature) {
+    // Xendit callback usually includes x-callback-token in headers
+    const xenditToken = req.headers['x-callback-token'];
+    if (xenditToken === settings.xendit_callback_token || !settings.xendit_callback_token) {
+      const { external_id, status: xStatus } = req.body;
+      const parts = external_id.split('-');
+      invoiceId = parts[1];
+      status = xStatus === 'PAID' ? 'paid' : xStatus;
+      gateway = 'Xendit';
+    } else {
+      logger.error('[Webhook] Callback Token Xendit tidak valid');
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+  }
+  // --- DETEKSI DUITKU ---
+  else if (req.body.merchantCode && req.body.merchantOrderId && req.body.resultCode) {
+    if (paymentSvc.verifyDuitkuWebhook(req.body, settings.duitku_api_key)) {
+      const { merchantOrderId, resultCode } = req.body;
+      const parts = merchantOrderId.split('-');
+      invoiceId = parts[1];
+      status = resultCode === '00' ? 'paid' : resultCode;
+      gateway = 'Duitku';
+    } else {
+      logger.error('[Webhook] Signature Duitku tidak valid');
+      return res.status(401).json({ success: false, message: 'Invalid signature' });
+    }
   }
 
-  const { merchant_ref, status } = req.body;
-  // merchant_ref format: INV-ID-TIMESTAMP
-  const parts = merchant_ref.split('-');
-  const invoiceId = parts[1];
-
-  if (status === 'PAID') {
-    logger.info(`[Webhook] Pembayaran diterima untuk Invoice ID: ${invoiceId}`);
+  if (invoiceId && status === 'paid') {
+    logger.info(`[Webhook] Pembayaran diterima via ${gateway} untuk Invoice ID: ${invoiceId}`);
     
-    // 1. Mark as paid in DB
-    billingSvc.markAsPaid(invoiceId, 'Payment Gateway', 'Otomatis via Tripay');
+    // Cek apakah sudah lunas sebelumnya
+    const checkInv = billingSvc.getInvoiceById(invoiceId);
+    if (checkInv && checkInv.status !== 'paid') {
+      // 1. Mark as paid in DB
+      billingSvc.markAsPaid(invoiceId, gateway, `Otomatis via Webhook ${gateway}`);
 
-    // 2. Un-isolate if needed
-    const inv = billingSvc.getInvoiceById(invoiceId);
-    if (inv) {
-      const customer = customerSvc.getCustomerById(inv.customer_id);
+      // 2. Un-isolate if needed
+      const customer = customerSvc.getCustomerById(checkInv.customer_id);
       
       // Kirim Notifikasi WA Lunas
       try {
         const { sendWA } = await import('../services/whatsappBot.mjs');
-        const msg = `✅ *PEMBAYARAN BERHASIL*\n\nTerima kasih Kak *${customer.name}*,\n\nPembayaran tagihan internet bulan ini telah kami terima.\n\n💰 *Total:* Rp ${inv.amount.toLocaleString('id-ID')}\n📅 *Waktu:* ${new Date().toLocaleString('id-ID')}\n\nStatus layanan Anda kini telah aktif. Selamat berinternet kembali! 🚀`;
+        const msg = `✅ *PEMBAYARAN BERHASIL*\n\nTerima kasih Kak *${customer.name}*,\n\nPembayaran tagihan internet periode *${checkInv.period_month}/${checkInv.period_year}* telah kami terima via *${gateway}*.\n\n💰 *Total:* Rp ${checkInv.amount.toLocaleString('id-ID')}\n📅 *Waktu:* ${new Date().toLocaleString('id-ID')}\n\nStatus layanan Anda kini telah aktif. Selamat berinternet kembali! 🚀`;
         await sendWA(customer.phone, msg);
       } catch (waErr) {
         logger.error(`[Webhook] Gagal kirim notif WA: ${waErr.message}`);
       }
 
+      // Logic Re-aktivasi otomatis jika pelanggan isolir
       if (customer && customer.status === 'suspended') {
-        const freshCustomer = customerSvc.getAllCustomers().find(c => c.id === inv.customer_id);
-        if (freshCustomer.unpaid_count === 0) {
-          customerSvc.updateCustomer(inv.customer_id, { ...customer, status: 'active' });
-          if (customer.pppoe_username) {
-            const pkg = customerSvc.getPackageById(customer.package_id);
-            await mikrotikService.setPppoeProfile(customer.pppoe_username, pkg ? pkg.name : 'default');
-          }
+        const unpaidCount = billingSvc.getUnpaidInvoicesByCustomerId(customer.id).length;
+        if (unpaidCount === 0) {
+          logger.info(`[Webhook] Mengaktifkan kembali pelanggan ${customer.name} secara otomatis.`);
+          await customerSvc.activateCustomer(customer.id);
         }
       }
     }
