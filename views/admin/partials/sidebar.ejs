@@ -4,7 +4,9 @@
   <div class="sb-brand">
     <div class="sb-icon"><i class="bi bi-wifi"></i></div>
     <div style="flex:1">
-      <div class="sb-name"><%= company %></div>
+      <div class="sb-name">
+        <%= company %>
+      </div>
       <div class="sb-sub">Admin Panel</div>
     </div>
     <button class="sb-close btn-g btn-sm" onclick="toggleSidebar()"><i class="bi bi-x-lg"></i></button>
@@ -46,39 +48,44 @@
     <a href="/admin/tickets" class="sb-item <%= activePage==='tickets' ? 'active' : '' %>">
       <i class="bi bi-headset"></i><span>Keluhan Pelanggan</span>
     </a>
-    
-    <% if (typeof session !== 'undefined' && session.isAdmin) { %>
-    <div class="sb-section">MANAJEMEN USER</div>
-    <a href="/admin/technicians" class="sb-item <%= activePage==='technicians' ? 'active' : '' %>">
-      <i class="bi bi-person-gear"></i><span>Teknisi</span>
-    </a>
-    <a href="/admin/cashiers" class="sb-item <%= activePage==='cashiers' ? 'active' : '' %>">
-      <i class="bi bi-person-vcard"></i><span>Kasir</span>
-    </a>
-    <% } %>
 
-    <div class="sb-section">SISTEM</div>
-    <% if (typeof session !== 'undefined' && session.isAdmin) { %>
-    <a href="/admin/settings" class="sb-item <%= activePage==='settings' ? 'active' : '' %>">
-      <i class="bi bi-gear"></i><span>Pengaturan</span>
-    </a>
-    <a href="/admin/bulk" class="sb-item <%= activePage==='bulk' ? 'active' : '' %>">
-      <i class="bi bi-layers"></i><span>Konfigurasi Massal</span>
-    </a>
-    <% } %>
-    <a href="/admin/logout" class="sb-item logout">
-      <i class="bi bi-box-arrow-left"></i><span>Logout</span>
-    </a>
+    <% if (typeof session !=='undefined' && session.isAdmin) { %>
+      <div class="sb-section">MANAJEMEN USER</div>
+      <a href="/admin/technicians" class="sb-item <%= activePage==='technicians' ? 'active' : '' %>">
+        <i class="bi bi-person-gear"></i><span>Teknisi</span>
+      </a>
+      <a href="/admin/cashiers" class="sb-item <%= activePage==='cashiers' ? 'active' : '' %>">
+        <i class="bi bi-person-vcard"></i><span>Kasir</span>
+      </a>
+      <% } %>
+
+        <div class="sb-section">SISTEM</div>
+        <% if (typeof session !=='undefined' && session.isAdmin) { %>
+          <a href="/admin/settings" class="sb-item <%= activePage==='settings' ? 'active' : '' %>">
+            <i class="bi bi-gear"></i><span>Pengaturan</span>
+          </a>
+          <a href="/admin/bulk" class="sb-item <%= activePage==='bulk' ? 'active' : '' %>">
+            <i class="bi bi-layers"></i><span>Konfigurasi Massal</span>
+          </a>
+          <% } %>
+            <a href="/admin/logout" class="sb-item logout">
+              <i class="bi bi-box-arrow-left"></i><span>Logout</span>
+            </a>
+            <div class="mt-4 px-3 py-2 text-center" style="border-top: 1px solid rgba(255,255,255,0.1);">
+              <a href="https://github.com/alijayanet/billing-rtrw" target="_blank" style="color: #94a3b8; font-size: 11px; text-decoration: none; font-weight: 600;">
+                ALIJAYA BILLING SYSTEM
+              </a>
+            </div>
   </nav>
 </aside>
 
 <script>
-function toggleSidebar() {
-  const sb = document.getElementById('sidebar');
-  const ov = document.getElementById('sidebarOverlay');
-  sb.classList.toggle('open');
-  ov.classList.toggle('show');
-}
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    const ov = document.getElementById('sidebarOverlay');
+    sb.classList.toggle('open');
+    ov.classList.toggle('show');
+  }
 </script>
 
 <!-- Bottom Navigation (Mobile Only) -->
