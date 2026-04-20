@@ -264,13 +264,12 @@ router.get('/dashboard', async (req, res) => {
   const deviceData = await getCustomerDeviceData(loginId);
   
   // Data dari Billing DB (Coba cari pakai loginId atau pppoeUsername)
-  let phoneForBilling = loginId;
+  let searchToken = loginId;
   if (deviceData && deviceData.pppoeUsername) {
-    const custByPppoe = customerSvc.getAllCustomers().find(c => c.pppoe_username === deviceData.pppoeUsername);
-    if (custByPppoe) phoneForBilling = custByPppoe.phone;
+    searchToken = deviceData.pppoeUsername;
   }
   
-  const invoices = billingSvc.getInvoicesByPhone(phoneForBilling);
+  const invoices = billingSvc.getInvoicesByAny(searchToken);
   const profile = customerSvc.getAllCustomers().find(c => {
     const cleanLogin = loginId.replace(/\D/g, '');
     const cleanDb = (c.phone || '').replace(/\D/g, '');
@@ -362,12 +361,11 @@ router.post('/change-tag', async (req, res) => {
     notif = dashboardNotif(tagResult.message || 'Gagal mengubah ID/Tag pelanggan.', 'danger');
   }
   const deviceData = await getCustomerDeviceData(resolvedPhone);
-  let phoneForBilling = resolvedPhone;
+  let searchToken = resolvedPhone;
   if (deviceData && deviceData.pppoeUsername) {
-    const custByPppoe = customerSvc.getAllCustomers().find(c => c.pppoe_username === deviceData.pppoeUsername);
-    if (custByPppoe) phoneForBilling = custByPppoe.phone;
+    searchToken = deviceData.pppoeUsername;
   }
-  const invoices = billingSvc.getInvoicesByPhone(phoneForBilling);
+  const invoices = billingSvc.getInvoicesByAny(searchToken);
   const profile = customerSvc.getAllCustomers().find(c => {
     const cleanLogin = resolvedPhone.replace(/\D/g, '');
     const cleanDb = (c.phone || '').replace(/\D/g, '');

@@ -120,9 +120,18 @@ function findCustomerByAny(val) {
     const c = getCustomerById(parseInt(val));
     if (c) return c;
   }
+  
   // Try PPPoE username
   const p = db.prepare('SELECT id FROM customers WHERE pppoe_username = ?').get(val);
   if (p) return getCustomerById(p.id);
+
+  // Try Phone (Exact or matching last digits)
+  const cleanVal = val.replace(/\D/g, '');
+  if (cleanVal.length >= 8) {
+    // Exact match
+    const p1 = db.prepare('SELECT id FROM customers WHERE phone LIKE ?').get(`%${cleanVal}%`);
+    if (p1) return getCustomerById(p1.id);
+  }
   
   // Try Exact Name
   const n = db.prepare('SELECT id FROM customers WHERE name = ?').get(val);

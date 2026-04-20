@@ -42,6 +42,17 @@ async function resolveCustomerTag(key, lidStore) {
   const tryPnAndCache = async (pnJid, lidJid) => {
     const digits = customerDevice.phoneFromPnJid(pnJid);
     if (!digits) return null;
+
+    // 1. Coba cari di Billing Database dulu
+    const customer = customerSvc.findCustomerByAny(digits);
+    if (customer && (customer.genieacs_tag || customer.pppoe_username)) {
+      const tag = customer.genieacs_tag || customer.pppoe_username;
+      if (lidJid) lidStore.set(lidJid, tag);
+      lidStore.set(pnJid, tag);
+      return tag;
+    }
+
+    // 2. Fallback: Cari langsung di GenieACS (berdasarkan tag yang mirip nomor)
     const found = await customerDevice.findDeviceWithTagVariants(digits);
     if (!found) return null;
     if (lidJid) lidStore.set(lidJid, found.canonicalTag);
@@ -843,7 +854,7 @@ export async function startWhatsAppBot() {
         }
 
         if (parsed.cmd === 'cektagihan') {
-          const invoices = billingSvc.getInvoicesByPhone(tag);
+          const invoices = billingSvc.getInvoicesByAny(tag);
           await reply(formatCustomerInvoices(invoices, tag));
           continue;
         }

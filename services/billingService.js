@@ -118,10 +118,21 @@ function getTopUnpaid(limit = 5) {
   `).all(limit);
 }
 
-function getInvoicesByPhone(phone) {
-  const cleanPhone = phone.replace(/\D/g, '');
-  // Find customer ID first
-  const customer = db.prepare(`SELECT id FROM customers WHERE phone LIKE ? OR phone LIKE ?`).get(`%${cleanPhone}%`, `%${phone}%`);
+function getInvoicesByAny(val) {
+  if (!val) return [];
+  const cleanVal = val.replace(/\D/g, '');
+  
+  // Find customer ID first using phone, pppoe, or genieacs_tag
+  let customer = null;
+  
+  if (cleanVal.length >= 8) {
+    customer = db.prepare(`SELECT id FROM customers WHERE phone LIKE ?`).get(`%${cleanVal}%`);
+  }
+  
+  if (!customer) {
+    customer = db.prepare(`SELECT id FROM customers WHERE pppoe_username = ? OR genieacs_tag = ?`).get(val, val);
+  }
+
   if (!customer) return [];
   
   return db.prepare(`
@@ -171,7 +182,7 @@ function updatePaymentInfo(invoiceId, data) {
 }
 
 module.exports = {
-  getInvoicesByPhone,
+  getInvoicesByAny,
   getUnpaidInvoicesByCustomerId,
   generateMonthlyInvoices, getAllInvoices, getInvoiceById,
   markAsPaid, markAsUnpaid, deleteInvoice,
