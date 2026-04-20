@@ -479,11 +479,7 @@ router.post('/billing/pay-bulk', requireAdminSession, express.urlencoded({ exten
     if (customerId) {
       const freshCustomer = customerSvc.getAllCustomers().find(c => c.id === customerId);
       if (freshCustomer && freshCustomer.status === 'suspended' && freshCustomer.unpaid_count === 0) {
-        customerSvc.updateCustomer(customerId, { ...freshCustomer, status: 'active' });
-        if (freshCustomer.pppoe_username) {
-          const pkg = customerSvc.getPackageById(freshCustomer.package_id);
-          await mikrotikService.setPppoeProfile(freshCustomer.pppoe_username, pkg ? pkg.name : 'default');
-        }
+        await customerSvc.activateCustomer(customerId);
       }
     }
 
@@ -1007,12 +1003,7 @@ router.post('/whatsapp/broadcast', requireAdminSession, express.urlencoded({ ext
     
     sendMessageAsync(); 
 
-    req.session._msg = { 
-      type: 'success', 
-      text: `Proses broadcast ke ${targetNumbers.length} nomor telah dimulai.` 
-    };
-
-    req.session._msg = { type: 'success', text: `Broadcast sedang diproses untuk dikirim ke ${targetNumbers.length} pelanggan.` };
+    req.session._msg = { type: 'success', text: `Broadcast sedang diproses untuk dikirim ke ${uniqueCustomers.length} pelanggan.` };
   } catch (e) {
     req.session._msg = { type: 'error', text: 'Gagal Broadcast: ' + e.message };
   }

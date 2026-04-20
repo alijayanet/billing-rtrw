@@ -28,38 +28,34 @@ function startCronJobs() {
   // 2. Isolir Otomatis setiap hari jam 02:00
   cron.schedule('0 2 * * *', async () => {
     const today = new Date().getDate();
-    const isolirDay = getSetting('isolir_day', 10);
+    // Kita cek semua pelanggan setiap hari untuk isolir otomatis
+    logger.info(`[CRON] Menjalankan pengecekan isolir otomatis harian (Tanggal ${today})`);
     
-    // Kita jalankan isolir jika sudah masuk tanggal isolir atau lewat
-    if (today >= isolirDay) {
-      logger.info(`[CRON] Menjalankan isolir otomatis (Tanggal ${today}, Setting Isolir: ${isolirDay})`);
-      
-      const customers = customerSvc.getAllCustomers();
-      let isolatedCount = 0;
+    const customers = customerSvc.getAllCustomers();
+    let isolatedCount = 0;
 
-      for (const c of customers) {
-        // Cek apakah isolir otomatis aktif untuk user ini dan hari ini adalah tanggal isolirnya
-        const customerIsolirDay = c.isolate_day || 10;
-        const isAutoIsolateEnabled = c.auto_isolate !== 0; // default aktif jika null/1
+    for (const c of customers) {
+      // Cek apakah isolir otomatis aktif untuk user ini dan hari ini adalah tanggal isolirnya
+      const customerIsolirDay = c.isolate_day || 10;
+      const isAutoIsolateEnabled = c.auto_isolate !== 0; // default aktif jika null/1
 
-        if (isAutoIsolateEnabled && today >= customerIsolirDay) {
-          // Jika pelanggan aktif tapi punya tagihan belum bayar
-          if (c.status === 'active' && c.unpaid_count > 0) {
-            try {
-              logger.info(`[CRON] Isolir otomatis pelanggan: ${c.name} (${c.pppoe_username}) - Tanggal Tagihan: ${customerIsolirDay}`);
-              
-              // Gunakan fungsi terpusat untuk isolir
-              await customerSvc.suspendCustomer(c.id);
-              
-              isolatedCount++;
-            } catch (err) {
-              logger.error(`[CRON] Gagal isolir ${c.name}: ${err.message}`);
-            }
+      if (isAutoIsolateEnabled && today >= customerIsolirDay) {
+        // Jika pelanggan aktif tapi punya tagihan belum bayar
+        if (c.status === 'active' && c.unpaid_count > 0) {
+          try {
+            logger.info(`[CRON] Isolir otomatis pelanggan: ${c.name} (${c.pppoe_username}) - Tanggal Tagihan: ${customerIsolirDay}`);
+            
+            // Gunakan fungsi terpusat untuk isolir
+            await customerSvc.suspendCustomer(c.id);
+            
+            isolatedCount++;
+          } catch (err) {
+            logger.error(`[CRON] Gagal isolir ${c.name}: ${err.message}`);
           }
         }
       }
-      logger.info(`[CRON] Selesai pengecekan isolir. Total ${isolatedCount} pelanggan baru di-isolir.`);
     }
+    logger.info(`[CRON] Selesai pengecekan isolir. Total ${isolatedCount} pelanggan baru di-isolir.`);
   });
 
   logger.info('[CRON] Semua tugas penjadwalan telah aktif.');

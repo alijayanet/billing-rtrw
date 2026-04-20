@@ -439,7 +439,7 @@ export async function restartWhatsAppBot() {
 }
 
 export async function startWhatsAppBot() {
-  const authFolder = path.resolve(projectRoot, getSetting('whatsapp_auth_folder', 'auth_baileys'));
+  const authFolder = path.resolve(projectRoot, getSetting('whatsapp_auth_folder', 'auth_info_baileys'));
   const lidMapPath = path.resolve(projectRoot, getSetting('whatsapp_lid_map_file', 'data/wa-lid-map.json'));
   const lidStore = new WaLidStore(lidMapPath);
 

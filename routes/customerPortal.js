@@ -7,6 +7,7 @@ const paymentSvc = require('../services/paymentService');
 const customerSvc = require('../services/customerService');
 const mikrotikService = require('../services/mikrotikService');
 const { logger } = require('../config/logger');
+const ticketSvc = require('../services/ticketService');
 
 function dashboardNotif(message, type = 'success') {
   if (!message) return null;
@@ -357,10 +358,18 @@ router.post('/change-tag', async (req, res) => {
   const oldTag = req.session && req.session.phone;
   const newTag = (req.body.newTag || '').trim();
   if (!oldTag) return res.redirect('/customer/login');
+  const settings = getSettingsWithCache();
+
   if (!newTag || newTag === oldTag) {
     const data = await getCustomerDeviceData(oldTag);
+    const invoices = billingSvc.getInvoicesByAny(oldTag);
     return res.render('dashboard', {
       customer: data || fallbackCustomer(oldTag),
+      profile: null,
+      invoices: invoices || [],
+      tickets: [],
+      settings,
+      paymentChannels: [],
       connectedUsers: data ? data.connectedUsers : [],
       notif: dashboardNotif('ID/Tag baru tidak boleh kosong atau sama dengan yang lama.', 'warning')
     });
@@ -368,10 +377,30 @@ router.post('/change-tag', async (req, res) => {
   const tagResult = await updateCustomerTag(oldTag, newTag);
   let notif = null;
   let resolvedPhone = oldTag;
+  
   if (tagResult.ok) {
     req.session.phone = newTag;
     resolvedPhone = newTag;
     notif = dashboardNotif('ID/Tag berhasil diubah.', 'success');
+    
+    // UPDATE DATABASE SQLITE IF MATCHING PROFILE FOUND
+    const profileToUpdate = customerSvc.getAllCustomers().find(c => {
+      const cleanLogin = oldTag.replace(/\D/g, '');
+      const cleanDb = (c.phone || '').replace(/\D/g, '');
+      return cleanDb === cleanLogin || c.phone === oldTag || c.genieacs_tag === oldTag;
+    });
+    
+    if (profileToUpdate) {
+      try {
+        customerSvc.updateCustomer(profileToUpdate.id, { 
+          ...profileToUpdate, 
+          genieacs_tag: newTag 
+        });
+        logger.info(`[Portal] Database updated for tag change: ${oldTag} -> ${newTag}`);
+      } catch (dbErr) {
+        logger.error(`[Portal] Failed to update DB tag: ${dbErr.message}`);
+      }
+    }
   } else {
     notif = dashboardNotif(tagResult.message || 'Gagal mengubah ID/Tag pelanggan.', 'danger');
   }
@@ -386,11 +415,15 @@ router.post('/change-tag', async (req, res) => {
     const cleanDb = (c.phone || '').replace(/\D/g, '');
     return cleanDb === cleanLogin || c.phone === resolvedPhone || c.pppoe_username === (deviceData ? deviceData.pppoeUsername : null);
   });
+  const tickets = profile ? ticketSvc.getTicketsByCustomerId(profile.id) : [];
 
   res.render('dashboard', {
     customer: deviceData || fallbackCustomer(resolvedPhone),
     profile: profile || null,
     invoices: invoices || [],
+    tickets,
+    settings,
+    paymentChannels: [],
     connectedUsers: deviceData ? deviceData.connectedUsers : [],
     notif
   });
@@ -401,8 +434,6 @@ router.post('/logout', (req, res) => {
     res.redirect('/customer/login');
   });
 });
-
-const ticketSvc = require('../services/ticketService');
 
 // ─── TICKETS / KELUHAN ─────────────────────────────────────────────────────
 router.post('/tickets/create', (req, res) => {
