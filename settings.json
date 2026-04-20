@@ -30,7 +30,7 @@
   "tripay_merchant_code": "",
   "tripay_mode": "sandbox",
   "tripay_enabled": false,
-  "whatsapp_broadcast_delay": 5,
+  "whatsapp_broadcast_delay": 60,
   "login_otp_enabled": false,
   "telegram_enabled": false,
   "telegram_bot_token": "",
