@@ -115,31 +115,26 @@ function deletePackage(id) {
 
 function findCustomerByAny(val) {
   if (!val) return null;
-  // Try ID first if numeric
-  if (/^\d+$/.test(val)) {
-    const c = getCustomerById(parseInt(val));
-    if (c) return c;
-  }
+  const cleanVal = val.toString().trim();
   
-  // Try PPPoE username
-  const p = db.prepare('SELECT id FROM customers WHERE pppoe_username = ?').get(val);
-  if (p) return getCustomerById(p.id);
-
-  // Try Phone (Exact or matching last digits)
-  const cleanVal = val.replace(/\D/g, '');
-  if (cleanVal.length >= 8) {
-    // Exact match
-    const p1 = db.prepare('SELECT id FROM customers WHERE phone LIKE ?').get(`%${cleanVal}%`);
+  // 1. Try Phone (Priority for Login)
+  const phoneDigits = cleanVal.replace(/\D/g, '');
+  if (phoneDigits.length >= 8) {
+    // Cari yang 8-10 digit terakhirnya sama (lebih akurat untuk 08 vs 62)
+    const suffix = phoneDigits.slice(-9);
+    const p1 = db.prepare('SELECT id FROM customers WHERE phone LIKE ?').get(`%${suffix}`);
     if (p1) return getCustomerById(p1.id);
   }
-  
-  // Try Exact Name
-  const n = db.prepare('SELECT id FROM customers WHERE name = ?').get(val);
-  if (n) return getCustomerById(n.id);
-  
-  // Try Like Name
-  const l = db.prepare('SELECT id FROM customers WHERE name LIKE ?').get(`%${val}%`);
-  if (l) return getCustomerById(l.id);
+
+  // 2. Try GenieACS Tag atau PPPoE Username (Exact Match)
+  const t = db.prepare('SELECT id FROM customers WHERE genieacs_tag = ? OR pppoe_username = ?').get(cleanVal, cleanVal);
+  if (t) return getCustomerById(t.id);
+
+  // 3. Try ID if numeric
+  if (/^\d+$/.test(cleanVal) && cleanVal.length < 8) {
+    const c = getCustomerById(parseInt(cleanVal));
+    if (c) return c;
+  }
   
   return null;
 }

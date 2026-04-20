@@ -39,7 +39,7 @@ function initTelegram() {
     bot.getMe().then(me => {
       logger.info(`Telegram Bot: Terhubung sebagai @${me.username}`);
     }).catch(e => logger.error('Telegram Bot Error (getMe):', e.message));
-  });
+  }).catch(e => logger.error('Telegram Bot Error (deleteWebHook):', e.message));
 
   // Middleware Admin Check (Fetch latest ID every time)
   const isAdmin = (msg) => {

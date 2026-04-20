@@ -124,57 +124,69 @@ router.post('/login', async (req, res) => {
   const { phone } = req.body;
   const settings = getSettingsWithCache();
   
-  console.log(`[Login] Attempting login for phone: ${phone}`);
+  console.log(`\x1b[36m[Login]\x1b[0m Memulai proses login untuk: \x1b[33m${phone}\x1b[0m`);
 
-  // 1. Try to find device by Tag directly (old behavior)
-  let device = await findDeviceByTag(phone);
+  let device = null;
   let effectiveTag = phone;
 
-  if (device) {
-    console.log(`[Login] Device found directly by tag: ${device._id}`);
-  }
-
-  // 2. If not found, try to find in Billing DB by phone
-  if (!device) {
-    console.log(`[Login] Device not found by tag. Checking Billing DB...`);
-    const customers = customerSvc.getAllCustomers();
-    const cleanPhone = phone.replace(/\D/g, '');
+  // 1. Tahap 1: Cari Data di Billing DB
+  const customer = customerSvc.findCustomerByAny(phone);
+  
+  if (customer) {
+    console.log(`\x1b[36m[Login]\x1b[0m Pelanggan ditemukan di DB: \x1b[32m${customer.name}\x1b[0m`);
     
-    // Search for customer in DB
-    const customer = customers.find(c => {
-      const dbPhone = (c.phone || '').replace(/\D/g, '');
-      // Match if the last 10 digits are the same (common for ID numbers)
-      if (cleanPhone.length >= 10 && dbPhone.length >= 10) {
-        return cleanPhone.slice(-10) === dbPhone.slice(-10);
-      }
-      return dbPhone === cleanPhone || c.phone === phone;
-    });
+    // Kumpulkan semua token yang mungkin untuk mencari perangkat
+    const searchTokens = [
+      customer.genieacs_tag, 
+      customer.pppoe_username, 
+      customer.phone
+    ].filter(Boolean);
+    
+    console.log(`\x1b[36m[Login]\x1b[0m Mencari perangkat di GenieACS menggunakan: ${searchTokens.join(', ')}`);
 
-    if (customer) {
-      console.log(`[Login] Customer found in DB: ${customer.name}, PPPoE: ${customer.pppoe_username}`);
-      if (customer.pppoe_username) {
-        // 3. If found in DB, try to find device by PPPoE Username in GenieACS
-        device = await findDeviceByPppoe(customer.pppoe_username);
-        if (device) {
-          console.log(`[Login] Device found in GenieACS by PPPoE: ${device._id}`);
-          effectiveTag = device._id;
-        } else {
-          console.log(`[Login] Device NOT found in GenieACS for PPPoE: ${customer.pppoe_username}`);
-        }
-      } else {
-        console.log(`[Login] Customer found in DB but has no PPPoE username.`);
+    // Cari secara paralel untuk mempercepat proses
+    const results = await Promise.all(searchTokens.map(async (token) => {
+      let d = await customerDevice.findDeviceByTag(token);
+      if (!d) d = await customerDevice.findDeviceByPppoe(token);
+      if (!d) {
+        const variants = await customerDevice.findDeviceWithTagVariants(token);
+        if (variants) d = variants.device;
       }
-    } else {
-      console.log(`[Login] Customer NOT found in Billing DB for phone: ${phone}`);
+      return d;
+    }));
+
+    device = results.find(d => d !== null);
+    if (device) {
+      console.log(`\x1b[36m[Login]\x1b[0m Perangkat terdeteksi di GenieACS: \x1b[32m${device._id}\x1b[0m`);
+      effectiveTag = device._id;
     }
   }
 
+  // 2. Tahap 2: Fallback (Jika DB tidak ketemu atau perangkat belum link)
   if (!device) {
-    console.log(`[Login] Login failed for ${phone}`);
-    return res.render('login', { error: 'Nomor telepon atau perangkat tidak ditemukan.', settings });
+    console.log(`\x1b[36m[Login]\x1b[0m Perangkat belum terhubung via DB. Mencari langsung di GenieACS...`);
+    const directResult = await customerDevice.findDeviceWithTagVariants(phone);
+    if (directResult) {
+      device = directResult.device;
+      effectiveTag = directResult.canonicalTag;
+      console.log(`\x1b[36m[Login]\x1b[0m Perangkat ditemukan secara langsung: \x1b[32m${device._id}\x1b[0m`);
+    }
   }
 
-  // --- OTP LOGIC ---
+  // 3. Tahap 3: Verifikasi Akhir
+  if (!device && !customer) {
+    console.log(`\x1b[31m[Login] Gagal:\x1b[0m Pelanggan dan Perangkat tidak ditemukan untuk \x1b[33m${phone}\x1b[0m`);
+    return res.render('login', { 
+      error: 'Data pelanggan tidak ditemukan. Pastikan nomor WhatsApp sudah benar.', 
+      settings 
+    });
+  }
+
+  if (!device) {
+    console.log(`\x1b[33m[Login] Warning:\x1b[0m Login dilanjutkan tanpa data ONU untuk \x1b[33m${phone}\x1b[0m`);
+  }
+
+  // --- OTP LOGIC --- (Hanya jika perangkat ditemukan)
   if (settings.login_otp_enabled) {
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const expiry = Date.now() + 5 * 60 * 1000; // 5 menit
@@ -273,7 +285,10 @@ router.get('/dashboard', async (req, res) => {
   const profile = customerSvc.getAllCustomers().find(c => {
     const cleanLogin = loginId.replace(/\D/g, '');
     const cleanDb = (c.phone || '').replace(/\D/g, '');
-    return cleanDb === cleanLogin || c.phone === loginId || c.pppoe_username === (deviceData ? deviceData.pppoeUsername : null);
+    return cleanDb === cleanLogin || 
+           c.phone === loginId || 
+           c.genieacs_tag === loginId || 
+           c.pppoe_username === (deviceData ? deviceData.pppoeUsername : null);
   });
   
   // Ambil tiket keluhan pelanggan
