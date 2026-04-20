@@ -35,9 +35,11 @@
       </div>
       <form method="POST" action="/admin/whatsapp/broadcast" onsubmit="return confirm('Kirim pesan broadcast sekarang? Pastikan target dan pesan sudah benar.');">
         <div class="card-bd">
-          <div class="alert alert-i" style="margin-bottom: 20px;">
-            <i class="bi bi-info-circle"></i> Pesan akan dikirim menggunakan nomor WhatsApp Bot Anda secara otomatis dengan jeda aman 2 detik per pesan agar tidak terdeteksi sebagai spam.
+          <div class="alert alert-i" style="margin-bottom: 10px;">
+            <i class="bi bi-info-circle"></i> Pesan akan dikirim menggunakan nomor WhatsApp Bot Anda secara otomatis dengan jeda aman per pesan agar tidak terdeteksi sebagai spam.
           </div>
+
+
 
           <div class="form-row" style="margin-bottom: 15px;">
             <div class="fg">
@@ -53,6 +55,10 @@
               <label class="fl">Jeda Antar Pesan (Detik)</label>
               <input class="fc" type="number" name="delay" value="<%= getSetting('whatsapp_broadcast_delay', 2) %>" min="1" max="60">
             </div>
+          </div>
+
+          <div class="alert alert-d alert-permanent" style="margin-bottom: 20px; border: 1px solid rgba(248,81,73,0.4);">
+            <i class="bi bi-exclamation-triangle-fill"></i> <strong>PERINGATAN PENTING:</strong> Penggunaan fitur broadcast massal berisiko menyebabkan akun WhatsApp Anda <b>DIBLOKIR (BANNED)</b> oleh pihak Meta jika dianggap melanggar ketentuan spam. Pastikan pesan relevan bagi pelanggan. <b>Developer aplikasi tidak bertanggung jawab atas segala risiko pemblokiran akun.</b>
           </div>
           
           <div class="form-row">
@@ -108,7 +114,7 @@ targetSelect.addEventListener('change', function() {
   }
 });
 
-setTimeout(()=>document.querySelectorAll('.alert').forEach(a=>a.style.display='none'),5000);
+setTimeout(()=>document.querySelectorAll('.alert:not(.alert-permanent)').forEach(a=>a.style.display='none'),5000);
 
 // Polling Broadcast Status
 const broadcastCounter = document.getElementById('broadcastCounter');
