@@ -85,34 +85,42 @@ router.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/admi
 router.get('/olts', requireAdminSession, async (req, res) => {
   const olts = oltSvc.getAllOlts();
   
-  // Ambil statistik real-time untuk setiap OLT menggunakan Promise.allSettled
-  // supaya jika ada satu OLT yang timeout/offline, halaman tetap bisa terbuka
-  const statsResults = await Promise.allSettled(olts.map(olt => oltSvc.getOltStats(olt.id)));
-  
-  const oltsWithStats = olts.map((olt, index) => {
-    const result = statsResults[index];
-    const stats = result.status === 'fulfilled' ? result.value : {
-      status: 'Offline',
-      uptime: 'Timeout',
-      temp: 'N/A',
-      cpu: 'N/A',
-      ram: 'N/A',
-      onus_total: 0,
-      onus_online: 0,
-      voltage: 'N/A',
-      uplink_rx: 0,
-      uplink_tx: 0
-    };
-    return { ...olt, stats };
-  });
-  
   res.render('admin/olts', { 
     title: 'Manajemen OLT', 
     company: company(), 
     activePage: 'olts', 
-    olts: oltsWithStats, 
+    olts, 
     msg: flashMsg(req) 
   });
+});
+
+router.get('/olts/:id/stats', requireAdminSession, async (req, res) => {
+  try {
+    const stats = await oltSvc.getOltStats(req.params.id, req.query.full === 'true');
+    res.json(stats);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/olts/:id/onu/:index/reboot', requireAdminSession, restrictToAdmin, async (req, res) => {
+  try {
+    await oltSvc.rebootOnu(req.params.id, req.params.index);
+    res.json({ success: true, message: 'Perintah reboot berhasil dikirim.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/olts/:id/onu/:index/rename', requireAdminSession, restrictToAdmin, express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) throw new Error('Nama tidak boleh kosong');
+    await oltSvc.renameOnu(req.params.id, req.params.index, name);
+    res.json({ success: true, message: 'Nama ONU berhasil diubah.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.post('/olts', requireAdminSession, restrictToAdmin, express.urlencoded({ extended: true }), (req, res) => {
