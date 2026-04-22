@@ -54,6 +54,7 @@ Sistem manajemen ISP modern yang mengintegrasikan **Penagihan (Billing)**, **Man
   - **Baileys** (WhatsApp API)
 
 ---
+Noted : gunakan nodejs v20
 
 ## 🚀 Cara Instalasi (Ubuntu / Armbian)
 
@@ -64,42 +65,29 @@ Pastikan Anda memiliki akses `root` atau `sudo`.
 # Clone repository
 git clone https://github.com/alijayanet/billing-rtrw.git
 cd billing-rtrw
-
-# Beri izin eksekusi pada script installer
-chmod +x install.sh
 ```
 
-### 2. Jalankan Installer
+### 2. Jalankan Installer Package
 ```bash
-sudo bash install.sh
+npm install
 ```
-
-- Script akan menanyakan apakah Anda ingin menginstall Node.js (v18).
-- Script akan menanyakan apakah Anda ingin menginstall PM2 sebagai process manager.
-- File `settings.json` akan dibuat otomatis sebagai landasan konfigurasi.
 
 ### 3. Akses Portal
 Setelah instalasi berhasil, portal dapat diakses melalui browser:
-- **Admin Portal**: `http://[IP-SERVER]:3001/admin`
+- **Admin Portal**: `http://[IP-SERVER]:3001/admin/login`
+- **teknisi Portal**: `http://[IP-SERVER]:3001/tech/login`
 - **Customer Portal**: `http://[IP-SERVER]:3001/login`
 
 ---
 
-## ⚙️ Konfigurasi Manual
+## ⚙️ Konfigurasi Tambahan
 
-Edit file `settings.json` untuk menyesuaikan dengan infrastruktur Anda:
-
-```json
-{
-  "genieacs_url": "http://192.168.8.89:7557",
-  "company_header": "Ali Jaya Net",
-  "mikrotik_host": "192.168.8.1",
-  "whatsapp_enabled": true,
-  "whatsapp_broadcast_delay": 2
-}
+```bash
+install pm2 -g
 ```
-*Gunakan perintah `pm2 restart billing-rtrw` setelah melakukan perubahan konfigurasi.*
-
+*Gunakan perintah `pm2 .*
+```bash
+pm2 start app-customer.php --name billing-rtrw
 ---
 
 ## 📋 Struktur Folder
