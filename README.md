@@ -96,19 +96,6 @@ pm2 start app-customer.php --name billing-rtrw
 ```
 
 
-
-## 📋 Struktur Folder
-
-billing-rtrw/
-├── config/             # Manajemen DB, Settings & Logger
-├── public/             # Asset statis (CSS, Images, JS)
-├── routes/             # Logika Express (Admin, Customer, Tech Portal)
-├── services/           # Business Logic (Billing, Mikrotik, GenieACS, WA)
-├── views/              # Template EJS (Tampilan UI)
-├── app-customer.js     # Entry point aplikasi utama
-└── settings.json       # File konfigurasi utama
-
-
 ## 🤝 Kontribusi
 
 Kontribusi selalu terbuka! Silakan fork repository ini, buat branch baru, dan kirimkan Pull Request.
@@ -121,3 +108,5 @@ Didistribusikan di bawah Lisensi **ISC**. Lihat `LICENSE` untuk detailnya.
 
 🚀 **Dibuat untuk memudahkan operasional ISP Lokal & RTRW-Net.**
 Managed by [Ali Jaya Net](https://github.com/alijayanet)
+## donasi dan info 081947215703
+https://wa.me/081947215703
