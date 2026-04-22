@@ -124,8 +124,6 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { phone } = req.body;
   const settings = getSettingsWithCache();
-  
-  console.log(`\x1b[36m[Login]\x1b[0m Memulai proses login untuk: \x1b[33m${phone}\x1b[0m`);
 
   let device = null;
   let effectiveTag = phone;
@@ -134,7 +132,7 @@ router.post('/login', async (req, res) => {
   const customer = customerSvc.findCustomerByAny(phone);
   
   if (customer) {
-    console.log(`\x1b[36m[Login]\x1b[0m Pelanggan ditemukan di DB: \x1b[32m${customer.name}\x1b[0m`);
+    logger.info(`[Login] Pelanggan ditemukan di DB (customerId=${customer.id || '-'}).`);
     
     // Kumpulkan semua token yang mungkin untuk mencari perangkat
     const searchTokens = [
@@ -142,8 +140,6 @@ router.post('/login', async (req, res) => {
       customer.pppoe_username, 
       customer.phone
     ].filter(Boolean);
-    
-    console.log(`\x1b[36m[Login]\x1b[0m Mencari perangkat di GenieACS menggunakan: ${searchTokens.join(', ')}`);
 
     // Cari secara paralel untuk mempercepat proses
     const results = await Promise.all(searchTokens.map(async (token) => {
@@ -158,25 +154,24 @@ router.post('/login', async (req, res) => {
 
     device = results.find(d => d !== null);
     if (device) {
-      console.log(`\x1b[36m[Login]\x1b[0m Perangkat terdeteksi di GenieACS: \x1b[32m${device._id}\x1b[0m`);
+      logger.info('[Login] Perangkat terdeteksi di GenieACS (matched).');
       effectiveTag = device._id;
     }
   }
 
   // 2. Tahap 2: Fallback (Jika DB tidak ketemu atau perangkat belum link)
   if (!device) {
-    console.log(`\x1b[36m[Login]\x1b[0m Perangkat belum terhubung via DB. Mencari langsung di GenieACS...`);
     const directResult = await customerDevice.findDeviceWithTagVariants(phone);
     if (directResult) {
       device = directResult.device;
       effectiveTag = directResult.canonicalTag;
-      console.log(`\x1b[36m[Login]\x1b[0m Perangkat ditemukan secara langsung: \x1b[32m${device._id}\x1b[0m`);
+      logger.info('[Login] Perangkat ditemukan secara langsung di GenieACS (fallback).');
     }
   }
 
   // 3. Tahap 3: Verifikasi Akhir
   if (!device && !customer) {
-    console.log(`\x1b[31m[Login] Gagal:\x1b[0m Pelanggan dan Perangkat tidak ditemukan untuk \x1b[33m${phone}\x1b[0m`);
+    logger.warn('[Login] Gagal: pelanggan tidak ditemukan.');
     return res.render('login', { 
       error: 'Data pelanggan tidak ditemukan. Pastikan nomor WhatsApp sudah benar.', 
       settings 
@@ -184,7 +179,7 @@ router.post('/login', async (req, res) => {
   }
 
   if (!device) {
-    console.log(`\x1b[33m[Login] Warning:\x1b[0m Login dilanjutkan tanpa data ONU untuk \x1b[33m${phone}\x1b[0m`);
+    logger.warn('[Login] Login dilanjutkan tanpa data ONU (device tidak ditemukan).');
   }
 
   // --- OTP LOGIC --- (Hanya jika perangkat ditemukan)
@@ -200,7 +195,7 @@ router.post('/login', async (req, res) => {
       expiry: expiry
     };
 
-    console.log(`[Login] OTP Generated for ${phone}: ${otp}`);
+    logger.info('[Login] OTP dibuat.');
 
     // Kirim via WhatsApp
     if (settings.whatsapp_enabled) {
@@ -218,9 +213,9 @@ router.post('/login', async (req, res) => {
           throw new Error('Gagal mengirim kode OTP melalui WhatsApp. Pastikan nomor Anda terdaftar di WhatsApp.');
         }
 
-        console.log(`[Login] OTP sent to ${phone} via WA`);
+        logger.info('[Login] OTP dikirim via WhatsApp.');
       } catch (e) {
-        console.error(`[Login] Failed to send OTP via WA:`, e.message);
+        logger.error(`[Login] Gagal kirim OTP via WhatsApp: ${e.message}`);
         return res.render('login', { error: e.message, settings });
       }
     }
@@ -229,7 +224,7 @@ router.post('/login', async (req, res) => {
   }
 
   // --- DIRECT LOGIN ---
-  console.log(`[Login] Login successful (Direct). Using session ID: ${effectiveTag}`);
+  logger.info('[Login] Login direct berhasil.');
   req.session.phone = effectiveTag;
   return res.redirect('/customer/dashboard');
 });
@@ -253,7 +248,7 @@ router.post('/login-otp', (req, res) => {
   }
 
   if (otp === pending.otp) {
-    console.log(`[Login] OTP verified for ${pending.phone}. Using session ID: ${pending.effectiveTag}`);
+    logger.info('[Login] OTP berhasil diverifikasi.');
     req.session.phone = pending.effectiveTag;
     delete req.session.pending_login;
     return res.redirect('/customer/dashboard');

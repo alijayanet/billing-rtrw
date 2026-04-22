@@ -127,10 +127,10 @@
         <div class="tbl-wrap">
           <table class="dtbl">
             <thead>
-              <tr><th>Name</th><th>Rate Limit</th><th>Shared Users</th><th>Uptime Limit</th><th>Aksi</th></tr>
+              <tr><th>Name</th><th>Harga</th><th>Durasi</th><th>Rate Limit</th><th>Shared Users</th><th>Uptime Limit</th><th>Aksi</th></tr>
             </thead>
             <tbody id="hotspot-profiles-list">
-              <tr><td colspan="5" class="text-center text-muted">Memuat data...</td></tr>
+              <tr><td colspan="7" class="text-center text-muted">Memuat data...</td></tr>
             </tbody>
           </table>
         </div>
@@ -188,11 +188,7 @@
         </div>
         <div class="form-row">
           <div class="fg">
-            <label class="fl">Server</label>
-            <select class="fs" id="h_server"><option value="all">all</option></select>
-          </div>
-          <div class="fg">
-            <label class="fl">Profile</label>
+            <label class="fl">Profile Hotspot</label>
             <select class="fs" id="h_profile"><option value="default">default</option></select>
           </div>
         </div>
@@ -241,10 +237,17 @@
       <div class="mbody">
         <div class="fg"><label class="fl">Name</label><input class="fc" id="hp_name" required></div>
         <div class="form-row">
+          <div class="fg"><label class="fl">Harga (Rp)</label><input class="fc" id="hp_price" type="number" min="0" step="500" value="0" oninput="syncMikhmonOnLogin()"></div>
+          <div class="fg"><label class="fl">Durasi Voucher (mis. 1h / 1d / 7d)</label><input class="fc" id="hp_validity" value="1d" oninput="syncMikhmonOnLogin()"></div>
+        </div>
+        <div class="form-row">
           <div class="fg"><label class="fl">Rate Limit (Rx/Tx)</label><input class="fc" id="hp_rate"></div>
           <div class="fg"><label class="fl">Shared Users</label><input class="fc" id="hp_shared" type="number" value="1"></div>
         </div>
-        <div class="fg"><label class="fl">Session Timeout (e.g. 1h)</label><input class="fc" id="hp_session"></div>
+        <div class="fg">
+          <label class="fl">On Login (Mikhmon)</label>
+          <textarea class="fc" id="hp_onlogin" rows="5" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px;"></textarea>
+        </div>
       </div>
       <div class="mf">
         <button type="button" class="btn btn-g" onclick="closeModal('hotspotProfileModal')">Batal</button>
@@ -332,9 +335,15 @@
       const res = await fetch(`/admin/api/mikrotik/hotspot-user-profiles?routerId=${getRouterId()}`);
       hotspotProfilesData = await res.json();
       const tbody = document.getElementById('hotspot-profiles-list');
-      tbody.innerHTML = hotspotProfilesData.map((p, i) => `
+      tbody.innerHTML = hotspotProfilesData.map((p, i) => {
+        const meta = parseMikhmonOnLogin(p.onLogin || p['on-login'] || '');
+        const price = meta ? `Rp ${Number(meta.price || 0).toLocaleString('id-ID')}` : '-';
+        const validity = meta ? (meta.validity || '-') : '-';
+        return `
         <tr>
           <td class="fw6">${p.name}</td>
+          <td>${price}</td>
+          <td>${validity}</td>
           <td>${p.rateLimit || '-'}</td>
           <td>${p.sharedUsers || '-'}</td>
           <td>${p.sessionTimeout || '-'}</td>
@@ -343,7 +352,8 @@
             <button class="btn btn-d btn-icon btn-sm" onclick="deleteHotspotProfile('${p.id || p.name}')"><i class="bi bi-trash"></i></button>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     } catch (e) { console.error(e); }
   }
 
@@ -434,7 +444,7 @@
     const routerId = getRouterId();
     const [pRes, hRes] = await Promise.all([
       fetch(`/admin/api/mikrotik/profiles?routerId=${routerId}`),
-      fetch(`/admin/api/mikrotik/hotspot-profiles?routerId=${routerId}`)
+      fetch(`/admin/api/mikrotik/hotspot-user-profiles?routerId=${routerId}`)
     ]);
     const pProfiles = await pRes.json();
     const hProfiles = await hRes.json();
@@ -578,6 +588,7 @@
     document.getElementById('hotspotProfileForm').reset();
     document.getElementById('hp_id').value = '';
     document.getElementById('hotspotProfileModalTitle').innerText = 'Tambah Hotspot Profile';
+    syncMikhmonOnLogin();
     openModal('hotspotProfileModal');
   }
   function editHotspotProfile(idx) {
@@ -586,7 +597,11 @@
     document.getElementById('hp_name').value = p.name;
     document.getElementById('hp_rate').value = p.rateLimit || '';
     document.getElementById('hp_shared').value = p.sharedUsers || 1;
-    document.getElementById('hp_session').value = p.sessionTimeout || '';
+    const script = p.onLogin || p['on-login'] || '';
+    document.getElementById('hp_onlogin').value = script;
+    const meta = parseMikhmonOnLogin(script);
+    document.getElementById('hp_price').value = meta ? (meta.price || 0) : 0;
+    document.getElementById('hp_validity').value = meta ? (meta.validity || '1d') : '1d';
     document.getElementById('hotspotProfileModalTitle').innerText = 'Edit Hotspot Profile';
     openModal('hotspotProfileModal');
   }
@@ -597,7 +612,7 @@
       name: document.getElementById('hp_name').value,
       'rate-limit': document.getElementById('hp_rate').value,
       'shared-users': document.getElementById('hp_shared').value,
-      'session-timeout': document.getElementById('hp_session').value
+      'on-login': document.getElementById('hp_onlogin').value
     };
     const routerId = getRouterId();
     const url = id && id !== data.name ? `/admin/api/mikrotik/hotspot-user-profiles/${id}/update?routerId=${routerId}` : `/admin/api/mikrotik/hotspot-user-profiles?routerId=${routerId}`;
@@ -608,6 +623,42 @@
     if(!confirm('Hapus profile ini?')) return;
     const res = await fetch(`/admin/api/mikrotik/hotspot-user-profiles/${id}/delete?routerId=${getRouterId()}`, { method: 'POST' });
     if(res.ok) { loadHotspotUserProfiles(); loadProfiles(); } else alert('Gagal menghapus');
+  }
+
+  function parseMikhmonOnLogin(script) {
+    const s = String(script || '');
+    const match = s.match(/",rem,.*?,(.*?),(.*?),.*?"/);
+    if (!match) return null;
+    return { validity: match[1], price: match[2] };
+  }
+
+  function buildMikhmonOnLoginScript(price, validity) {
+    const p = String(price == null ? '' : price).trim() || '0';
+    const v = String(validity || '').trim() || '1d';
+    const meta = `:put (\",rem,1,${v},${p},,Disable,ros6/7,\");`;
+    const body =
+      ` {:local c [ /ip hotspot user get [/ip hotspot user find where name=\\\"$user\\\"] comment];` +
+      ` :local ucode [:pick $c 0 2];` +
+      ` :if ($ucode = \\\"vc\\\" or $ucode = \\\"up\\\" or $c = \\\"\\\") do={` +
+      ` :local d [ /system clock get date ];` +
+      ` :local t [ /system clock get time ];` +
+      ` :local sch (\\\"exp-\\\" . $user);` +
+      ` /system scheduler add name=$sch disabled=no start-date=$d start-time=$t interval=\\\"${v}\\\";` +
+      ` :delay 2s;` +
+      ` :local exp [ /system scheduler get [ /system scheduler find where name=$sch ] next-run ];` +
+      ` :if ([:len $exp] > 0) do={ /ip hotspot user set comment=$exp [find where name=\\\"$user\\\"]; }` +
+      ` :delay 1s;` +
+      ` /system scheduler remove [find where name=$sch];` +
+      ` } }`;
+    return meta + body;
+  }
+
+  function syncMikhmonOnLogin() {
+    const price = document.getElementById('hp_price')?.value;
+    const validity = document.getElementById('hp_validity')?.value;
+    const ta = document.getElementById('hp_onlogin');
+    if (!ta) return;
+    ta.value = buildMikhmonOnLoginScript(price, validity);
   }
 
   loadSecrets();

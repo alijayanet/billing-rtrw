@@ -11,8 +11,11 @@ if (dns.setDefaultResultOrder) {
 
 // Handle unhandled promise rejections to prevent silent crashes
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  const errorMsg = reason instanceof Error ? reason.stack : JSON.stringify(reason);
+  logger.error(`Unhandled Rejection: ${errorMsg}`);
 });
+
+// Settings Management
 const session = require('express-session');
 const { getSetting } = require('./config/settingsManager');
 

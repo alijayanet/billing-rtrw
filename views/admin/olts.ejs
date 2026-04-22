@@ -6,9 +6,137 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/css/admin.css">
   <style>
-    .olt-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 5px; }
-    .stat-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-    .stat-badge i { margin-right: 3px; }
+    /* New Dashboard Layout Styles */
+    .olt-dashboard { display: flex; flex-direction: column; gap: 20px; }
+    
+    .stats-row { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+      gap: 15px; 
+    }
+    
+    .stat-card-v2 {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      border: 1px solid #e2e8f0;
+    }
+    
+    .stat-card-v2 .icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+    }
+    
+    .stat-card-v2 .details h3 { margin: 0; font-size: 24px; font-weight: 700; color: #1e293b; line-height: 1; }
+    .stat-card-v2 .details p { margin: 0; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 4px; }
+    
+    .bg-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .bg-green { background: linear-gradient(135deg, #10b981, #059669); }
+    .bg-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .bg-orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    
+    .system-info-bar {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+      font-size: 13px;
+    }
+    
+    .info-item { display: flex; align-items: center; gap: 8px; color: #475569; }
+    .info-item i { color: #3b82f6; }
+    
+    .olt-selector-container {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .custom-select-v2 {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-weight: 600;
+      color: #1e293b;
+      min-width: 250px;
+      outline: none;
+    }
+    
+    .custom-select-v2:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+
+    .onu-main-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    
+    .onu-main-card .card-header {
+      padding: 15px 20px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .onu-table-v2 { width: 100%; border-collapse: collapse; }
+    .onu-table-v2 th { 
+      background: #f1f5f9; 
+      padding: 12px 15px; 
+      text-align: left; 
+      font-size: 12px; 
+      font-weight: 700; 
+      color: #475569; 
+      text-transform: uppercase;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .onu-table-v2 td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #1e293b; }
+    .onu-table-v2 tr:hover { background: #f8fafc; }
+    
+    .status-pill-v2 {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .pill-online { background: #dcfce7; color: #15803d; }
+    .pill-offline { background: #fee2e2; color: #b91c1c; }
+    
+    .power-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .power-good { color: #059669; background: #ecfdf5; }
+    .power-warning { color: #d97706; background: #fffbeb; }
+    .power-danger { color: #dc2626; background: #fef2f2; font-weight: 800; }
+
     .brand-badge { font-weight: 700; text-transform: uppercase; font-size: 10px; padding: 2px 5px; border-radius: 4px; }
     .brand-zte { background: #eff6ff; color: #2563eb; }
     .brand-huawei { background: #fef2f2; color: #dc2626; }
@@ -16,72 +144,44 @@
     .brand-cdata { background: #fff7ed; color: #ea580c; }
     .brand-hioso { background: #fffbeb; color: #d97706; }
     .brand-hsgq { background: #f5f3ff; color: #7c3aed; }
-    .onu-count { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 5px; }
-    .onu-online { color: #10b981; }
-    .onu-total { color: #64748b; }
-    .traffic-badge { background: #f8fafc; border: 1px solid #e2e8f0; padding: 2px 8px; border-radius: 20px; font-size: 11px; display: flex; align-items: center; gap: 8px; }
-    .traffic-in { color: #059669; }
-    .traffic-out { color: #2563eb; }
+
     .spin { animation: rotate 2s linear infinite; display: inline-block; }
     @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-    /* Mini Stats Cards */
-    .stats-grid-mini {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    .stat-card-mini {
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .stat-card-mini .icon {
-      width: 36px;
-      height: 36px;
+    .btn-action-v2 {
+      width: 32px;
+      height: 32px;
       border-radius: 8px;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      color: #64748b;
+      transition: all 0.2s;
+      cursor: pointer;
     }
-    .stat-card-mini .info h4 { margin: 0; font-size: 16px; font-weight: 800; color: #1e293b; line-height: 1; }
-    .stat-card-mini .info p { margin: 0; font-size: 10px; color: #475569; font-weight: 600; text-transform: uppercase; margin-top: 3px; }
-    
-    .icon.cyan { background: #0891b2; color: #ffffff; }
-    .icon.green { background: #16a34a; color: #ffffff; }
-    .icon.red { background: #dc2626; color: #ffffff; }
-    .icon.orange { background: #ea580c; color: #ffffff; }
+    .btn-action-v2:hover { background: #f1f5f9; color: #1e293b; border-color: #cbd5e1; }
+    .btn-reboot-v2:hover { color: #ef4444; background: #fef2f2; border-color: #fee2e2; }
+    .btn-rename-v2:hover { color: #3b82f6; background: #eff6ff; border-color: #dbeafe; }
 
-    .onu-list-container {
-      margin-top: 10px;
-      border-top: 1px dashed #e2e8f0;
-      padding-top: 10px;
-      max-height: 300px;
-      overflow-y: auto;
+    .traffic-v2 { display: flex; gap: 12px; font-family: monospace; font-size: 12px; font-weight: 600; }
+    .traffic-in-v2 { color: #10b981; }
+    .traffic-out-v2 { color: #3b82f6; }
+
+    .empty-state { padding: 60px 20px; text-align: center; color: #94a3b8; }
+    .empty-state i { font-size: 48px; display: block; margin-bottom: 15px; }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
     }
-    .onu-table-mini { width: 100%; font-size: 11px; }
-    .onu-table-mini th { background: #f1f5f9; padding: 4px 8px; text-align: left; }
-    .onu-table-mini td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; }
-    .power-weak { color: #dc2626; font-weight: bold; }
-    .status-up { color: #16a34a; font-weight: bold; }
-    .status-down { color: #dc2626; }
-    .sn-mac { font-family: monospace; color: #475569; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
-    .status-pill { font-size: 9px; padding: 2px 6px; border-radius: 10px; font-weight: bold; text-transform: uppercase; }
-    .pill-up { background: #dcfce7; color: #166534; }
-    .pill-down { background: #fee2e2; color: #991b1b; }
-    .btn-i { background: none; border: none; padding: 2px 5px; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
-    .btn-rename { color: #0891b2; }
-    .btn-rename:hover { background: #ecfeff; }
-    .btn-reboot { color: #dc2626; }
-    .btn-reboot:hover { background: #fef2f2; }
-    .onu-row-item:hover { background: #f8fafc; }
   </style>
 </head>
 <body>
@@ -92,14 +192,13 @@
     <div class="tb-title">
       <button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
       <i class="bi bi-hdd-rack"></i>
-      <span><%= title %></span>
+      <span>Monitoring Real-time OLT</span>
     </div>
     <div class="tb-right">
-      <span class="adm-badge">
-        <i class="bi bi-person-fill"></i> 
-        <%= (typeof session !== 'undefined' && session.isCashier) ? 'Kasir' : 'Admin' %>
-      </span>
-      <button class="btn btn-p btn-sm" onclick="openModal('addOltModal')"><i class="bi bi-plus-lg"></i> Tambah OLT</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-g btn-sm" onclick="openModal('manageOltsModal')"><i class="bi bi-gear"></i> Kelola OLT</button>
+        <button class="btn btn-p btn-sm" onclick="openModal('addOltModal')"><i class="bi bi-plus-lg"></i> Tambah OLT</button>
+      </div>
     </div>
   </div>
 
@@ -108,66 +207,169 @@
       <div class="alert alert-<%= msg.type==='error'?'d':'s' %>"><%= msg.text %></div>
     <% } %>
 
-    <div class="card">
-      <div class="card-hd">
-        <h6><i class="bi bi-list-ul"></i> Daftar Perangkat OLT</h6>
-      </div>
-      <div class="tbl-wrap">
-        <table class="dtbl">
-          <thead>
-            <tr>
-              <th>Nama OLT</th>
-              <th>Host / IP</th>
-              <th>Brand</th>
-              <th>Community</th>
-              <th>Status Monitoring</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
+    <div class="olt-dashboard">
+      <!-- OLT Selector & Global Actions -->
+      <div class="olt-selector-container">
+        <div class="d-flex align-items-center gap-3">
+          <label class="fw-bold text-muted small text-uppercase">Pilih Perangkat OLT:</label>
+          <select id="olt-selector" class="custom-select-v2" onchange="handleOltChange()">
             <% if (olts.length === 0) { %>
-              <tr><td colspan="6" class="text-center text-muted" style="padding:20px">Belum ada data OLT.</td></tr>
+              <option value="">Tidak ada data OLT</option>
             <% } else { %>
               <% olts.forEach(olt => { %>
-                <tr>
-                  <td>
-                    <strong><%= olt.name %></strong>
-                    <div class="text-muted small"><%= olt.description || 'Tidak ada deskripsi' %></div>
-                  </td>
-                  <td>
-                    <code><%= olt.host %></code><span class="text-muted">:<%= olt.snmp_port %></span>
-                  </td>
-                  <td>
-                    <span class="brand-badge brand-<%= olt.brand %>"><%= olt.brand %></span>
-                  </td>
-                  <td><span class="text-muted"><%= olt.snmp_community %></span></td>
-                  <td id="stats-<%= olt.id %>">
-                    <% if (olt.is_active) { %>
-                      <div class="d-flex align-items-center gap-2 text-muted small">
-                        <i class="bi bi-arrow-repeat spin"></i> Menghubungi OLT (<%= olt.host %>)...
-                      </div>
-                    <% } else { %>
-                      <span class="badge bd">Disabled</span>
-                    <% } %>
-                  </td>
-                  <td>
-                    <div class="d-flex gap-2">
-                      <button class="btn btn-g btn-icon btn-sm" onclick="editOlt('<%= olt.id %>')"><i class="bi bi-pencil"></i></button>
-                      <form action="/admin/olts/<%= olt.id %>/delete" method="POST" onsubmit="return confirm('Hapus OLT ini?')">
-                        <button type="submit" class="btn btn-d btn-icon btn-sm"><i class="bi bi-trash"></i></button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
+                <option value="<%= olt.id %>" <%= olt.is_active ? '' : 'disabled' %>><%= olt.name %> (<%= olt.host %>)</option>
               <% }) %>
             <% } %>
-          </tbody>
-        </table>
+          </select>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-p" onclick="refreshCurrentOlt()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh Data
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="stats-row">
+        <div class="stat-card-v2">
+          <div class="icon-box bg-blue"><i class="bi bi-device-hdd"></i></div>
+          <div class="details">
+            <h3 id="stat-total-onu">-</h3>
+            <p>Total ONU</p>
+          </div>
+        </div>
+        <div class="stat-card-v2">
+          <div class="icon-box bg-green"><i class="bi bi-wifi"></i></div>
+          <div class="details">
+            <h3 id="stat-online-onu">-</h3>
+            <p>Online</p>
+          </div>
+        </div>
+        <div class="stat-card-v2">
+          <div class="icon-box bg-red"><i class="bi bi-wifi-off"></i></div>
+          <div class="details">
+            <h3 id="stat-offline-onu">-</h3>
+            <p>Offline</p>
+          </div>
+        </div>
+        <div class="stat-card-v2">
+          <div class="icon-box bg-orange"><i class="bi bi-exclamation-triangle"></i></div>
+          <div class="details">
+            <h3 id="stat-weak-onu">-</h3>
+            <p>Sinyal Lemah</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Info Bar -->
+      <div class="system-info-bar">
+        <div class="info-item"><i class="bi bi-thermometer-half"></i> Suhu: <strong id="stat-temp">-</strong></div>
+        <div class="info-item"><i class="bi bi-cpu"></i> CPU: <strong id="stat-cpu">-</strong></div>
+        <div class="info-item"><i class="bi bi-memory"></i> RAM: <strong id="stat-ram">-</strong></div>
+        <div class="info-item"><i class="bi bi-clock-history"></i> Uptime: <strong id="stat-uptime">-</strong></div>
+        <div class="info-item ms-auto">
+          <div class="traffic-v2">
+            <span class="traffic-in-v2" title="Traffic In"><i class="bi bi-arrow-down"></i> <span id="stat-traffic-in">0 B</span></span>
+            <span class="traffic-out-v2" title="Traffic Out"><i class="bi bi-arrow-up"></i> <span id="stat-traffic-out">0 B</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main ONU Table Card -->
+      <div class="onu-main-card position-relative">
+        <div id="loading-overlay" class="loading-overlay">
+          <div class="text-center">
+            <div class="spinner-border text-primary" role="status"></div>
+            <div class="mt-2 fw-bold text-primary small">Mengambil Data OLT...</div>
+          </div>
+        </div>
+        
+        <div class="card-header">
+          <div class="d-flex align-items-center gap-3">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-list-check me-2"></i> Daftar Perangkat ONU Terdaftar</h6>
+            <div id="search-container" style="display:none;">
+              <input type="text" id="onu-search" class="fc fc-sm" placeholder="Cari ID / SN..." onkeyup="filterOnuTable()" style="width: 250px; padding: 4px 12px; font-size: 12px;">
+            </div>
+          </div>
+          <div class="text-muted small">Update Terakhir: <span id="last-update">-</span></div>
+        </div>
+        
+        <div class="tbl-wrap" style="max-height: 600px; overflow: auto;">
+          <table class="onu-table-v2" id="onu-table">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Id</th>
+                <th>Serial Number</th>
+                <th>Status</th>
+                <th>TxPower</th>
+                <th>RxPower</th>
+                <th>Index OID</th>
+                <th style="text-align:right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="onu-table-body">
+              <tr>
+                <td colspan="8">
+                  <div class="empty-state">
+                    <i class="bi bi-hdd-network"></i>
+                    <p>Pilih perangkat OLT di atas untuk memantau data ONU.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- Modal Manage OLTs (Table List) -->
+<div class="mo" id="manageOltsModal">
+  <div class="mb" style="max-width: 900px;">
+    <div class="mh">
+      <span class="mt">Manajemen Perangkat OLT</span>
+      <button type="button" class="mc" onclick="closeModal('manageOltsModal')">&times;</button>
+    </div>
+    <div class="mbody">
+      <table class="dtbl">
+        <thead>
+          <tr>
+            <th>Nama OLT</th>
+            <th>Host / IP</th>
+            <th>Brand</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% olts.forEach(olt => { %>
+            <tr>
+              <td><strong><%= olt.name %></strong></td>
+              <td><code><%= olt.host %></code></td>
+              <td><span class="brand-badge brand-<%= olt.brand %>"><%= olt.brand %></span></td>
+              <td><span class="badge <%= olt.is_active ? 'bs' : 'bd' %>"><%= olt.is_active ? 'Aktif' : 'Nonaktif' %></span></td>
+              <td>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-g btn-icon btn-sm" onclick="editOlt('<%= olt.id %>')"><i class="bi bi-pencil"></i></button>
+                  <form action="/admin/olts/<%= olt.id %>/delete" method="POST" onsubmit="return confirm('Hapus OLT ini?')">
+                    <button type="submit" class="btn btn-d btn-icon btn-sm"><i class="bi bi-trash"></i></button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <div class="mf">
+      <button type="button" class="btn btn-g" onclick="closeModal('manageOltsModal')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tambah & Edit (Same as before but keeping them) -->
 <!-- Modal Tambah -->
 <div class="mo" id="addOltModal">
   <div class="mb">
@@ -186,7 +388,6 @@
                     <option value="cdata">C-DATA</option>
                     <option value="hioso">HIOSO</option>
                     <option value="hsgq">HSGQ</option>
-                    <option value="other">Lainnya</option>
                 </select>
             </div>
         </div>
@@ -223,7 +424,6 @@
                     <option value="cdata">C-DATA</option>
                     <option value="hioso">HIOSO</option>
                     <option value="hsgq">HSGQ</option>
-                    <option value="other">Lainnya</option>
                 </select>
             </div>
         </div>
@@ -249,7 +449,6 @@
   </div>
 </div>
 
-<!-- Store data OLT untuk dibaca oleh JavaScript tanpa memicu error IDE -->
 <div id="olt-data-store" data-olts='<%- JSON.stringify(olts || []) %>' style="display:none;"></div>
 
 <script>
@@ -271,12 +470,9 @@ function editOlt(id) {
   document.getElementById('e_web_password').value = olt.web_password || 'admin';
   document.getElementById('e_description').value = olt.description || '';
   document.getElementById('e_is_active').value = olt.is_active ? '1' : '0';
+  closeModal('manageOltsModal');
   openModal('editOltModal');
 }
-
-window.onclick = function(e) {
-  if (e.target.className === 'mo') e.target.style.display = 'none';
-};
 
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
@@ -286,77 +482,125 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function buildOnlineHtml(stats, id) {
-  const ramBadge = (stats.ram && stats.ram !== 'N/A')
-    ? '<span class="stat-badge" title="RAM"><i class="bi bi-memory"></i> RAM: ' + stats.ram + '</span>'
-    : '';
-  const trafficBadge = (stats.uplink_rx > 0 || stats.uplink_tx > 0)
-    ? '<div class="traffic-badge" title="Uplink">' +
-        '<span class="traffic-in"><i class="bi bi-arrow-down-short"></i> In: ' + formatBytes(stats.uplink_rx) + '</span>' +
-        '<span class="traffic-out"><i class="bi bi-arrow-up-short"></i> Out: ' + formatBytes(stats.uplink_tx) + '</span>' +
-      '</div>'
-    : '';
-
-  return '<div class="stats-grid-mini">' +
-      '<div class="stat-card-mini"><div class="icon cyan"><i class="bi bi-device-hdd"></i></div><div class="info"><h4>' + stats.onus_total + '</h4><p>Total ONU</p></div></div>' +
-      '<div class="stat-card-mini"><div class="icon green"><i class="bi bi-wifi"></i></div><div class="info"><h4>' + stats.onus_online + '</h4><p>Online</p></div></div>' +
-      '<div class="stat-card-mini"><div class="icon red"><i class="bi bi-wifi-off"></i></div><div class="info"><h4>' + stats.onus_offline + '</h4><p>Offline</p></div></div>' +
-      '<div class="stat-card-mini"><div class="icon orange"><i class="bi bi-exclamation-triangle"></i></div><div class="info"><h4>' + stats.onus_weak + '</h4><p>Sinyal Lemah</p></div></div>' +
-    '</div>' +
-    '<div class="d-flex align-items-center flex-wrap gap-2 mt-1">' +
-      '<div class="olt-stats">' +
-        '<span class="stat-badge" title="Suhu"><i class="bi bi-thermometer-half"></i> ' + stats.temp + '</span>' +
-        '<span class="stat-badge" title="CPU"><i class="bi bi-cpu"></i> CPU: ' + stats.cpu + '</span>' +
-        ramBadge +
-        '<span class="stat-badge" title="Uptime"><i class="bi bi-clock"></i> ' + stats.uptime + '</span>' +
-      '</div>' +
-      trafficBadge +
-      '<div class="ms-auto d-flex align-items-center gap-2">' +
-        '<span class="badge bm">Online</span>' +
-        '<button class="btn-sm btn-p" onclick="loadOltStats(\'' + id + '\', true)" style="font-size:10px;padding:2px 10px;">' +
-          '<i class="bi bi-arrow-clockwise"></i> Refresh' +
-        '</button>' +
-      '</div>' +
-    '</div>';
-}
-
-function buildOfflineHtml(id) {
-  return '<div class="d-flex align-items-center gap-2 flex-wrap">' +
-    '<span class="badge bd">Offline</span>' +
-    '<span class="text-muted small">Tidak dapat terhubung via SNMP. Periksa IP, port &amp; community string.</span>' +
-    '<button class="btn-sm btn-p ms-auto" onclick="loadOltStats(\'' + id + '\', true)" style="font-size:10px;padding:2px 10px;">' +
-      '<i class="bi bi-arrow-clockwise"></i> Coba Lagi' +
-    '</button>' +
-  '</div>';
-}
-
-async function loadOltStats(id, full) {
-  const container = document.getElementById('stats-' + id);
-  if (!container) return;
-  if (full) {
-    container.innerHTML = '<div class="p-2 text-muted small"><i class="bi bi-arrow-repeat spin"></i> Mengambil data SNMP...</div>';
-  }
+async function loadOltDashboard(id) {
+  if (!id) return;
+  
+  const overlay = document.getElementById('loading-overlay');
+  overlay.style.display = 'flex';
+  
   try {
-    const url = '/admin/olts/' + id + '/stats' + (full ? '?full=true' : '');
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const res = await fetch(`/admin/olts/${id}/stats?full=true`);
+    if (!res.ok) throw new Error('Gagal menghubungi server');
     const stats = await res.json();
-    const isOnline = stats.status && stats.status.includes('Online');
-    container.innerHTML = isOnline ? buildOnlineHtml(stats, id) : buildOfflineHtml(id);
+    
+    // Update Stats Cards
+    document.getElementById('stat-total-onu').innerText = stats.onus_total;
+    document.getElementById('stat-online-onu').innerText = stats.onus_online;
+    document.getElementById('stat-offline-onu').innerText = stats.onus_offline;
+    document.getElementById('stat-weak-onu').innerText = stats.onus_weak;
+    
+    // Update System Info
+    document.getElementById('stat-temp').innerText = stats.temp || 'N/A';
+    document.getElementById('stat-cpu').innerText = stats.cpu || 'N/A';
+    document.getElementById('stat-ram').innerText = stats.ram || 'N/A';
+    document.getElementById('stat-uptime').innerText = stats.uptime || 'N/A';
+    document.getElementById('stat-traffic-in').innerText = formatBytes(stats.uplink_rx) + '/s';
+    document.getElementById('stat-traffic-out').innerText = formatBytes(stats.uplink_tx) + '/s';
+    document.getElementById('last-update').innerText = new Date().toLocaleTimeString('id-ID');
+    
+    // Render Table
+    const tbody = document.getElementById('onu-table-body');
+    if (stats.onus && stats.onus.length > 0) {
+      document.getElementById('search-container').style.display = 'block';
+      tbody.innerHTML = stats.onus.map((onu, index) => {
+        const statusClass = onu.status === 'Online' ? 'pill-online' : 'pill-offline';
+        const rxVal = parseFloat(onu.rx);
+        let rxClass = 'power-good';
+        if (!Number.isFinite(rxVal)) rxClass = '';
+        else if (rxVal < -27) rxClass = 'power-danger';
+        else if (rxVal < -24) rxClass = 'power-warning';
+        
+        return `<tr>
+          <td>${index + 1}</td>
+          <td><code class="sn-mac">${onu.id || '-'}</code></td>
+          <td><code class="sn-mac">${onu.sn || '-'}</code></td>
+          <td><span class="status-pill-v2 ${statusClass}"><i class="bi bi-circle-fill" style="font-size:6px;"></i> ${onu.status || '-'}</span></td>
+          <td><span class="power-badge">${onu.tx || 'N/A'}</span></td>
+          <td><span class="power-badge ${rxClass}">${onu.rx || 'N/A'}</span></td>
+          <td><span class="text-muted small">${onu.index}</span></td>
+          <td style="text-align:right">
+            <div class="d-flex justify-content-end gap-1">
+              <button class="btn-action-v2 btn-rename-v2" onclick="renameOnuPrompt('${id}', '${onu.index}', '${onu.name}')" title="Ubah Nama"><i class="bi bi-pencil-square"></i></button>
+              <button class="btn-action-v2 btn-reboot-v2" onclick="rebootOnu('${id}', '${onu.index}')" title="Reboot ONU"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    } else {
+      document.getElementById('search-container').style.display = 'none';
+      tbody.innerHTML = `<tr><td colspan="8">
+        <div class="empty-state">
+          <i class="bi bi-exclamation-triangle"></i>
+          <p>${stats.error || 'Tidak ada data ONU ditemukan.'}</p>
+          ${stats.error ? '<button class="btn btn-sm btn-p mt-2" onclick="refreshCurrentOlt()">Coba Lagi</button>' : ''}
+        </div>
+      </td></tr>`;
+    }
   } catch (e) {
-    container.innerHTML = '<span class="badge bd">Error</span> <span class="text-muted small ms-2">' + e.message + '</span>';
+    document.getElementById('onu-table-body').innerHTML = `<tr><td colspan="8" class="text-center p-5 text-danger">Error: ${e.message}</td></tr>`;
+  } finally {
+    overlay.style.display = 'none';
   }
 }
 
-// Auto-load saat halaman selesai dimuat
-document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('[id^="stats-"]').forEach(function(c) {
-    var id = c.id.split('-')[1];
-    // Jika bukan disabled (tidak ada badge bd), load stats
-    if (!c.querySelector('.badge.bd')) {
-      loadOltStats(id, false);
-    }
+function handleOltChange() {
+  const id = document.getElementById('olt-selector').value;
+  if (id) loadOltDashboard(id);
+}
+
+function refreshCurrentOlt() {
+  handleOltChange();
+}
+
+function filterOnuTable() {
+  const input = document.getElementById('onu-search');
+  const filter = input.value.toLowerCase();
+  const rows = document.querySelectorAll('#onu-table-body tr');
+  
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    row.style.display = text.includes(filter) ? '' : 'none';
   });
+}
+
+async function renameOnuPrompt(oltId, index, oldName) {
+  const newName = prompt('Masukkan nama baru untuk ONU:', oldName);
+  if (!newName || newName === oldName) return;
+  try {
+    const res = await fetch(`/admin/olts/${oltId}/onu/${index}/rename`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ name: newName })
+    });
+    const data = await res.json();
+    if (data.success) { refreshCurrentOlt(); } else { alert('Gagal: ' + data.error); }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function rebootOnu(oltId, index) {
+  if (!confirm('Yakin ingin reboot ONU ini?')) return;
+  try {
+    const res = await fetch(`/admin/olts/${oltId}/onu/${index}/reboot`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { alert('Perintah reboot berhasil dikirim.'); } else { alert('Gagal: ' + data.error); }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const selector = document.getElementById('olt-selector');
+  if (selector && selector.value) {
+    handleOltChange();
+  }
 });
 </script>
 </body>

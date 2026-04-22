@@ -81,6 +81,22 @@ async function fetchFullDevice(tag) {
   }
 }
 
+async function resolveDeviceToken(input) {
+  const token = String(input || '').trim();
+  if (!token) return null;
+
+  const direct = await findDeviceByTag(token);
+  if (direct && direct._id) return direct;
+
+  const byPppoe = await findDeviceByPppoe(token);
+  if (byPppoe && byPppoe._id) return byPppoe;
+
+  const found = await findDeviceWithTagVariants(token);
+  if (found && found.device && found.device._id) return found.device;
+
+  return null;
+}
+
 const parameterPaths = {
   rxPower: [
     'VirtualParameters.RXPower',
@@ -197,7 +213,11 @@ function phoneFromPnJid(jid) {
 function mapDeviceData(device, tag) {
   if (!device) return null;
 
-  const ssid = device?.InternetGatewayDevice?.LANDevice?.['1']?.WLANConfiguration?.['1']?.SSID?._value || '-';
+  const ssid =
+    device?.InternetGatewayDevice?.LANDevice?.['1']?.WLANConfiguration?.['1']?.SSID?._value ||
+    device?.Device?.WiFi?.SSID?.['1']?.SSID?._value ||
+    device?.Device?.WiFi?.SSID?.['1']?.SSID ||
+    '-';
 
   const lastInform =
     device?._lastInform
@@ -308,7 +328,9 @@ function mapDeviceData(device, tag) {
 }
 
 async function getCustomerDeviceData(tag) {
-  const device = await fetchFullDevice(tag);
+  const base = await resolveDeviceToken(tag);
+  if (!base || !base._id) return null;
+  const device = await fetchFullDevice(base._id);
   return mapDeviceData(device, tag);
 }
 
@@ -334,35 +356,49 @@ function fallbackCustomer(tag) {
 
 async function updateSSID(tag, newSSID) {
   try {
-    const device = await findDeviceByTag(tag);
+    const device = await resolveDeviceToken(tag);
     if (!device) return false;
     const deviceId = encodeURIComponent(device._id);
     const settings = getSettingsWithCache();
     const genieacsUrl = settings.genieacs_url || 'http://localhost:7557';
     const auth = { username: settings.genieacs_username || '', password: settings.genieacs_password || '' };
+    const tasksUrl = `${genieacsUrl}/devices/${deviceId}/tasks`;
 
-    await axios.post(`${genieacsUrl}/devices/${deviceId}/tasks`, {
-      name: 'setParameterValues',
-      parameterValues: [['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID', newSSID, 'xsd:string']]
-    }, { auth });
+    const trySet = async (path, value) => {
+      try {
+        await axios.post(tasksUrl, {
+          name: 'setParameterValues',
+          parameterValues: [[path, value, 'xsd:string']]
+        }, { auth, timeout: 15000 });
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    let ok = false;
+    ok = (await trySet('InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID', newSSID)) || ok;
+    ok = (await trySet('Device.WiFi.SSID.1.SSID', newSSID)) || ok;
 
     const newSSID5G = `${newSSID}-5G`;
     for (const idx of [5, 6, 7, 8]) {
       try {
-        await axios.post(`${genieacsUrl}/devices/${deviceId}/tasks`, {
-          name: 'setParameterValues',
-          parameterValues: [[`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${idx}.SSID`, newSSID5G, 'xsd:string']]
-        }, { auth });
+        const ok5 = await trySet(`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${idx}.SSID`, newSSID5G);
+        if (ok5) ok = true;
         break;
       } catch (e) {}
     }
 
-    await axios.post(`${genieacsUrl}/devices/${deviceId}/tasks`, {
-      name: 'refreshObject',
-      objectName: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration'
-    }, { auth });
+    ok = (await trySet('Device.WiFi.SSID.2.SSID', newSSID5G)) || ok;
 
-    return true;
+    try {
+      await axios.post(tasksUrl, { name: 'refreshObject', objectName: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration' }, { auth, timeout: 15000 });
+    } catch (e) {}
+    try {
+      await axios.post(tasksUrl, { name: 'refreshObject', objectName: 'Device.WiFi.SSID' }, { auth, timeout: 15000 });
+    } catch (e) {}
+
+    return ok;
   } catch (e) {
     return false;
   }
@@ -374,7 +410,7 @@ async function updatePassword(tag, newPassword) {
       logger.warn(`[updatePassword] Password too short for tag ${tag}`);
       return false;
     }
-    const device = await findDeviceByTag(tag);
+    const device = await resolveDeviceToken(tag);
     if (!device) {
       logger.warn(`[updatePassword] Device not found for tag ${tag}`);
       return false;
@@ -387,41 +423,52 @@ async function updatePassword(tag, newPassword) {
 
     logger.info(`[updatePassword] Setting password for device ${deviceId}, tag ${tag}`);
 
-    // Set password 2.4GHz
-    await axios.post(tasksUrl, {
-      name: 'setParameterValues',
-      parameterValues: [
-        ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase', newPassword, 'xsd:string'],
-        ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase', newPassword, 'xsd:string']
-      ]
-    }, { auth });
-    logger.info(`[updatePassword] 2.4GHz password set successfully`);
+    const trySet = async (path) => {
+      try {
+        await axios.post(tasksUrl, {
+          name: 'setParameterValues',
+          parameterValues: [[path, newPassword, 'xsd:string']]
+        }, { auth, timeout: 15000 });
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    let ok = false;
+
+    ok = (await trySet('InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase')) || ok;
+    ok = (await trySet('InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase')) || ok;
+    ok = (await trySet('InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey')) || ok;
+
+    ok = (await trySet('Device.WiFi.AccessPoint.1.Security.KeyPassphrase')) || ok;
+    ok = (await trySet('Device.WiFi.AccessPoint.1.Security.PreSharedKey')) || ok;
 
     // Set password 5GHz (index 5-8)
     for (const idx of [5, 6, 7, 8]) {
       try {
-        await axios.post(tasksUrl, {
-          name: 'setParameterValues',
-          parameterValues: [
-            [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${idx}.KeyPassphrase`, newPassword, 'xsd:string'],
-            [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${idx}.PreSharedKey.1.KeyPassphrase`, newPassword, 'xsd:string']
-          ]
-        }, { auth });
-        logger.info(`[updatePassword] 5GHz password set successfully on WLAN.${idx}`);
+        const ok1 = await trySet(`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${idx}.KeyPassphrase`);
+        const ok2 = await trySet(`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${idx}.PreSharedKey.1.KeyPassphrase`);
+        const ok3 = await trySet(`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${idx}.PreSharedKey.1.PreSharedKey`);
+        if (ok1 || ok2 || ok3) ok = true;
         break;
       } catch (e) {
         logger.debug(`[updatePassword] 5GHz WLAN.${idx} not available or failed: ${e.message}`);
       }
     }
 
-    // Refresh object
-    await axios.post(tasksUrl, {
-      name: 'refreshObject',
-      objectName: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration'
-    }, { auth });
-    logger.info(`[updatePassword] Refresh object sent successfully`);
+    ok = (await trySet('Device.WiFi.AccessPoint.2.Security.KeyPassphrase')) || ok;
+    ok = (await trySet('Device.WiFi.AccessPoint.2.Security.PreSharedKey')) || ok;
 
-    return true;
+    // Refresh object
+    try {
+      await axios.post(tasksUrl, { name: 'refreshObject', objectName: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration' }, { auth, timeout: 15000 });
+    } catch (e) {}
+    try {
+      await axios.post(tasksUrl, { name: 'refreshObject', objectName: 'Device.WiFi.AccessPoint' }, { auth, timeout: 15000 });
+    } catch (e) {}
+
+    return ok;
   } catch (e) {
     logger.error(`[updatePassword] Error: ${e.message}`, e.response?.data || '');
     return false;
@@ -429,7 +476,7 @@ async function updatePassword(tag, newPassword) {
 }
 
 async function requestReboot(tag) {
-  const device = await findDeviceByTag(tag);
+  const device = await resolveDeviceToken(tag);
   if (!device || !device._id) return { ok: false, message: 'Perangkat tidak ditemukan.' };
   const settings = getSettingsWithCache();
   const genieacsUrl = settings.genieacs_url || 'http://localhost:7557';
@@ -456,12 +503,23 @@ async function listDevicesWithTags(limit = 250) {
     { _tags: { $exists: true, $not: { $size: 0 } } },
     { '_tags.0': { $exists: true } }
   ];
+  const projection = [
+    '_id',
+    '_tags',
+    '_lastInform',
+    'DeviceID.SerialNumber',
+    'VirtualParameters.pppoeUsername',
+    'VirtualParameters.pppUsername',
+    'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username',
+    'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username._value'
+  ].join(',');
   for (const query of queries) {
     try {
       const response = await axios.get(`${genieacsUrl}/devices`, {
         params: {
           query: JSON.stringify(query),
-          projection: '_id,_tags,_lastInform,DeviceID.SerialNumber,VirtualParameters,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username,InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations,InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.TotalAssociations,InternetGatewayDevice.LANDevice.1.Hosts.HostNumberOfEntries,Device.WiFi.AccessPoint.1.AssociatedDeviceNumberOfEntries,Device.Hosts.HostNumberOfEntries,InternetGatewayDevice.LANDevice.1.Hosts.Host,Device.Hosts.Host'
+          limit: Math.max(1, Math.min(parseInt(limit, 10) || 250, 500)),
+          projection
         },
         auth,
         timeout: 45000
@@ -522,6 +580,7 @@ module.exports = {
   findDeviceByTag,
   findDeviceByPppoe,
   fetchFullDevice,
+  resolveDeviceToken,
   mapDeviceData,
   getCustomerDeviceData,
   fallbackCustomer,

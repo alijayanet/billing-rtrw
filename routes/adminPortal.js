@@ -421,7 +421,7 @@ router.post('/customers/import', requireAdminSession, upload.single('file'), asy
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws);
-    console.log(`[Import] Found ${rows.length} rows in Excel file.`);
+    logger.info(`[Import] Found ${rows.length} rows in Excel file.`);
     
     const packages = customerSvc.getAllPackages();
     const odps = odpSvc.getAllOdps();
@@ -436,7 +436,7 @@ router.post('/customers/import', requireAdminSession, upload.single('file'), asy
 
       const name = cleanRow['Nama'] || cleanRow['name'] || cleanRow['Name'];
       if (!name) {
-        console.log(`[Import] Skipping row - Name is empty:`, cleanRow);
+        logger.debug('[Import] Skipping row - Name is empty.');
         continue; 
       }
 
@@ -467,16 +467,16 @@ router.post('/customers/import', requireAdminSession, upload.single('file'), asy
       
       const id = cleanRow['ID'] || cleanRow['id'];
       if (id && !isNaN(id) && id !== '') {
-        console.log(`[Import] Updating customer ID: ${id}`);
+        logger.info(`[Import] Updating customer ID: ${id}`);
         customerSvc.updateCustomer(id, data);
       } else {
-        console.log(`[Import] Creating new customer: ${name}`);
+        logger.info(`[Import] Creating new customer: ${name}`);
         customerSvc.createCustomer(data);
       }
       count++;
     }
     
-    console.log(`[Import] Finished. Total processed: ${count}`);
+    logger.info(`[Import] Finished. Total processed: ${count}`);
     req.session._msg = { type: 'success', text: `Berhasil mengimpor ${count} data pelanggan.` };
   } catch (e) {
     logger.error('Import error:', e);
@@ -971,13 +971,21 @@ router.post('/api/bulk/ssid', requireAdmin, express.json(), async (req, res) => 
 });
 
 router.get('/api/mikrotik/profiles', requireAdmin, async (req, res) => {
-  const profiles = await mikrotikService.getPppoeProfiles();
-  res.json(profiles);
+  try {
+    const profiles = await mikrotikService.getPppoeProfiles(req.query.routerId);
+    res.json(profiles);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.get('/api/mikrotik/users', requireAdmin, async (req, res) => {
-  const users = await mikrotikService.getPppoeUsers();
-  res.json(users);
+  try {
+    const users = await mikrotikService.getPppoeUsers(req.query.routerId);
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ─── MIKROTIK MONITORING ───────────────────────────────────────────────────

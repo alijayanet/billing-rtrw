@@ -17,6 +17,30 @@ const customerSvc = require('./customerService.js');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
 
+function waBrand() {
+  const companyHeader = getSetting('company_header', 'ALIJAYA WEBPORTAL');
+  const footerInfo = getSetting('footer_info', 'Internet Tanpa Batas');
+  const sep = '─'.repeat(30);
+  return { companyHeader, footerInfo, sep };
+}
+
+function waWrap(title, body) {
+  const { companyHeader, footerInfo, sep } = waBrand();
+  const t = String(title || '').trim();
+  const b = String(body || '').trim();
+  const head = t ? `${t}\n${sep}\n🏢 *${companyHeader}*\n${sep}\n` : `🏢 *${companyHeader}*\n${sep}\n`;
+  const foot = footerInfo ? `\n${sep}\n${footerInfo}` : '';
+  return head + b + foot;
+}
+
+function waAutoWrap(text) {
+  const { sep } = waBrand();
+  const t = String(text || '').trim();
+  if (!t) return t;
+  if (t.includes(sep)) return t;
+  return waWrap('', t);
+}
+
 function getMessageText(m) {
   const msg = m.message;
   if (!msg) return '';
@@ -46,7 +70,7 @@ async function resolveCustomerTag(key, lidStore) {
     // 1. Coba cari di Billing Database dulu
     const customer = customerSvc.findCustomerByAny(digits);
     if (customer && (customer.genieacs_tag || customer.pppoe_username)) {
-      const tag = customer.genieacs_tag || customer.pppoe_username;
+      const tag = customer.genieacs_tag || customer.pppoe_username || digits;
       if (lidJid) lidStore.set(lidJid, tag);
       lidStore.set(pnJid, tag);
       return tag;
@@ -78,15 +102,51 @@ async function resolveCustomerTag(key, lidStore) {
   return null;
 }
 
+async function resolveCustomerContext(key, lidStore) {
+  const { remoteJid, senderPn, senderLid } = normalizeKey(key);
+  if (!remoteJid || remoteJid.endsWith('@g.us')) return null;
+
+  const pnDigits = senderPn && senderPn.endsWith('@s.whatsapp.net') ? customerDevice.phoneFromPnJid(senderPn) : null;
+  const remoteDigits = remoteJid.endsWith('@s.whatsapp.net') ? customerDevice.phoneFromPnJid(remoteJid) : null;
+  const digits = pnDigits || remoteDigits || null;
+
+  const cached =
+    (remoteJid.endsWith('@lid') ? lidStore.get(remoteJid) : null) ||
+    (senderLid && senderLid.endsWith('@lid') ? lidStore.get(senderLid) : null) ||
+    (senderPn && senderPn.endsWith('@s.whatsapp.net') ? lidStore.get(senderPn) : null) ||
+    (remoteJid.endsWith('@s.whatsapp.net') ? lidStore.get(remoteJid) : null) ||
+    null;
+
+  let customer = null;
+  if (digits) customer = customerSvc.findCustomerByAny(digits);
+  if (!customer && cached) customer = customerSvc.findCustomerByAny(cached);
+
+  let billingKey = digits || null;
+  if (!billingKey && customer && customer.phone) billingKey = String(customer.phone);
+  if (!billingKey && cached && /^\d+$/.test(String(cached))) billingKey = String(cached);
+
+  let deviceKey =
+    (customer && (customer.genieacs_tag || customer.pppoe_username) ? (customer.genieacs_tag || customer.pppoe_username) : null) ||
+    cached ||
+    digits ||
+    null;
+
+  if (!deviceKey) return null;
+
+  if (digits) {
+    const tagToCache = (customer && (customer.genieacs_tag || customer.pppoe_username)) ? (customer.genieacs_tag || customer.pppoe_username) : deviceKey;
+    const pnJid = senderPn && senderPn.endsWith('@s.whatsapp.net') ? senderPn : (remoteJid.endsWith('@s.whatsapp.net') ? remoteJid : null);
+    const lidJid = remoteJid.endsWith('@lid') ? remoteJid : (senderLid && senderLid.endsWith('@lid') ? senderLid : null);
+    if (pnJid) lidStore.set(pnJid, tagToCache);
+    if (lidJid) lidStore.set(lidJid, tagToCache);
+  }
+
+  return { billingKey: billingKey || deviceKey, deviceKey };
+}
+
 function formatInfo(data) {
-  if (!data) return '❌ Data perangkat tidak ditemukan di GenieACS.';
-  
-  const companyHeader = getSetting('company_header', 'ALIJAYA WEBPORTAL');
-  const footerInfo = getSetting('footer_info', 'Internet Tanpa Batas');
-  
-  const header = `📱 *INFO PERANGKAT ONU*\n${'─'.repeat(30)}\n📊 *${companyHeader}*\n${'─'.repeat(30)}\n`;
-  const footer = `\n${'─'.repeat(30)}\n${footerInfo}`;
-  
+  if (!data) return waWrap('📡 *STATUS ONU*', '❌ Data perangkat tidak ditemukan di GenieACS.');
+
   const lines = [
     `🟢 *Status:* ${data.status}`,
     `📶 *SSID:* ${data.ssid}`,
@@ -101,22 +161,15 @@ function formatInfo(data) {
     `💾 *Firmware:* ${data.softwareVersion}`,
     `📍 *Tag:* ${data.lokasi}`
   ];
-  
-  return header + lines.join('\n') + footer;
+  return waWrap('📡 *STATUS ONU*', lines.join('\n'));
 }
 
 function formatCekTerhubung(data) {
-  if (!data) return '❌ Data tidak tersedia.';
+  if (!data) return waWrap('👥 *PERANGKAT TERHUBUNG*', '❌ Data tidak tersedia.');
   const list = data.connectedUsers || [];
   
-  const companyHeader = getSetting('company_header', 'ALIJAYA WEBPORTAL');
-  const footerInfo = getSetting('footer_info', 'Internet Tanpa Batas');
-  
-  const header = `📱 *PERANGKAT TERHUBUNG*\n${'─'.repeat(30)}\n📊 *${companyHeader}*\n${'─'.repeat(30)}\n`;
-  const footer = `\n${'─'.repeat(30)}\n${footerInfo}`;
-  
   if (list.length === 0) {
-    return header + `\n❌ Tidak ada entri host/perangkat terhubung di data ONU.` + footer;
+    return waWrap('👥 *PERANGKAT TERHUBUNG*', '⚠️ Tidak ada entri host/perangkat terhubung di data ONU.');
   }
   
   const content = `📊 *${list.length} perangkat tercatat:*\n`;
@@ -125,27 +178,25 @@ function formatCekTerhubung(data) {
     return `${num}. 📱 ${u.hostname}\n   🌐 ${u.ip} | ${u.status}`;
   }).join('\n\n');
   const tail = list.length > 25 ? `\n\n_…dan ${list.length - 25} perangkat lainnya_` : '';
-  
-  return header + content + rows + tail + footer;
+  return waWrap('👥 *PERANGKAT TERHUBUNG*', content + rows + tail);
 }
 
 function formatBillingSummary(stats) {
-  const companyHeader = getSetting('company_header', 'ALIJAYA WEBPORTAL');
-  const header = `💰 *RINGKASAN BILLING*\n${'─'.repeat(30)}\n🏢 *${companyHeader}*\n${'─'.repeat(30)}\n`;
-  
   const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
-  
-  return header + 
+
+  return waWrap(
+    '💰 *RINGKASAN BILLING*',
     `📈 *Total Pendapatan:* ${formatter.format(stats.totalRevenue)}\n` +
-    `📅 *Bulan Ini:* ${formatter.format(stats.thisMonth)}\n` +
-    `⏳ *Piutang (Pending):* ${formatter.format(stats.pendingAmount)}\n` +
-    `🧾 *Tagihan Belum Lunas:* ${stats.unpaidCount} invoice\n` +
-    `─`.repeat(30) + `\n💡 _Ketik \`tagihan\` untuk detail_`;
+      `📅 *Bulan Ini:* ${formatter.format(stats.thisMonth)}\n` +
+      `⏳ *Piutang (Pending):* ${formatter.format(stats.pendingAmount)}\n` +
+      `🧾 *Tagihan Belum Lunas:* ${stats.unpaidCount} invoice\n\n` +
+      `💡 _Gunakan perintah lain untuk detail._`
+  );
 }
 
 function formatCustomerInvoices(invoices, name) {
-  const header = `🧾 *STATUS TAGIHAN*\n👤 *${name}*\n${'─'.repeat(30)}\n`;
-  if (!invoices || invoices.length === 0) return header + "✅ Anda tidak memiliki tagihan. Terima kasih!";
+  const title = `🧾 *STATUS TAGIHAN*\n👤 *${name}*`;
+  if (!invoices || invoices.length === 0) return waWrap(title, "✅ Tidak ada tagihan. Terima kasih!");
   
   const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
   
@@ -154,14 +205,14 @@ function formatCustomerInvoices(invoices, name) {
     return `📅 *Periode:* ${inv.period_month}/${inv.period_year}\n💰 *Total:* ${formatter.format(inv.amount)}\n📌 *Status:* ${status}\n🆔 *ID:* ${inv.id}`;
   }).join('\n\n');
   
-  return header + list + `\n\n${'─'.repeat(30)}\n💡 _Gunakan ID Tagihan saat konfirmasi pembayaran_`;
+  return waWrap(title, list + `\n\n💡 _Gunakan ID Tagihan saat konfirmasi pembayaran_`);
 }
 
 function formatActiveMikrotik(pppoe, hotspot) {
-  const header = `🌐 *MIKROTIK ACTIVE*\n${'─'.repeat(30)}\n`;
+  const { sep } = waBrand();
   const p = `👥 *PPPoE Active:* ${pppoe.length} user\n` + pppoe.slice(0, 10).map(u => `  ◦ ${u.name} (${u.address})`).join('\n') + (pppoe.length > 10 ? '\n  _...dll_' : '');
   const h = `\n\n🔥 *Hotspot Active:* ${hotspot.length} user\n` + hotspot.slice(0, 10).map(u => `  ◦ ${u.user} (${u.address})`).join('\n') + (hotspot.length > 10 ? '\n  _...dll_' : '');
-  return header + p + h;
+  return waWrap('🌐 *MIKROTIK ACTIVE*', p + h);
 }
 
 function loadWhatsappAdminSet() {
@@ -210,7 +261,7 @@ function parseCommand(text, isAdmin) {
 
   if (['menu', 'bantuan', 'help'].includes(cmd)) return { cmd: 'menu', rest: '' };
 
-  if (isAdmin && ['adminmenu', 'menuadmin'].includes(cmd)) return { cmd: 'adminmenu', rest: '' };
+  if (isAdmin && ['admin', 'adminmenu', 'menuadmin'].includes(cmd)) return { cmd: 'adminmenu', rest: '' };
 
   if (isAdmin && ['listonu', 'listdevice', 'daftarperangkat'].includes(cmd)) {
     return { cmd: 'listonu', admin: true };
@@ -233,7 +284,7 @@ function parseCommand(text, isAdmin) {
   if (isAdmin && cmd === 'isolir' && parts.length >= 2) return { cmd: 'isolir', admin: true, targetId: parts[1] };
   if (isAdmin && cmd === 'buka' && parts.length >= 2) return { cmd: 'buka', admin: true, targetId: parts[1] };
 
-  if (isAdmin && cmd === 'info' && parts.length >= 2) {
+  if (isAdmin && ['info', 'cekstatus', 'cekonu', 'statusonu'].includes(cmd) && parts.length >= 2) {
     return { cmd: 'info', admin: true, targetTag: parts[1], rest: '' };
   }
   if (isAdmin && cmd === 'cekterhubung' && parts.length >= 2) {
@@ -251,7 +302,7 @@ function parseCommand(text, isAdmin) {
 
   // Customer Commands
   if (cmd === 'cektagihan') return { cmd: 'cektagihan', rest: '' };
-  if (cmd === 'info') return { cmd: 'info', rest: '' };
+  if (['info', 'cekstatus', 'cekonu', 'statusonu'].includes(cmd)) return { cmd: 'info', rest: '' };
   if (cmd === 'cekterhubung') return { cmd: 'cekterhubung', rest: '' };
   if (cmd === 'gantissid') return { cmd: 'gantissid', rest };
   if (cmd === 'gantisandi') return { cmd: 'gantisandi', rest };
@@ -265,13 +316,9 @@ async function resolveTargetTagForAdmin(tagToken) {
   
   // 1. Coba cari di database billing dulu (by name, pppoe, phone, etc)
   const cust = customerSvc.findCustomerByAny(tagToken);
-  if (cust && cust.genieacs_tag) {
-    return cust.genieacs_tag;
-  }
+  if (cust) return cust.genieacs_tag || cust.pppoe_username || cust.phone || tagToken;
   
-  // 2. Fallback: Cari langsung di GenieACS (by Tag/Serial)
-  const found = await customerDevice.findDeviceWithTagVariants(tagToken);
-  return found ? found.canonicalTag : null;
+  return tagToken;
 }
 
 function formatListOnu(devices) {
@@ -326,17 +373,22 @@ function splitWaChunks(text, maxLen = 3500) {
 /** Kirim notifikasi ke pelanggan saat admin mengubah SSID/Password */
 async function notifyCustomer(sock, lidStore, tag, message) {
   try {
+    const text = waAutoWrap(message);
     // Cari JID pelanggan berdasarkan tag
     const customerJid = lidStore.getByTag(tag);
     if (customerJid) {
-      await sock.sendMessage(customerJid, { text: message });
+      await sock.sendMessage(customerJid, { text });
       return true;
     }
     // Jika tidak ditemukan di lidStore, coba kirim ke nomor tag langsung
-    const phoneNumber = tag.replace(/\D/g, '');
+    let phoneNumber = tag.replace(/\D/g, '');
+    if (phoneNumber.length < 10) {
+      const cust = customerSvc.findCustomerByAny(tag);
+      if (cust && cust.phone) phoneNumber = String(cust.phone).replace(/\D/g, '');
+    }
     if (phoneNumber.length >= 10) {
       const directJid = `${phoneNumber}@s.whatsapp.net`;
-      await sock.sendMessage(directJid, { text: message });
+      await sock.sendMessage(directJid, { text });
       return true;
     }
     return false;
@@ -346,54 +398,64 @@ async function notifyCustomer(sock, lidStore, tag, message) {
   }
 }
 
-const MENU_TEXT =
-  `📱 *MENU PELANGGAN*
-${'─'.repeat(30)}
+function getMenuText() {
+  const { companyHeader, footerInfo, sep } = waBrand();
+  return `📱 *MENU PELANGGAN*
+${sep}
+🏢 *${companyHeader}*
+${sep}
 
 📋 *Perintah Tersedia:*
 
-🔹 \`menu\` — Tampilkan bantuan ini
-🔹 \`info\` — Ringkasan ONU Anda
-🔹 \`cektagihan\` — Lihat status tagihan
-🔹 \`cekterhubung\` — Daftar host terhubung
-🔹 \`gantissid\` _nama_ — Ubah nama WiFi
-🔹 \`gantisandi\` _sandi_ — Ubah password
-🔹 \`reboot\` — Restart ONU
-🔹 \`daftar\` _tag/nomor_ — Bind nomor WA
+🧾 \`menu\` — Tampilkan bantuan ini
+📡 \`info\` / \`cekstatus\` — Status ONU Anda
+💳 \`cektagihan\` — Lihat status tagihan
+👥 \`cekterhubung\` — Daftar host terhubung
+📶 \`gantissid\` _nama_ — Ubah nama WiFi
+🔑 \`gantisandi\` _sandi_ — Ubah password
+🔄 \`reboot\` — Restart ONU
+🔗 \`daftar\` _tag/nomor_ — Bind nomor WA
 
-${'─'.repeat(30)}
-💡 *Contoh:* \`cektagihan\``;
+${sep}
+${footerInfo ? footerInfo : '💡 *Contoh:* `cektagihan`'}`;
+}
 
-const ADMIN_MENU_TEXT =
-  `🛠️ *MENU ADMIN*
-${'─'.repeat(30)}
+function getAdminMenuText() {
+  const { companyHeader, footerInfo, sep } = waBrand();
+  return `🛠️ *MENU ADMIN*
+${sep}
+🏢 *${companyHeader}*
+${sep}
 
 📡 *MikroTik:*
-🔹 \`mtactive\` — User active saat ini
-🔹 \`kickuser\` _user_ — Putus session active
-🔹 \`addpppoe\` _user pass profile_
-🔹 \`editpppoe\` _user profile_
-🔹 \`delpppoe\` _user_
-🔹 \`addhotspot\` _user pass profile_
-🔹 \`vcr\` _kode profile_ — User=Pass + Comment
-🔹 \`delhotspot\` _user_
+🟢 \`mtactive\` — User active saat ini
+✂️ \`kickuser\` _user_ — Putus session active
+➕ \`addpppoe\` _user pass profile_
+📝 \`editpppoe\` _user profile_
+🗑️ \`delpppoe\` _user_
+➕ \`addhotspot\` _user pass profile_
+🎟️ \`vcr\` _kode profile_ — User=Pass + Comment
+🗑️ \`delhotspot\` _user_
 
 💰 *Billing:*
-🔹 \`ringkasan\` — Statistik billing
-🔹 \`lunas\` _ID_ — Tandai lunas ID tagihan
-🔹 \`generate\` _bln thn_ — Generate tagihan
+📊 \`ringkasan\` — Statistik billing
+✅ \`lunas\` _ID_ — Tandai lunas ID tagihan
+🧾 \`generate\` _bln thn_ — Generate tagihan
 
 👥 *Pelanggan:*
-🔹 \`isolir\` _ID_ — Suspend pelanggan
-🔹 \`buka\` _ID_ — Aktifkan pelanggan
+⛔ \`isolir\` _ID_ — Suspend pelanggan
+🟢 \`buka\` _ID_ — Aktifkan pelanggan
 
 📱 *Device ONU:*
-🔹 \`listonu\` — Daftar semua ONU
-🔹 \`info\` _TAG_ — Detail ONU
-🔹 \`reboot\` _TAG_ — Restart ONU
+📋 \`listonu\` — Daftar semua ONU
+📡 \`info\` / \`cekstatus\` _TAG_ — Status ONU
+🔄 \`reboot\` _TAG_ — Restart ONU
+📶 \`gantissid\` _TAG_ _namaSSID_ — Ubah SSID ONU
+🔑 \`gantisandi\` _TAG_ _password_ — Ubah password ONU (min 8)
 
-${'─'.repeat(30)}
-💡 _Tanpa TAG = perintah untuk device yang terikat ke WA Anda._`;
+${sep}
+${footerInfo ? footerInfo : '💡 _Tanpa TAG = perintah untuk device yang terikat ke WA Anda._'}`;
+}
 
 export const whatsappStatus = {
   connection: 'connecting',
@@ -518,12 +580,12 @@ export async function startWhatsAppBot() {
         if (!parsed) continue;
 
         const reply = async (msg) => {
-          await sock.sendMessage(remote, { text: msg }, { quoted: m });
+          await sock.sendMessage(remote, { text: waAutoWrap(msg) }, { quoted: m });
         };
 
         if (parsed.cmd === 'menu') {
-          let body = MENU_TEXT;
-          if (isAdmin) body += '\n\n_Anda admin — ketik `adminmenu` untuk perintah kelola semua tag._';
+          let body = getMenuText();
+          if (isAdmin) body += '\n\n_Anda admin — ketik `admin` untuk perintah kelola semua tag._';
           await reply(body);
           continue;
         }
@@ -533,7 +595,7 @@ export async function startWhatsAppBot() {
             await reply('❌ Perintah ini khusus nomor admin (pengaturan whatsapp_admin_numbers).');
             continue;
           }
-          await reply(ADMIN_MENU_TEXT);
+          await reply(getAdminMenuText());
           continue;
         }
 
@@ -542,12 +604,15 @@ export async function startWhatsAppBot() {
             await reply('❌ Akses ditolak. Perintah ini khusus admin.');
             continue;
           }
-          const res = await customerDevice.listDevicesWithTags(300);
+          let res = await customerDevice.listDevicesWithTags(300);
+          if (!res.ok || !res.devices || res.devices.length === 0) {
+            res = await customerDevice.listAllDevices(300);
+          }
           if (!res.ok) {
             await reply('❌ ' + (res.message || 'Gagal mengambil daftar.'));
             continue;
           }
-          const body = formatListOnu(res.devices);
+          const body = formatListOnu(res.devices || []);
           const chunks = splitWaChunks(body);
           for (const ch of chunks) {
             await reply(ch);
@@ -752,8 +817,9 @@ export async function startWhatsAppBot() {
             continue;
           }
           const targetTag = await resolveTargetTagForAdmin(parsed.targetTag);
-          if (!targetTag) {
-            await reply(`❌ Tag *${parsed.targetTag}* tidak ditemukan di GenieACS.`);
+          const targetDevice = await customerDevice.resolveDeviceToken(targetTag);
+          if (!targetDevice) {
+            await reply(`❌ Target *${parsed.targetTag}* tidak ditemukan di GenieACS.`);
             continue;
           }
           if (parsed.cmd === 'info') {
@@ -775,12 +841,18 @@ export async function startWhatsAppBot() {
             if (ok) {
               await reply(`✅ SSID untuk *${targetTag}* berhasil diubah menjadi:\n\n📶 *${parsed.rest}*`);
               // Kirim notifikasi ke pelanggan
-              const companyHeader = getSetting('company_header', 'ALIJAYA WEBPORTAL');
-              const notifMsg = `📢 *NOTIFIKASI PERUBAHAN WIFI*\n\n` +
-                `Yth. Pelanggan ${companyHeader},\n\n` +
-                `SSID WiFi Anda telah diubah oleh admin menjadi:\n\n` +
-                `📶 *${parsed.rest}*\n\n` +
-                `Silakan hubungi admin jika Anda memiliki pertanyaan.`;
+              const now = new Date().toLocaleString('id-ID');
+              const cust = customerSvc.findCustomerByAny(targetTag);
+              const custName = cust?.name ? `👤 *Pelanggan:* ${cust.name}\n` : '';
+              const notifMsg =
+                `📶 *PERUBAHAN SSID WIFI*\n\n` +
+                custName +
+                `🏷️ *Tag/ID:* ${targetTag}\n` +
+                `🕒 *Waktu:* ${now}\n\n` +
+                `SSID WiFi Anda sudah diperbarui oleh Admin menjadi:\n` +
+                `📡 *${parsed.rest}*\n\n` +
+                `Jika perangkat belum tersambung, silakan pilih SSID baru di HP/laptop Anda.\n` +
+                `⚠️ Jangan bagikan info ini ke orang lain.`;
               const notifSent = await notifyCustomer(sock, lidStore, targetTag, notifMsg);
               if (notifSent) {
                 await reply(`📤 Notifikasi terkirim ke pelanggan *${targetTag}*`);
@@ -801,13 +873,18 @@ export async function startWhatsAppBot() {
             if (ok) {
               await reply('✅ Password WiFi berhasil diubah.');
               // Kirim notifikasi ke pelanggan
-              const companyHeader = getSetting('company_header', 'ALIJAYA WEBPORTAL');
-              const notifMsg = `📢 *NOTIFIKASI PERUBAHAN PASSWORD*\n\n` +
-                `Yth. Pelanggan ${companyHeader},\n\n` +
-                `Password WiFi Anda telah diubah oleh admin menjadi:\n\n` +
-                `🔑 *${parsed.rest}*\n\n` +
-                `Silakan gunakan password baru untuk terhubung ke WiFi.\n` +
-                `Hubungi admin jika Anda memiliki pertanyaan.`;
+              const now = new Date().toLocaleString('id-ID');
+              const cust = customerSvc.findCustomerByAny(targetTag);
+              const custName = cust?.name ? `👤 *Pelanggan:* ${cust.name}\n` : '';
+              const notifMsg =
+                `🔑 *PERUBAHAN PASSWORD WIFI*\n\n` +
+                custName +
+                `🏷️ *Tag/ID:* ${targetTag}\n` +
+                `🕒 *Waktu:* ${now}\n\n` +
+                `Password WiFi Anda sudah diperbarui oleh Admin menjadi:\n` +
+                `🔐 *${parsed.rest}*\n\n` +
+                `Silakan gunakan password baru untuk terhubung.\n` +
+                `⚠️ Jangan bagikan password ini ke orang lain.`;
               const notifSent = await notifyCustomer(sock, lidStore, targetTag, notifMsg);
               if (notifSent) {
                 await reply(`📤 Notifikasi terkirim ke pelanggan *${targetTag}*`);
@@ -831,21 +908,22 @@ export async function startWhatsAppBot() {
             await reply('❌ Format salah. Gunakan:\n\n\`daftar 081234567890\`\n\n(gunakan tag/nomor yang sama dengan di GenieACS)');
             continue;
           }
-          const found = await customerDevice.findDeviceWithTagVariants(parsed.rest);
-          if (!found) {
+          const dev = await customerDevice.resolveDeviceToken(parsed.rest);
+          if (!dev) {
             await reply('❌ Tag/nomor tidak ditemukan di GenieACS. Periksa penulisan atau hubungi admin.');
             continue;
           }
           const nk = normalizeKey(m.key);
-          lidStore.set(remote, found.canonicalTag);
-          if (nk.senderLid) lidStore.set(nk.senderLid, found.canonicalTag);
-          if (nk.senderPn) lidStore.set(nk.senderPn, found.canonicalTag);
-          await reply(`✅ Berhasil! Nomor WA ini diikat ke tag:\n\n📍 *${found.canonicalTag}*\n\nSilakan gunakan perintah lain.`);
+          const tagKey = String(parsed.rest || '').trim();
+          lidStore.set(remote, tagKey);
+          if (nk.senderLid) lidStore.set(nk.senderLid, tagKey);
+          if (nk.senderPn) lidStore.set(nk.senderPn, tagKey);
+          await reply(`✅ Berhasil! Nomor WA ini diikat ke tag:\n\n📍 *${tagKey}*\n\nSilakan gunakan perintah lain.`);
           continue;
         }
 
-        let tag = await resolveCustomerTag(m.key, lidStore);
-        if (!tag) {
+        const ctx = await resolveCustomerContext(m.key, lidStore);
+        if (!ctx) {
           await reply(
             '❌ Nomor/tag Anda belum dikenali (sering terjadi jika WA memakai @lid).\n\n' +
               'Kirim sekali:\n\`daftar NOMORATAUTAG\`\n(sama persis dengan tag di GenieACS), lalu ulangi perintah.'
@@ -854,19 +932,19 @@ export async function startWhatsAppBot() {
         }
 
         if (parsed.cmd === 'cektagihan') {
-          const invoices = billingSvc.getInvoicesByAny(tag);
-          await reply(formatCustomerInvoices(invoices, tag));
+          const invoices = billingSvc.getInvoicesByAny(ctx.billingKey);
+          await reply(formatCustomerInvoices(invoices, ctx.billingKey));
           continue;
         }
 
         if (parsed.cmd === 'info') {
-          const data = await customerDevice.getCustomerDeviceData(tag);
+          const data = await customerDevice.getCustomerDeviceData(ctx.deviceKey);
           await reply(formatInfo(data));
           continue;
         }
 
         if (parsed.cmd === 'cekterhubung') {
-          const data = await customerDevice.getCustomerDeviceData(tag);
+          const data = await customerDevice.getCustomerDeviceData(ctx.deviceKey);
           await reply(formatCekTerhubung(data));
           continue;
         }
@@ -876,7 +954,7 @@ export async function startWhatsAppBot() {
             await reply('❌ Format salah. Gunakan:\n\n\`gantissid NamaWiFiBaru\`');
             continue;
           }
-          const ok = await customerDevice.updateSSID(tag, parsed.rest);
+          const ok = await customerDevice.updateSSID(ctx.deviceKey, parsed.rest);
           await reply(ok ? `✅ SSID berhasil diubah menjadi:\n\n📶 *${parsed.rest}*` : '❌ Gagal mengubah SSID. Coba lagi atau hubungi admin.');
           continue;
         }
@@ -886,13 +964,13 @@ export async function startWhatsAppBot() {
             await reply('❌ Format salah. Gunakan:\n\n\`gantisandi sandibarumin8huruf\`\n\nSandi minimal 8 karakter.');
             continue;
           }
-          const ok = await customerDevice.updatePassword(tag, parsed.rest);
+          const ok = await customerDevice.updatePassword(ctx.deviceKey, parsed.rest);
           await reply(ok ? '✅ Password WiFi berhasil diubah.' : '❌ Gagal mengubah password.');
           continue;
         }
 
         if (parsed.cmd === 'reboot') {
-          const r = await customerDevice.requestReboot(tag);
+          const r = await customerDevice.requestReboot(ctx.deviceKey);
           await reply(`🔄 *Reboot ONU*\n\n${r.message}`);
         }
       } catch (e) {

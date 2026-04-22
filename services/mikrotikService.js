@@ -48,6 +48,7 @@ async function getPppoeProfiles(routerId = null) {
     conn = await getConnection(routerId);
     const results = await conn.client.menu('/ppp/profile').get();
     return results.map(r => ({
+      id: r['.id'],
       name: r.name,
       localAddress: r.localAddress || r['local-address'] || '-',
       remoteAddress: r.remoteAddress || r['remote-address'] || '-',
@@ -68,6 +69,7 @@ async function getPppoeUsers(routerId = null) {
     // Only get secrets for pppoe service
     const results = await conn.client.menu('/ppp/secret').where('service', 'pppoe').get();
     return results.map(r => ({
+      id: r['.id'],
       name: r.name,
       profile: r.profile,
       disabled: r.disabled === 'true'
@@ -93,12 +95,16 @@ async function setPppoeProfile(username, profileName, routerId = null) {
     }
 
     const secret = secrets[0];
+    const secretId = secret['.id'] || secret.id;
+    if (!secretId) {
+      throw new Error(`PPPoE secret ID not found for user ${username}`);
+    }
     const currentProfile = secret.profile;
 
     // Hanya update dan kick jika profil berubah
     if (currentProfile !== profileName) {
       logger.info(`[MikroTik] Changing profile for ${username}: ${currentProfile} -> ${profileName}`);
-      await secretMenu.set(secret['.id'], { profile: profileName });
+      await secretMenu.set({ profile: profileName }, secretId);
       
       // Disconnect active connection so they reconnect with new profile
       await kickPppoeUser(username, routerId);
@@ -116,21 +122,33 @@ async function setPppoeProfile(username, profileName, routerId = null) {
 }
 
 async function kickPppoeUser(username, routerId = null) {
-  if (!username) return false;
+  const normalizedUsername = String(username || '').trim();
+  if (!normalizedUsername) {
+    logger.warn('[MikroTik] kickPppoeUser called without username. Skipping.');
+    return false;
+  }
   let conn = null;
   try {
     conn = await getConnection(routerId);
-    const activeMenu = conn.client.menu('/ppp/active');
-    const activeSession = await activeMenu.where('name', username).get();
+    const sessions = await conn.client.menu('/ppp/active').where('name', normalizedUsername).get();
     
-    if (activeSession && activeSession.length > 0) {
-      for (const s of activeSession) {
-        await activeMenu.remove(s['.id']);
+    if (sessions.length > 0) {
+      logger.info(`[MikroTik] Kicking ${sessions.length} active session(s) for user: ${normalizedUsername}`);
+      for (const s of sessions) {
+        const sessionId = s['.id'] || s.id;
+        if (!sessionId) {
+          logger.warn(`[MikroTik] Skipping PPPoE active remove because session id missing for user: ${normalizedUsername}`);
+          continue;
+        }
+        await conn.client.menu('/ppp/active').remove(sessionId);
       }
+      return true;
     }
-    return true;
+    
+    logger.info(`[MikroTik] No active PPPoE session found for user: ${normalizedUsername}`);
+    return false;
   } catch (e) {
-    logger.error(`Error kicking PPPoE user ${username}:`, e);
+    logger.error(`Error kicking PPPoE user ${normalizedUsername}:`, e);
     return false;
   } finally {
     if (conn && conn.api) conn.api.close();
@@ -138,21 +156,28 @@ async function kickPppoeUser(username, routerId = null) {
 }
 
 async function kickHotspotUser(username, routerId = null) {
-  if (!username) return false;
+  const normalizedUsername = String(username || '').trim();
+  if (!normalizedUsername) return false;
   let conn = null;
   try {
     conn = await getConnection(routerId);
-    const activeMenu = conn.client.menu('/ip/hotspot/active');
-    const sessions = await activeMenu.where('user', username).get();
-    if (sessions && sessions.length > 0) {
+    const sessions = await conn.client.menu('/ip/hotspot/active').where('user', normalizedUsername).get();
+    
+    if (sessions.length > 0) {
+      logger.info(`[MikroTik] Kicking ${sessions.length} active hotspot session(s) for user: ${normalizedUsername}`);
       for (const s of sessions) {
-        await activeMenu.remove(s.id || s['.id']);
+        const sessionId = s['.id'] || s.id;
+        if (!sessionId) {
+          logger.warn(`[MikroTik] Skipping Hotspot active remove because session id missing for user: ${normalizedUsername}`);
+          continue;
+        }
+        await conn.client.menu('/ip/hotspot/active').remove(sessionId);
       }
       return true;
     }
     return false;
   } catch (e) {
-    logger.warn(`Could not kick active hotspot connection for ${username}: ${e.message}`);
+    logger.warn(`Could not kick active hotspot connection for ${normalizedUsername}: ${e.message}`);
     return false;
   } finally {
     if (conn && conn.api) conn.api.close();
@@ -246,7 +271,7 @@ async function updatePppoeProfile(id, data, routerId = null) {
   let conn = null;
   try {
     conn = await getConnection(routerId);
-    return await conn.client.menu('/ppp/profile').update(id, data);
+    return await conn.client.menu('/ppp/profile').set(data, id);
   } catch (e) {
     logger.error('Error updating PPPoE profile:', e);
     throw e;
@@ -299,7 +324,7 @@ async function updateHotspotUserProfile(id, data, routerId = null) {
   let conn = null;
   try {
     conn = await getConnection(routerId);
-    return await conn.client.menu('/ip/hotspot/user/profile').update(id, data);
+    return await conn.client.menu('/ip/hotspot/user/profile').set(data, id);
   } catch (e) {
     logger.error('Error updating Hotspot user profile:', e);
     throw e;
