@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cetak Voucher Batch #<%= batch.id %></title>
+  <style>
+    @page { size: A4; margin: 6mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #0f172a; }
+    .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .card { border: 1.5px solid #334155; border-radius: 10px; padding: 8px 8px 22px; min-height: 110px; position: relative; overflow: hidden; display:flex; gap: 10px; align-items:stretch; break-inside: avoid; page-break-inside: avoid; }
+    .card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(59,130,246,.03), rgba(16,185,129,.025)); }
+    .card > * { position: relative; }
+    .left { flex: 1; min-width: 0; display:flex; flex-direction:column; }
+    .right { width: 48%; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+    .row { display:flex; justify-content:space-between; gap: 8px; align-items:flex-start; }
+    .co { font-weight: 950; font-size: 10.5px; letter-spacing: .15px; line-height: 1.1; }
+    .co-sub { font-size: 9.5px; color: #334155; margin-top: 6px; line-height: 1.1; white-space: nowrap; }
+    .wa-btm { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); font-size: 9.5px; color: #334155; white-space: nowrap; z-index: 4; }
+    .pkg { font-weight: 800; font-size: 10.5px; margin-top: 6px; }
+    .pill { display:inline-flex; align-items:center; gap: 6px; padding: 2px 7px; border-radius: 999px; background: rgba(2,6,23,.06); font-size: 10px; color: #0f172a; white-space:nowrap; line-height: 1.1; }
+    .pills { display:flex; gap:6px; align-items:center; }
+    .price-pill { background: rgba(16,185,129,.16); border: 1px solid rgba(16,185,129,.35); }
+    .right-meta { margin-top: 6px; }
+    .price-top { margin-bottom: 8px; }
+    .code { font-weight: 950; font-size: 26px; letter-spacing: 2px; text-align:center; margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .pw { font-size: 10px; text-align:center; color: #334155; }
+    .pw b { color: #0f172a; }
+    .foot { font-size: 9.5px; color: #334155; margin-top: 4px; line-height: 1.15; }
+    .muted { color: #64748b; }
+    @media print {
+      .no-print { display:none; }
+    }
+  </style>
+</head>
+<body>
+  <%
+    function formatValidity(v) {
+      if (!v) return '-';
+      const s = String(v).trim();
+      const mDay = s.match(/^(\d+)\s*d$/i);
+      if (mDay) return `${Number(mDay[1])} hari`;
+      return s;
+    }
+  %>
+  <div class="grid">
+    <% vouchers.forEach(v => { %>
+      <div class="card">
+        <div class="left">
+          <div class="row">
+            <div class="co"><%= settings.company_header || company %></div>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <div class="pills"></div>
+          </div>
+          <% if (v.code !== v.password) { %>
+            <div class="foot">
+              <div class="muted">Masukkan User (U) dan Pass (P).</div>
+            </div>
+          <% } %>
+        </div>
+        <div class="right">
+          <div class="pill price-pill price-top">💰 Rp <%= Number(batch.price || 0).toLocaleString('id-ID') %></div>
+          <% if (v.code === v.password) { %>
+            <div class="code"><%= v.code %></div>
+            <div class="pw right-meta">⏳ <%= formatValidity(batch.validity) %></div>
+          <% } else { %>
+            <div class="code" style="font-size:16px; letter-spacing:1px">U: <%= v.code %></div>
+            <div class="code" style="font-size:16px; letter-spacing:1px; margin-top:4px">P: <%= v.password %></div>
+            <div class="pw right-meta">⏳ <%= formatValidity(batch.validity) %></div>
+          <% } %>
+        </div>
+        <div class="wa-btm">Telp/WA: <%= (settings.whatsapp_admin_numbers && settings.whatsapp_admin_numbers.length > 0) ? '+' + settings.whatsapp_admin_numbers[0] : (settings.company_phone || '-') %></div>
+      </div>
+    <% }) %>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(() => {
+        window.print();
+      }, 400);
+    }
+  </script>
+</body>
+</html>

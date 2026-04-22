@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { getSetting, getSettings, saveSettings } = require('../config/settingsManager');
 const { logger } = require('../config/logger');
+const db = require('../config/database');
 const customerDevice = require('../services/customerDeviceService');
 const customerSvc = require('../services/customerService');
 const billingSvc = require('../services/billingService');
@@ -45,6 +46,123 @@ function flashMsg(req) {
   const m = req.session._msg;
   delete req.session._msg;
   return m || null;
+}
+
+function parseMikhmonOnLogin(script) {
+  if (!script) return null;
+  const m = String(script).match(/",rem,.*?,(.*?),(.*?),.*?"/);
+  if (!m) return null;
+  const validity = String(m[1] || '').trim();
+  const priceStr = String(m[2] || '').trim();
+  const price = Number(String(priceStr).replace(/[^\d]/g, '')) || 0;
+  return { validity, price };
+}
+
+function genCode(len, charset) {
+  const n = Math.max(4, Math.min(16, Number(len) || 6));
+  let chars = '0123456789';
+  if (charset === 'letters') chars = 'abcdefghjkmnpqrstuvwxyz';
+  else if (charset === 'mixed') chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let out = '';
+  for (let i = 0; i < n; i++) {
+    out += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  // Avoid starting with 0 if it's only numbers
+  if (charset === 'numbers' && out[0] === '0') out = '1' + out.slice(1);
+  return out;
+}
+
+async function createVoucherBatchAsync(batchId) {
+  const batch = db.prepare('SELECT * FROM voucher_batches WHERE id = ?').get(batchId);
+  if (!batch) return;
+
+  const routerId = batch.router_id ?? null;
+  const vouchers = db.prepare('SELECT id, code, profile_name FROM vouchers WHERE batch_id = ? ORDER BY id ASC').all(batchId);
+
+  const updateVoucher = db.prepare('UPDATE vouchers SET code=?, password=?, comment=?, status=?, created_at=created_at WHERE id=?');
+  const markVoucherCreated = db.prepare('UPDATE vouchers SET status=? WHERE id=?');
+  const incCreated = db.prepare("UPDATE voucher_batches SET qty_created = qty_created + 1, updated_at = CURRENT_TIMESTAMP WHERE id=?");
+  const incFailed = db.prepare("UPDATE voucher_batches SET qty_failed = qty_failed + 1, updated_at = CURRENT_TIMESTAMP WHERE id=?");
+  const setBatchStatus = db.prepare("UPDATE voucher_batches SET status=?, updated_at = CURRENT_TIMESTAMP WHERE id=?");
+
+  const existsCode = db.prepare('SELECT 1 FROM vouchers WHERE router_id IS ? AND code = ? LIMIT 1');
+
+  const makeUniqueCode = () => {
+    const prefix = String(batch.prefix || '').trim();
+    const coreLen = Math.max(4, Math.min(16, (Number(batch.code_length) || 6) - prefix.length));
+    const userCode = prefix + genCode(coreLen, batch.charset || 'numbers');
+    
+    let passCode = userCode;
+    if (batch.mode === 'member') {
+      passCode = genCode(coreLen, batch.charset || 'numbers');
+    }
+    
+    return { userCode, passCode };
+  };
+
+  const poolLimit = 8;
+  let idx = 0;
+
+  const worker = async () => {
+    while (idx < vouchers.length) {
+      const current = vouchers[idx++];
+      let generated = { userCode: current.code, passCode: current.password || current.code };
+      let attempt = 0;
+      while (attempt < 10) {
+        attempt++;
+
+        if (existsCode.get(routerId, generated.userCode) && generated.userCode !== current.code) {
+          generated = makeUniqueCode();
+          continue;
+        }
+
+        try {
+          const comment = `vc-${generated.userCode}-${batch.profile_name}`;
+          const userData = {
+            server: 'all',
+            name: generated.userCode,
+            password: generated.passCode,
+            profile: batch.profile_name,
+            comment
+          };
+          if (batch.validity) userData['limit-uptime'] = batch.validity;
+
+          await mikrotikService.addHotspotUser(userData, routerId);
+
+          if (generated.userCode !== current.code || generated.passCode !== current.password) {
+            updateVoucher.run(generated.userCode, generated.passCode, comment, 'created', current.id);
+          } else {
+            markVoucherCreated.run('created', current.id);
+          }
+          incCreated.run(batchId);
+          break;
+        } catch (e) {
+          const msg = String(e?.message || e || '');
+          const isDup = msg.toLowerCase().includes('already') || msg.toLowerCase().includes('exist') || msg.toLowerCase().includes('duplicate');
+          if (isDup) {
+            generated = makeUniqueCode();
+            continue;
+          }
+          markVoucherCreated.run('failed', current.id);
+          incFailed.run(batchId);
+          break;
+        }
+      }
+      if (attempt >= 10) {
+        markVoucherCreated.run('failed', current.id);
+        incFailed.run(batchId);
+      }
+    }
+  };
+
+  setBatchStatus.run('creating', batchId);
+  const workers = Array.from({ length: poolLimit }, () => worker());
+  await Promise.all(workers);
+
+  const final = db.prepare('SELECT qty_total, qty_created, qty_failed FROM voucher_batches WHERE id=?').get(batchId);
+  if (final.qty_created >= final.qty_total && final.qty_failed === 0) setBatchStatus.run('ready', batchId);
+  else if (final.qty_created > 0) setBatchStatus.run('partial', batchId);
+  else setBatchStatus.run('failed', batchId);
 }
 
 // Global locals middleware
@@ -311,6 +429,27 @@ router.get('/customers', requireAdminSession, (req, res) => {
 
 router.post('/customers', requireAdminSession, express.urlencoded({ extended: true }), async (req, res) => {
   try {
+    if (req.body.pppoe_username) {
+      const routerId = req.body.router_id ? Number(req.body.router_id) : null;
+      const username = String(req.body.pppoe_username || '').trim();
+      req.body.pppoe_username = username;
+      if (!username) throw new Error('PPPoE Username tidak boleh kosong');
+      const existing = db.prepare('SELECT id, name FROM customers WHERE router_id IS ? AND pppoe_username = ? LIMIT 1').get(routerId, username);
+      if (existing) throw new Error(`PPPoE Username sudah dipakai pelanggan lain: ${existing.name}`);
+
+      let conn = null;
+      try {
+        conn = await mikrotikService.getConnection(routerId);
+        const results = await conn.client.menu('/ppp/secret')
+          .where('service', 'pppoe')
+          .where('name', username)
+          .get();
+        if (!Array.isArray(results) || results.length === 0) throw new Error('PPPoE Username tidak ditemukan di MikroTik');
+      } finally {
+        if (conn && conn.api) conn.api.close();
+      }
+    }
+
     customerSvc.createCustomer(req.body);
     
     // Sync to MikroTik if username provided
@@ -340,6 +479,28 @@ router.post('/customers', requireAdminSession, express.urlencoded({ extended: tr
 
 router.post('/customers/:id/update', requireAdminSession, express.urlencoded({ extended: true }), async (req, res) => {
   try {
+    if (req.body.pppoe_username) {
+      const customerId = Number(req.params.id);
+      const routerId = req.body.router_id ? Number(req.body.router_id) : null;
+      const username = String(req.body.pppoe_username || '').trim();
+      req.body.pppoe_username = username;
+      if (!username) throw new Error('PPPoE Username tidak boleh kosong');
+      const existing = db.prepare('SELECT id, name FROM customers WHERE router_id IS ? AND pppoe_username = ? AND id != ? LIMIT 1').get(routerId, username, customerId);
+      if (existing) throw new Error(`PPPoE Username sudah dipakai pelanggan lain: ${existing.name}`);
+
+      let conn = null;
+      try {
+        conn = await mikrotikService.getConnection(routerId);
+        const results = await conn.client.menu('/ppp/secret')
+          .where('service', 'pppoe')
+          .where('name', username)
+          .get();
+        if (!Array.isArray(results) || results.length === 0) throw new Error('PPPoE Username tidak ditemukan di MikroTik');
+      } finally {
+        if (conn && conn.api) conn.api.close();
+      }
+    }
+
     customerSvc.updateCustomer(req.params.id, req.body);
     
     // Sync to MikroTik if username provided
@@ -981,8 +1142,18 @@ router.get('/api/mikrotik/profiles', requireAdmin, async (req, res) => {
 
 router.get('/api/mikrotik/users', requireAdmin, async (req, res) => {
   try {
-    const users = await mikrotikService.getPppoeUsers(req.query.routerId);
-    res.json(users);
+    const routerId = req.query.routerId ? Number(req.query.routerId) : null;
+    const onlyUnused = String(req.query.onlyUnused || '') === '1';
+    const excludeCustomerId = req.query.excludeCustomerId ? Number(req.query.excludeCustomerId) : null;
+    const users = await mikrotikService.getPppoeUsers(routerId);
+    if (!onlyUnused) return res.json(users);
+
+    const rows = excludeCustomerId
+      ? db.prepare("SELECT pppoe_username FROM customers WHERE router_id IS ? AND id != ? AND pppoe_username IS NOT NULL AND TRIM(pppoe_username) != ''").all(routerId, excludeCustomerId)
+      : db.prepare("SELECT pppoe_username FROM customers WHERE router_id IS ? AND pppoe_username IS NOT NULL AND TRIM(pppoe_username) != ''").all(routerId);
+    const used = new Set(rows.map(r => String(r.pppoe_username).trim()).filter(Boolean));
+    const filtered = (Array.isArray(users) ? users : []).filter(u => u && u.name && !used.has(String(u.name).trim()));
+    res.json(filtered);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -995,6 +1166,254 @@ router.get('/mikrotik', requireAdminSession, (req, res) => {
     title: 'Monitoring MikroTik', company: company(), activePage: 'mikrotik', 
     routers, msg: flashMsg(req)
   });
+});
+
+router.get('/vouchers', requireAdminSession, (req, res) => {
+  const routers = mikrotikService.getAllRouters();
+  res.render('admin/vouchers', {
+    title: 'Manajemen Voucher', company: company(), activePage: 'vouchers',
+    routers, msg: flashMsg(req), settings: getSettings()
+  });
+});
+
+router.get('/vouchers/batches/:id/print', requireAdminSession, (req, res) => {
+  const batchId = Number(req.params.id);
+  const batch = db.prepare(`
+    SELECT b.*, r.name AS router_name
+    FROM voucher_batches b
+    LEFT JOIN routers r ON r.id = b.router_id
+    WHERE b.id = ?
+  `).get(batchId);
+  if (!batch) return res.status(404).send('Batch tidak ditemukan');
+
+  const vouchers = db.prepare(`
+    SELECT code, password, profile_name, used_at
+    FROM vouchers
+    WHERE batch_id = ?
+    ORDER BY code ASC
+  `).all(batchId);
+
+  res.render('admin/print_vouchers', {
+    title: 'Cetak Voucher',
+    company: company(),
+    settings: getSettings(),
+    batch,
+    vouchers
+  });
+});
+
+router.get('/vouchers/batches/:id/export.csv', requireAdminSession, (req, res) => {
+  const batchId = Number(req.params.id);
+  const batch = db.prepare(`
+    SELECT b.*, r.name AS router_name
+    FROM voucher_batches b
+    LEFT JOIN routers r ON r.id = b.router_id
+    WHERE b.id = ?
+  `).get(batchId);
+  if (!batch) return res.status(404).send('Batch tidak ditemukan');
+
+  const vouchers = db.prepare(`
+    SELECT code, password, profile_name, used_at
+    FROM vouchers
+    WHERE batch_id = ?
+    ORDER BY code ASC
+  `).all(batchId);
+
+  const lines = [];
+  lines.push(['code', 'password', 'profile', 'validity', 'price', 'router', 'batch_id', 'created_at', 'used_at'].join(','));
+  const createdAt = batch.created_at || '';
+  const validity = batch.validity || '';
+  const price = Number(batch.price || 0);
+  const routerName = batch.router_name || '';
+  for (const v of vouchers) {
+    const row = [
+      v.code,
+      v.password,
+      v.profile_name,
+      validity,
+      price,
+      routerName,
+      batchId,
+      createdAt,
+      v.used_at || ''
+    ].map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(',');
+    lines.push(row);
+  }
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=vouchers_batch_${batchId}.csv`);
+  res.send(lines.join('\n'));
+});
+
+router.get('/api/vouchers/batches', requireAdmin, (req, res) => {
+  const routerId = req.query.routerId ? Number(req.query.routerId) : null;
+  const rows = db.prepare(`
+    SELECT
+      b.*,
+      r.name AS router_name,
+      (SELECT COUNT(1) FROM vouchers v WHERE v.batch_id = b.id) AS vouchers_count,
+      (SELECT COUNT(1) FROM vouchers v WHERE v.batch_id = b.id AND v.used_at IS NOT NULL) AS used_count
+    FROM voucher_batches b
+    LEFT JOIN routers r ON r.id = b.router_id
+    WHERE (? IS NULL OR b.router_id = ?)
+    ORDER BY b.id DESC
+    LIMIT 200
+  `).all(routerId, routerId);
+  res.json(rows);
+});
+
+router.get('/api/vouchers/batches/:id', requireAdmin, (req, res) => {
+  const batchId = Number(req.params.id);
+  const batch = db.prepare(`
+    SELECT
+      b.*,
+      r.name AS router_name,
+      (SELECT COUNT(1) FROM vouchers v WHERE v.batch_id = b.id) AS vouchers_count,
+      (SELECT COUNT(1) FROM vouchers v WHERE v.batch_id = b.id AND v.used_at IS NOT NULL) AS used_count
+    FROM voucher_batches b
+    LEFT JOIN routers r ON r.id = b.router_id
+    WHERE b.id = ?
+  `).get(batchId);
+  if (!batch) return res.status(404).json({ error: 'Batch tidak ditemukan' });
+
+  const vouchers = db.prepare(`
+    SELECT id, code, password, profile_name, status, used_at, last_seen_comment, last_seen_uptime, last_seen_at
+    FROM vouchers
+    WHERE batch_id = ?
+    ORDER BY code ASC
+    LIMIT 2000
+  `).all(batchId);
+  res.json({ batch, vouchers });
+});
+
+router.post('/api/vouchers/batches', requireAdmin, express.json(), async (req, res) => {
+  try {
+    const routerId = req.query.routerId ? Number(req.query.routerId) : null;
+    const profileName = String(req.body.profile || '').trim();
+    const qty = Math.max(1, Math.min(5000, Number(req.body.qty) || 0));
+    const prefix = String(req.body.prefix || '').trim();
+    const codeLength = Math.max(4, Math.min(16, Number(req.body.codeLength) || 6));
+    const mode = String(req.body.mode || 'voucher');
+    const charset = String(req.body.charset || 'numbers');
+    const priceInput = req.body.price;
+    
+    if (!profileName) return res.status(400).json({ error: 'Profile wajib diisi' });
+    if (!qty) return res.status(400).json({ error: 'Jumlah voucher wajib diisi' });
+    if (prefix.length >= codeLength) return res.status(400).json({ error: 'Prefix terlalu panjang' });
+
+    const profiles = await mikrotikService.getHotspotUserProfiles(routerId);
+    const profile = profiles.find(p => p.name === profileName);
+    if (!profile) return res.status(400).json({ error: 'Profile Hotspot tidak ditemukan di MikroTik' });
+
+    const meta = parseMikhmonOnLogin(profile.onLogin || profile['on-login']);
+    if (!meta || !meta.validity) return res.status(400).json({ error: 'Profile belum memiliki metadata harga/durasi (Format Mikhmon)' });
+
+    const createdBy = req.session?.isAdmin ? (req.session.adminUser || 'admin') : (req.session.cashierName || 'staff');
+    let price = Number(meta.price || 0);
+    if (priceInput !== undefined && priceInput !== null && String(priceInput).trim() !== '') {
+      const p = Number(priceInput);
+      if (!Number.isFinite(p) || p < 0) return res.status(400).json({ error: 'Harga tidak valid' });
+      price = Math.floor(p);
+    }
+
+    const insertBatch = db.prepare(`
+      INSERT INTO voucher_batches (router_id, profile_name, qty_total, qty_created, qty_failed, price, validity, prefix, code_length, status, created_by, mode, charset)
+      VALUES (?, ?, ?, 0, 0, ?, ?, ?, ?, 'creating', ?, ?, ?)
+    `);
+    const batchRes = insertBatch.run(routerId, profileName, qty, price, meta.validity || '', prefix, codeLength, createdBy, mode, charset);
+    const batchId = Number(batchRes.lastInsertRowid);
+
+    const insertVoucher = db.prepare(`
+      INSERT INTO vouchers (batch_id, router_id, code, password, profile_name, comment, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    `);
+
+    const exists = db.prepare('SELECT 1 FROM vouchers WHERE router_id IS ? AND code = ? LIMIT 1');
+    const codes = new Set();
+    const makeCode = () => {
+      const coreLen = Math.max(4, Math.min(16, codeLength - prefix.length));
+      const userCode = prefix + genCode(coreLen, charset);
+      let passCode = userCode;
+      if (mode === 'member') {
+        passCode = genCode(coreLen, charset);
+      }
+      return { userCode, passCode };
+    };
+
+    const initialVouchers = [];
+    while (initialVouchers.length < qty) {
+      const generated = makeCode();
+      if (codes.has(generated.userCode)) continue;
+      if (exists.get(routerId, generated.userCode)) continue;
+      codes.add(generated.userCode);
+      initialVouchers.push(generated);
+    }
+
+    const tx = db.transaction((items) => {
+      for (const c of items) {
+        insertVoucher.run(batchId, routerId, c.userCode, c.passCode, profileName, `vc-${c.userCode}-${profileName}`);
+      }
+    });
+    tx(initialVouchers);
+
+    setImmediate(() => {
+      createVoucherBatchAsync(batchId).catch(e => logger.error('[VoucherBatch] Error: ' + (e?.message || e)));
+    });
+
+    res.json({ success: true, batchId });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/api/vouchers/batches/:id/sync', requireAdmin, async (req, res) => {
+  try {
+    const batchId = Number(req.params.id);
+    const batch = db.prepare('SELECT * FROM voucher_batches WHERE id = ?').get(batchId);
+    if (!batch) return res.status(404).json({ error: 'Batch tidak ditemukan' });
+
+    const routerId = batch.router_id ?? null;
+    const users = await mikrotikService.getHotspotUsers(routerId);
+    const byName = new Map();
+    for (const u of users) {
+      if (u?.name) byName.set(String(u.name), u);
+    }
+
+    const list = db.prepare('SELECT id, code, used_at FROM vouchers WHERE batch_id = ?').all(batchId);
+    const updSeen = db.prepare("UPDATE vouchers SET last_seen_comment=?, last_seen_uptime=?, last_seen_at=CURRENT_TIMESTAMP WHERE id=?");
+    const markUsed = db.prepare("UPDATE vouchers SET used_at=CURRENT_TIMESTAMP, status='used', last_seen_comment=?, last_seen_uptime=?, last_seen_at=CURRENT_TIMESTAMP WHERE id=?");
+    const markMissing = db.prepare("UPDATE vouchers SET status='missing', last_seen_at=CURRENT_TIMESTAMP WHERE id=?");
+
+    let usedNew = 0;
+    let missing = 0;
+
+    const tx = db.transaction(() => {
+      for (const v of list) {
+        const u = byName.get(String(v.code));
+        if (!u) {
+          markMissing.run(v.id);
+          missing++;
+          continue;
+        }
+        const comment = String(u.comment || '');
+        const uptime = String(u.uptime || '');
+        const isUsedByComment = comment && !comment.toLowerCase().startsWith('vc') && !comment.toLowerCase().startsWith('up');
+        const isUsedByUptime = uptime && uptime !== '0s' && uptime !== '0' && uptime !== '00:00:00';
+        const usedNow = isUsedByComment || isUsedByUptime;
+        if (usedNow && !v.used_at) {
+          markUsed.run(comment, uptime, v.id);
+          usedNew++;
+        } else {
+          updSeen.run(comment, uptime, v.id);
+        }
+      }
+    });
+    tx();
+
+    res.json({ success: true, usedNew, missing, total: list.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.get('/api/mikrotik/secrets', requireAdmin, async (req, res) => {
@@ -1291,8 +1710,18 @@ router.get('/api/mikrotik/profiles/:routerId', requireAdmin, async (req, res) =>
 
 router.get('/api/mikrotik/users/:routerId', requireAdmin, async (req, res) => {
   try {
-    const users = await mikrotikService.getPppoeUsers(req.params.routerId);
-    res.json(users);
+    const routerId = req.params.routerId ? Number(req.params.routerId) : null;
+    const onlyUnused = String(req.query.onlyUnused || '') === '1';
+    const excludeCustomerId = req.query.excludeCustomerId ? Number(req.query.excludeCustomerId) : null;
+    const users = await mikrotikService.getPppoeUsers(routerId);
+    if (!onlyUnused) return res.json(users);
+
+    const rows = excludeCustomerId
+      ? db.prepare("SELECT pppoe_username FROM customers WHERE router_id IS ? AND id != ? AND pppoe_username IS NOT NULL AND TRIM(pppoe_username) != ''").all(routerId, excludeCustomerId)
+      : db.prepare("SELECT pppoe_username FROM customers WHERE router_id IS ? AND pppoe_username IS NOT NULL AND TRIM(pppoe_username) != ''").all(routerId);
+    const used = new Set(rows.map(r => String(r.pppoe_username).trim()).filter(Boolean));
+    const filtered = (Array.isArray(users) ? users : []).filter(u => u && u.name && !used.has(String(u.name).trim()));
+    res.json(filtered);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -121,11 +121,50 @@ db.exec(`
     name TEXT NOT NULL,
     olt_id INTEGER REFERENCES olts(id) ON DELETE SET NULL,
     pon_port TEXT DEFAULT '',
+    port_capacity INTEGER NOT NULL DEFAULT 16,
     lat TEXT,
     lng TEXT,
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS voucher_batches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    router_id INTEGER REFERENCES routers(id) ON DELETE SET NULL,
+    profile_name TEXT NOT NULL,
+    qty_total INTEGER NOT NULL DEFAULT 0,
+    qty_created INTEGER NOT NULL DEFAULT 0,
+    qty_failed INTEGER NOT NULL DEFAULT 0,
+    price INTEGER NOT NULL DEFAULT 0,
+    validity TEXT DEFAULT '',
+    prefix TEXT DEFAULT '',
+    code_length INTEGER NOT NULL DEFAULT 4,
+    status TEXT DEFAULT 'creating',
+    created_by TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS vouchers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id INTEGER NOT NULL REFERENCES voucher_batches(id) ON DELETE CASCADE,
+    router_id INTEGER REFERENCES routers(id) ON DELETE SET NULL,
+    code TEXT NOT NULL,
+    password TEXT NOT NULL,
+    profile_name TEXT NOT NULL,
+    comment TEXT DEFAULT '',
+    status TEXT DEFAULT 'pending',
+    used_at DATETIME,
+    last_seen_comment TEXT DEFAULT '',
+    last_seen_uptime TEXT DEFAULT '',
+    last_seen_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(router_id, code)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_voucher_batches_router ON voucher_batches(router_id);
+  CREATE INDEX IF NOT EXISTS idx_vouchers_batch ON vouchers(batch_id);
+  CREATE INDEX IF NOT EXISTS idx_vouchers_code ON vouchers(code);
 `);
 
 // Tambahkan kolom baru jika belum ada
@@ -156,6 +195,9 @@ try {
 try {
   db.exec("ALTER TABLE customers ADD COLUMN lng TEXT");
 } catch (e) { /* ignore if already exists */ }
+try {
+  db.exec("ALTER TABLE odps ADD COLUMN port_capacity INTEGER NOT NULL DEFAULT 16");
+} catch (e) { /* ignore if already exists */ }
 
 // Kolom untuk Payment Gateway di tabel invoices
 try { db.exec("ALTER TABLE invoices ADD COLUMN payment_gateway TEXT"); } catch (e) {}
@@ -164,5 +206,16 @@ try { db.exec("ALTER TABLE invoices ADD COLUMN payment_link TEXT"); } catch (e) 
 try { db.exec("ALTER TABLE invoices ADD COLUMN payment_reference TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE invoices ADD COLUMN payment_payload TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE invoices ADD COLUMN payment_expires_at DATETIME"); } catch (e) {}
+
+// Kolom untuk Login OLT (Web/API)
+try { db.exec("ALTER TABLE olts ADD COLUMN web_user TEXT DEFAULT 'admin'"); } catch (e) {}
+try { db.exec("ALTER TABLE olts ADD COLUMN web_password TEXT DEFAULT 'admin'"); } catch (e) {}
+
+try { db.exec("ALTER TABLE voucher_batches ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"); } catch (e) {}
+try { db.exec("ALTER TABLE vouchers ADD COLUMN last_seen_comment TEXT DEFAULT ''"); } catch (e) {}
+try { db.exec("ALTER TABLE vouchers ADD COLUMN last_seen_uptime TEXT DEFAULT ''"); } catch (e) {}
+try { db.exec("ALTER TABLE vouchers ADD COLUMN last_seen_at DATETIME"); } catch (e) {}
+try { db.exec("ALTER TABLE voucher_batches ADD COLUMN mode TEXT DEFAULT 'voucher'"); } catch (e) {}
+try { db.exec("ALTER TABLE voucher_batches ADD COLUMN charset TEXT DEFAULT 'numbers'"); } catch (e) {}
 
 module.exports = db;

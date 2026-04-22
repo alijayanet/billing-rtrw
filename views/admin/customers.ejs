@@ -149,7 +149,7 @@
         <div class="form-row">
           <div class="fg">
             <label class="fl">Router MikroTik</label>
-            <select class="fs" name="router_id" id="add_router_select" onchange="loadMikrotikUsers(this.value)">
+            <select class="fs" name="router_id" id="add_router_select" onchange="loadPppoeAdd(this.value)">
               <option value="">-- Default (Pengaturan) --</option>
               <% if (typeof routers !== 'undefined') { %>
                 <% routers.forEach(r => { %>
@@ -160,12 +160,9 @@
           </div>
           <div class="fg">
             <label class="fl">PPPoE Username</label>
-            <div style="display:flex;gap:8px">
-              <select class="fs" id="add_pppoe_select" style="max-width:200px" onchange="document.getElementById('add_pppoe').value=this.value">
-                <option value="">-- Pilih dari MikroTik --</option>
-              </select>
-              <input class="fc" name="pppoe_username" id="add_pppoe" placeholder="Username PPPoE...">
-            </div>
+            <input class="fc" name="pppoe_username" id="add_pppoe" list="add_pppoe_list" placeholder="Pilih / cari dari MikroTik">
+            <datalist id="add_pppoe_list"></datalist>
+            <div class="hint" id="add_pppoe_hint"></div>
           </div>
         </div>
         <div class="form-row">
@@ -299,7 +296,7 @@
         <div class="form-row">
           <div class="fg">
             <label class="fl">Router MikroTik</label>
-            <select class="fs" name="router_id" id="e_router_id" onchange="loadMikrotikUsers(this.value)">
+            <select class="fs" name="router_id" id="e_router_id" onchange="loadPppoeEdit(this.value)">
               <option value="">-- Default (Pengaturan) --</option>
               <% if (typeof routers !== 'undefined') { %>
                 <% routers.forEach(r => { %>
@@ -310,12 +307,9 @@
           </div>
           <div class="fg">
             <label class="fl">PPPoE Username</label>
-            <div style="display:flex;gap:8px">
-              <select class="fs" id="e_pppoe_select" style="max-width:200px" onchange="document.getElementById('e_pppoe').value=this.value">
-                <option value="">-- Pilih dari MikroTik --</option>
-              </select>
-              <input class="fc" name="pppoe_username" id="e_pppoe">
-            </div>
+            <input class="fc" name="pppoe_username" id="e_pppoe" list="e_pppoe_list" placeholder="Pilih / cari dari MikroTik">
+            <datalist id="e_pppoe_list"></datalist>
+            <div class="hint" id="e_pppoe_hint"></div>
           </div>
         </div>
         <div class="form-row">
@@ -507,26 +501,47 @@ function editCust(idx) {
   document.getElementById('e_auto_isolate').value=(c.auto_isolate !== undefined ? c.auto_isolate : 1);
   document.getElementById('e_isolate_day').value=(c.isolate_day || 10);
   openModal('editModal');
+  loadPppoeEdit(c.router_id || '', c.id || '');
 }
 
-async function loadMikrotikUsers(routerId = '') {
+function buildPppoeList(datalistEl, users) {
+  if (!datalistEl) return;
+  datalistEl.innerHTML = '';
+  for (const u of users) {
+    if (!u || !u.name) continue;
+    datalistEl.insertAdjacentHTML('beforeend', `<option value="${String(u.name).replace(/"/g, '&quot;')}"></option>`);
+  }
+}
+
+async function loadPppoeAdd(routerId = '') {
   try {
-    const url = routerId ? `/admin/api/mikrotik/users/${routerId}` : '/admin/api/mikrotik/users';
+    const url = routerId
+      ? `/admin/api/mikrotik/users?routerId=${encodeURIComponent(routerId)}&onlyUnused=1`
+      : '/admin/api/mikrotik/users?onlyUnused=1';
     const res = await fetch(url);
     if (!res.ok) return;
     const users = await res.json();
-    const selAdd = document.getElementById('add_pppoe_select');
-    const selEdit = document.getElementById('e_pppoe_select');
-    
-    const defaultOpt = '<option value="">-- Pilih dari MikroTik --</option>';
-    selAdd.innerHTML = defaultOpt;
-    selEdit.innerHTML = defaultOpt;
+    buildPppoeList(document.getElementById('add_pppoe_list'), Array.isArray(users) ? users : []);
+    const hint = document.getElementById('add_pppoe_hint');
+    if (hint) hint.innerText = Array.isArray(users) && users.length ? `Tersedia ${users.length} user PPPoE (yang belum dipakai).` : 'Tidak ada user PPPoE yang tersedia.';
+  } catch (e) {
+    console.error('Failed to load MikroTik users', e);
+  }
+}
 
-    users.forEach(u => {
-      const opt = `<option value="${u.name}">${u.name}</option>`;
-      selAdd.innerHTML += opt;
-      selEdit.innerHTML += opt;
-    });
+async function loadPppoeEdit(routerId = '', excludeCustomerId = '') {
+  try {
+    const qs = new URLSearchParams();
+    if (routerId) qs.set('routerId', String(routerId));
+    qs.set('onlyUnused', '1');
+    if (excludeCustomerId) qs.set('excludeCustomerId', String(excludeCustomerId));
+    const url = `/admin/api/mikrotik/users?${qs.toString()}`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const users = await res.json();
+    buildPppoeList(document.getElementById('e_pppoe_list'), Array.isArray(users) ? users : []);
+    const hint = document.getElementById('e_pppoe_hint');
+    if (hint) hint.innerText = Array.isArray(users) && users.length ? `Tersedia ${users.length} user PPPoE (yang belum dipakai).` : 'Tidak ada user PPPoE yang tersedia.';
   } catch (e) {
     console.error('Failed to load MikroTik users', e);
   }
@@ -555,7 +570,8 @@ async function loadMikrotikProfiles(routerId = '') {
     console.error('Failed to load MikroTik profiles', e);
   }
 }
-loadMikrotikUsers();
+loadPppoeAdd();
+loadPppoeEdit();
 loadMikrotikProfiles();
 
 setTimeout(()=>document.querySelectorAll('.alert').forEach(a=>a.style.display='none'),4000);

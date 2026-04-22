@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Voucher Hotspot | <%= company %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    .kv { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+    .kv .fg { margin:0; min-width: 180px; flex: 1; }
+    .kv .fg.w120 { min-width: 120px; flex: 0 0 120px; }
+    .kv .fg.w160 { min-width: 160px; flex: 0 0 160px; }
+    .hint { font-size: 12px; color: var(--muted); }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+    .pill b { color: var(--text); font-weight: 700; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
+  </style>
+</head>
+<body>
+<%- include('partials/sidebar', { activePage: 'vouchers', company }) %>
+<div class="mw">
+  <div class="topbar">
+    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-ticket-perforated"></i> Voucher Hotspot</div>
+    <div class="tb-right" style="display:flex;align-items:center;gap:15px">
+      <div class="router-selector" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);padding:4px 12px;border-radius:20px">
+        <i class="bi bi-hdd-network small"></i>
+        <select id="global-router-id" class="fs" style="background:transparent;border:none;color:white;padding:0;font-size:13px;width:auto;cursor:pointer" onchange="reloadAll()">
+          <option value="" style="color:black">-- Default Router --</option>
+          <% routers.forEach(r => { %>
+            <option value="<%= r.id %>" style="color:black"><%= r.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <span class="adm-badge"><i class="bi bi-person-fill"></i> Admin</span>
+      <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>
+    </div>
+  </div>
+  <div class="page">
+    <% if (msg) { %>
+      <div class="alert <%= msg.type === 'success' ? 's' : (msg.type === 'error' ? 'd' : 'w') %>"><%= msg.text %></div>
+    <% } %>
+
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="sc p"><i class="bi bi-collection sc-icon"></i><div class="sc-label">Batch</div><div class="sc-val" id="stat-batches">0</div></div>
+      <div class="sc s"><i class="bi bi-ticket sc-icon"></i><div class="sc-label">Voucher</div><div class="sc-val" id="stat-vouchers">0</div></div>
+      <div class="sc w"><i class="bi bi-check2-circle sc-icon"></i><div class="sc-label">Terpakai</div><div class="sc-val" id="stat-used">0</div></div>
+      <div class="sc d"><i class="bi bi-circle sc-icon"></i><div class="sc-label">Belum</div><div class="sc-val" id="stat-unused">0</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-hd">
+        <h6><i class="bi bi-plus-circle"></i> Buat Voucher Batch</h6>
+        <div class="pill"><i class="bi bi-building"></i> <b><%= settings.company_header || company %></b></div>
+      </div>
+      <div class="card-bd">
+        <div class="kv">
+          <div class="fg">
+            <label class="fl">Hotspot User Profile</label>
+            <select class="fc" id="profileName" onchange="onProfileChanged()">
+              <option value="">Memuat...</option>
+            </select>
+            <div class="hint" id="profileHint"></div>
+          </div>
+          <div class="fg w160">
+            <label class="fl">Jumlah</label>
+            <input class="fc" id="qty" type="number" min="1" max="5000" value="50">
+          </div>
+          <div class="fg w160">
+            <label class="fl">Harga (Rp)</label>
+            <input class="fc" id="price" type="number" min="0" step="1000" placeholder="Opsional">
+          </div>
+          <div class="fg w160">
+            <label class="fl">Mode</label>
+            <select class="fc" id="mode" onchange="onModeChanged()">
+              <option value="voucher">Voucher (User=Pass)</option>
+              <option value="member">Member (User & Pass Beda)</option>
+            </select>
+          </div>
+          <div class="fg w160">
+            <label class="fl">Karakter</label>
+            <select class="fc" id="charset">
+              <option value="numbers">Hanya Angka</option>
+              <option value="letters">Hanya Huruf (Kecil)</option>
+              <option value="mixed">Huruf & Angka</option>
+            </select>
+          </div>
+          <div class="fg w120">
+            <label class="fl">Panjang</label>
+            <input class="fc" id="codeLength" type="number" min="4" max="16" value="6">
+          </div>
+          <div class="fg w120">
+            <label class="fl">Prefix</label>
+            <input class="fc" id="prefix" placeholder="Opsional">
+          </div>
+          <div class="fg w120" style="flex:0 0 auto;min-width:0">
+            <button class="btn btn-p" onclick="createBatch()" id="btnCreate"><i class="bi bi-magic"></i> Buat</button>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:10px" id="modeHint">
+          Durasi diambil dari metadata profile. Harga bisa diisi manual (kalau kosong akan pakai dari profile).
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">
+        <h6><i class="bi bi-list-check"></i> Batch Voucher</h6>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn btn-g btn-sm" onclick="reloadBatches()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="dtbl">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Router</th>
+              <th>Profile</th>
+              <th>Qty</th>
+              <th>Terpakai</th>
+              <th>Status</th>
+              <th>Dibuat</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="batches-list">
+            <tr><td colspan="8" class="text-center text-muted">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="batchDetailModal">
+  <div class="mb" style="max-width:1100px">
+    <div class="mh">
+      <span class="mt" id="batchDetailTitle">Detail Batch</span>
+      <button class="mc" onclick="closeModal('batchDetailModal')">&times;</button>
+    </div>
+    <div class="mbody">
+      <div id="batchDetailMeta" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px"></div>
+      <div class="tbl-wrap">
+        <table class="dtbl">
+          <thead>
+            <tr><th>Kode</th><th>Password</th><th>Status</th><th>Terpakai</th><th>Last Seen</th></tr>
+          </thead>
+          <tbody id="batchDetailList">
+            <tr><td colspan="5" class="text-center text-muted">Memuat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="mf">
+      <button type="button" class="btn btn-g" onclick="closeModal('batchDetailModal')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openModal(id){ document.getElementById(id)?.classList.add('show'); }
+  function closeModal(id){ document.getElementById(id)?.classList.remove('show'); }
+
+  function getRouterId() {
+    const v = document.getElementById('global-router-id')?.value;
+    return v ? encodeURIComponent(v) : '';
+  }
+
+  function parseMikhmonOnLogin(script) {
+    if (!script) return null;
+    const m = String(script).match(/\",rem,.*?,(.*?),(.*?),.*?\"/);
+    if (!m) return null;
+    const validity = String(m[1] || '').trim();
+    const price = Number(String(m[2] || '').replace(/[^\d]/g, '')) || 0;
+    return { validity, price };
+  }
+
+  let profilesCache = [];
+
+  async function loadProfiles() {
+    const routerId = getRouterId();
+    const url = routerId ? `/admin/api/mikrotik/hotspot-user-profiles?routerId=${routerId}` : `/admin/api/mikrotik/hotspot-user-profiles`;
+    const res = await fetch(url);
+    const data = await res.json();
+    profilesCache = Array.isArray(data) ? data : [];
+
+    const filtered = profilesCache
+      .map(p => ({ raw: p, meta: parseMikhmonOnLogin(p.onLogin || p['on-login']) }))
+      .filter(x => x.meta && x.meta.validity);
+
+    const sel = document.getElementById('profileName');
+    sel.innerHTML = '';
+    if (filtered.length === 0) {
+      sel.innerHTML = '<option value="">Tidak ada profile dengan harga/durasi (Mikhmon)</option>';
+      document.getElementById('profileHint').innerText = '';
+      return;
+    }
+    sel.insertAdjacentHTML('beforeend', '<option value="">-- Pilih Profile --</option>');
+    for (const x of filtered) {
+      const label = `${x.raw.name} (Rp ${Number(x.meta.price || 0).toLocaleString('id-ID')} • ${x.meta.validity})`;
+      sel.insertAdjacentHTML('beforeend', `<option value="${x.raw.name}">${label}</option>`);
+    }
+    document.getElementById('profileHint').innerText = '';
+  }
+
+  function onProfileChanged() {
+    const name = document.getElementById('profileName')?.value;
+    const raw = profilesCache.find(p => p.name === name);
+    const meta = raw ? parseMikhmonOnLogin(raw.onLogin || raw['on-login']) : null;
+    if (!meta) return document.getElementById('profileHint').innerText = '';
+    document.getElementById('profileHint').innerText = `Harga: Rp ${Number(meta.price||0).toLocaleString('id-ID')} • Durasi: ${meta.validity}`;
+    const priceEl = document.getElementById('price');
+    if (priceEl && (priceEl.value === '' || Number(priceEl.value) === 0)) {
+      priceEl.value = Number(meta.price || 0) ? String(Number(meta.price || 0)) : '';
+    }
+  }
+
+  function onModeChanged() {
+    const mode = document.getElementById('mode')?.value;
+    const hint = document.getElementById('modeHint');
+    if (mode === 'voucher') {
+      hint.innerText = 'Mode Voucher: Username dan Password sama. Durasi diambil dari metadata profile. Harga bisa diisi manual.';
+    } else {
+      hint.innerText = 'Mode Member: Username dan Password di-generate secara terpisah. Durasi diambil dari metadata profile. Harga bisa diisi manual.';
+    }
+  }
+
+  async function createBatch() {
+    const profile = document.getElementById('profileName')?.value;
+    const qty = Number(document.getElementById('qty')?.value || 0);
+    const codeLength = Number(document.getElementById('codeLength')?.value || 6);
+    const prefix = String(document.getElementById('prefix')?.value || '').trim();
+    const mode = document.getElementById('mode')?.value || 'voucher';
+    const charset = document.getElementById('charset')?.value || 'numbers';
+    const price = document.getElementById('price')?.value;
+
+    if (!profile) return alert('Pilih profile hotspot terlebih dulu.');
+    if (!qty || qty < 1) return alert('Jumlah voucher tidak valid.');
+
+    const routerId = getRouterId();
+    const url = routerId ? `/admin/api/vouchers/batches?routerId=${routerId}` : `/admin/api/vouchers/batches`;
+    const btn = document.getElementById('btnCreate');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Proses...';
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile, qty, codeLength, prefix, mode, charset, price })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal membuat batch');
+      await reloadBatches();
+      alert(`Batch #${data.batchId} dibuat. Sistem sedang membuat voucher di MikroTik.`);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-magic"></i> Buat';
+    }
+  }
+
+  async function reloadBatches() {
+    const routerId = getRouterId();
+    const url = routerId ? `/admin/api/vouchers/batches?routerId=${routerId}` : `/admin/api/vouchers/batches`;
+    const res = await fetch(url);
+    const batches = await res.json();
+    const list = document.getElementById('batches-list');
+    if (!Array.isArray(batches) || batches.length === 0) {
+      list.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Belum ada batch voucher.</td></tr>';
+      updateStats([]);
+      return;
+    }
+    list.innerHTML = batches.map(b => {
+      const status = String(b.status || '-');
+      const stClass = status === 'ready' ? 's' : (status === 'failed' ? 'd' : (status === 'partial' ? 'w' : 'w'));
+      const created = b.created_at ? new Date(b.created_at).toLocaleString('id-ID') : '-';
+      const qty = `${b.qty_created || 0}/${b.qty_total || 0}`;
+      const used = `${b.used_count || 0}/${b.vouchers_count || 0}`;
+      const routerName = b.router_name || 'Default';
+      return `
+        <tr>
+          <td class="mono">#${b.id}</td>
+          <td>${routerName}</td>
+          <td>${b.profile_name || '-'}</td>
+          <td>${qty}</td>
+          <td>${used}</td>
+          <td><span class="badge ${stClass}">${status}</span></td>
+          <td>${created}</td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-g btn-sm" onclick="openDetail(${b.id})"><i class="bi bi-eye"></i> Detail</button>
+            <button class="btn btn-g btn-sm" onclick="syncBatch(${b.id})"><i class="bi bi-arrow-repeat"></i> Sync</button>
+            <a class="btn btn-g btn-sm" target="_blank" href="/admin/vouchers/batches/${b.id}/print"><i class="bi bi-printer"></i> Print</a>
+            <a class="btn btn-g btn-sm" href="/admin/vouchers/batches/${b.id}/export.csv"><i class="bi bi-filetype-csv"></i> CSV</a>
+          </td>
+        </tr>
+      `;
+    }).join('');
+    updateStats(batches);
+  }
+
+  function updateStats(batches) {
+    const totalBatches = batches.length;
+    const totalV = batches.reduce((a, b) => a + (Number(b.vouchers_count || 0)), 0);
+    const used = batches.reduce((a, b) => a + (Number(b.used_count || 0)), 0);
+    const unused = Math.max(0, totalV - used);
+    document.getElementById('stat-batches').innerText = totalBatches;
+    document.getElementById('stat-vouchers').innerText = totalV;
+    document.getElementById('stat-used').innerText = used;
+    document.getElementById('stat-unused').innerText = unused;
+  }
+
+  async function openDetail(id) {
+    const routerId = getRouterId();
+    const url = routerId ? `/admin/api/vouchers/batches/${id}?routerId=${routerId}` : `/admin/api/vouchers/batches/${id}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'Gagal mengambil detail');
+    document.getElementById('batchDetailTitle').innerText = `Detail Batch #${data.batch.id}`;
+    const meta = document.getElementById('batchDetailMeta');
+    meta.innerHTML = '';
+    meta.insertAdjacentHTML('beforeend', `<span class="pill"><i class="bi bi-hdd-network"></i> <b>${data.batch.router_name || 'Default'}</b></span>`);
+    meta.insertAdjacentHTML('beforeend', `<span class="pill"><i class="bi bi-ticket"></i> <b>${data.batch.profile_name}</b></span>`);
+    meta.insertAdjacentHTML('beforeend', `<span class="pill"><i class="bi bi-clock"></i> <b>${data.batch.validity || '-'}</b></span>`);
+    meta.insertAdjacentHTML('beforeend', `<span class="pill"><i class="bi bi-cash-coin"></i> <b>Rp ${Number(data.batch.price||0).toLocaleString('id-ID')}</b></span>`);
+    meta.insertAdjacentHTML('beforeend', `<span class="pill"><i class="bi bi-collection"></i> <b>${data.batch.qty_created || 0}/${data.batch.qty_total || 0}</b></span>`);
+
+    const list = document.getElementById('batchDetailList');
+    const items = Array.isArray(data.vouchers) ? data.vouchers : [];
+    if (items.length === 0) {
+      list.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Tidak ada voucher.</td></tr>';
+      openModal('batchDetailModal');
+      return;
+    }
+    list.innerHTML = items.map(v => {
+      const st = String(v.status || '-');
+      const usedAt = v.used_at ? new Date(v.used_at).toLocaleString('id-ID') : '-';
+      const seenAt = v.last_seen_at ? new Date(v.last_seen_at).toLocaleString('id-ID') : '-';
+      const seen = (v.last_seen_uptime || v.last_seen_comment) ? `${(v.last_seen_uptime || '-')}${v.last_seen_comment ? ' • ' + v.last_seen_comment : ''}` : '-';
+      const stClass = st === 'used' ? 's' : (st === 'created' ? 'w' : (st === 'missing' ? 'd' : 'w'));
+      return `
+        <tr>
+          <td class="mono">${v.code}</td>
+          <td class="mono">${v.password}</td>
+          <td><span class="badge ${stClass}">${st}</span></td>
+          <td>${usedAt}</td>
+          <td><div class="hint">${seenAt}</div><div class="hint">${seen}</div></td>
+        </tr>
+      `;
+    }).join('');
+    openModal('batchDetailModal');
+  }
+
+  async function syncBatch(id) {
+    const routerId = getRouterId();
+    const url = routerId ? `/admin/api/vouchers/batches/${id}/sync?routerId=${routerId}` : `/admin/api/vouchers/batches/${id}/sync`;
+    try {
+      const res = await fetch(url, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal sync');
+      await reloadBatches();
+      alert(`Sync selesai. Used baru: ${data.usedNew || 0}, Missing: ${data.missing || 0}`);
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async function reloadAll() {
+    await loadProfiles();
+    await reloadBatches();
+  }
+
+  reloadAll();
+  setInterval(() => reloadBatches(), 12000);
+</script>
+</body>
+</html>

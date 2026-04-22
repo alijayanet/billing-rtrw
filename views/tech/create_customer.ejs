@@ -1,0 +1,282 @@
+<%- include('partials/header') %>
+
+<div class="t-card">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <div class="fw-bold" style="font-size: 15px;"><i class="bi bi-person-plus-fill text-primary me-2"></i>Tambah Pelanggan</div>
+      <div class="text-secondary small">Isi data pelanggan dan lokasi pemasangan.</div>
+    </div>
+  </div>
+
+  <form method="POST" action="/tech/customers">
+    <div class="mb-3">
+      <label class="form-label text-secondary small">Nama Pelanggan</label>
+      <input name="name" class="form-control rounded-4" required>
+    </div>
+    <div class="row g-2">
+      <div class="col-6">
+        <label class="form-label text-secondary small">No. HP</label>
+        <input name="phone" class="form-control rounded-4" placeholder="08xxxxxxxxxx">
+      </div>
+      <div class="col-6">
+        <label class="form-label text-secondary small">Paket</label>
+        <select name="package_id" class="form-select rounded-4">
+          <option value="">-- Pilih Paket --</option>
+          <% packages.forEach(p => { %>
+            <option value="<%= p.id %>"><%= p.name %> (Rp <%= Number(p.price||0).toLocaleString('id-ID') %>)</option>
+          <% }) %>
+        </select>
+      </div>
+    </div>
+    <div class="mt-3">
+      <label class="form-label text-secondary small">Email</label>
+      <input name="email" class="form-control rounded-4" type="email" placeholder="opsional">
+    </div>
+    <div class="mt-3">
+      <label class="form-label text-secondary small">Alamat</label>
+      <textarea name="address" class="form-control rounded-4" rows="2"></textarea>
+    </div>
+
+    <div class="row g-2 mt-1">
+      <div class="col-6">
+        <label class="form-label text-secondary small">Router (MikroTik)</label>
+        <select id="router_id" name="router_id" class="form-select rounded-4" onchange="loadPppoeUsers(); loadPppoeProfiles()">
+          <option value="">Default Router</option>
+          <% (routers || []).forEach(r => { %>
+            <option value="<%= r.id %>"><%= r.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="form-label text-secondary small">PPPoE Username</label>
+        <input id="pppoe_username" name="pppoe_username" class="form-control rounded-4" list="pppoeList" placeholder="Pilih / cari dari MikroTik">
+        <datalist id="pppoeList"></datalist>
+        <div id="pppoeHint" class="text-secondary small mt-1"></div>
+      </div>
+    </div>
+
+    <div class="row g-2 mt-1">
+      <div class="col-6">
+        <label class="form-label text-secondary small">Profile Isolir</label>
+        <select id="isolir_profile" name="isolir_profile" class="form-select rounded-4"></select>
+      </div>
+      <div class="col-6">
+        <label class="form-label text-secondary small">Status</label>
+        <select name="status" class="form-select rounded-4">
+          <option value="active">Aktif</option>
+          <option value="suspended">Suspend</option>
+          <option value="inactive">Nonaktif</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row g-2 mt-1">
+      <div class="col-6">
+        <label class="form-label text-secondary small">Isolir Otomatis</label>
+        <select name="auto_isolate" class="form-select rounded-4">
+          <option value="1">Aktif</option>
+          <option value="0">Tidak Aktif</option>
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="form-label text-secondary small">Tanggal Isolir (1-31)</label>
+        <input name="isolate_day" type="number" min="1" max="31" value="10" class="form-control rounded-4">
+      </div>
+    </div>
+
+    <div class="row g-2 mt-1">
+      <div class="col-6">
+        <label class="form-label text-secondary small">Tanggal Pasang</label>
+        <input name="install_date" type="date" class="form-control rounded-4">
+      </div>
+      <div class="col-6">
+        <label class="form-label text-secondary small">OLT</label>
+        <select name="olt_id" class="form-select rounded-4">
+          <option value="">-- Tanpa OLT --</option>
+          <% (olts || []).forEach(o => { %>
+            <option value="<%= o.id %>"><%= o.name %></option>
+          <% }) %>
+        </select>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <div class="fw-bold mb-2" style="font-size: 13px; letter-spacing: .3px;">
+        <i class="bi bi-geo-alt-fill text-warning me-2"></i>Lokasi Pelanggan
+      </div>
+      <div class="row g-2">
+        <div class="col-6">
+          <label class="form-label text-secondary small">Latitude</label>
+          <input id="lat" name="lat" class="form-control rounded-4" placeholder="-6.2">
+        </div>
+        <div class="col-6">
+          <label class="form-label text-secondary small">Longitude</label>
+          <input id="lng" name="lng" class="form-control rounded-4" placeholder="106.8">
+        </div>
+      </div>
+      <button type="button" class="btn btn-outline-info btn-action" onclick="getLocation()">
+        <i class="bi bi-crosshair me-2"></i>Ambil Lokasi HP
+      </button>
+    </div>
+
+    <div class="mt-4">
+      <div class="fw-bold mb-2" style="font-size: 13px; letter-spacing: .3px;">
+        <i class="bi bi-diagram-3-fill text-success me-2"></i>ODP & Port
+      </div>
+      <div class="mb-2">
+        <label class="form-label text-secondary small">ODP</label>
+        <select id="odp_id" name="odp_id" class="form-select rounded-4" onchange="onOdpChanged()">
+          <option value="">-- Pilih ODP --</option>
+          <% odps.forEach(o => { %>
+            <option value="<%= o.id %>" data-lat="<%= o.lat || '' %>" data-lng="<%= o.lng || '' %>" data-pon="<%= o.pon_port || '' %>" data-cap="<%= o.port_capacity || 16 %>"><%= o.name %></option>
+          <% }) %>
+        </select>
+        <div id="odpInfo" class="text-secondary small mt-2"></div>
+      </div>
+      <div class="row g-2">
+        <div class="col-6">
+          <label class="form-label text-secondary small">Port Pelanggan (ODP)</label>
+          <input id="pon_port" name="pon_port" class="form-control rounded-4" placeholder="contoh: 1">
+        </div>
+        <div class="col-6">
+          <label class="form-label text-secondary small">Update ODP</label>
+          <select name="update_odp" id="update_odp" class="form-select rounded-4" onchange="toggleOdpEdit()">
+            <option value="0">Tidak</option>
+            <option value="1">Ya</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="odpEdit" class="mt-3" style="display:none">
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label text-secondary small">ODP Latitude</label>
+            <input id="odp_lat" name="odp_lat" class="form-control rounded-4">
+          </div>
+          <div class="col-6">
+            <label class="form-label text-secondary small">ODP Longitude</label>
+            <input id="odp_lng" name="odp_lng" class="form-control rounded-4">
+          </div>
+        </div>
+        <div class="row g-2 mt-1">
+          <div class="col-6">
+            <label class="form-label text-secondary small">ODP PON Port (Trunk)</label>
+            <input id="odp_pon_port" name="odp_pon_port" class="form-control rounded-4" placeholder="opsional">
+          </div>
+          <div class="col-6">
+            <label class="form-label text-secondary small">Kapasitas Port ODP</label>
+            <input id="odp_port_capacity" name="odp_port_capacity" type="number" min="1" class="form-control rounded-4" value="16">
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline-warning btn-action" onclick="copyCustomerToOdp()">
+          <i class="bi bi-arrow-down-circle me-2"></i>Samakan Lokasi ODP = Lokasi Pelanggan
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <label class="form-label text-secondary small">Catatan</label>
+      <textarea name="notes" class="form-control rounded-4" rows="2" placeholder="opsional"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-action mt-3">
+      <i class="bi bi-save2 me-2"></i>Simpan Pelanggan
+    </button>
+  </form>
+</div>
+
+<script>
+  function getLocation() {
+    if (!navigator.geolocation) return alert('Geolocation tidak didukung di perangkat ini.');
+    navigator.geolocation.getCurrentPosition((pos) => {
+      document.getElementById('lat').value = pos.coords.latitude;
+      document.getElementById('lng').value = pos.coords.longitude;
+    }, (err) => {
+      alert('Gagal mengambil lokasi: ' + (err.message || err));
+    }, { enableHighAccuracy: true, timeout: 8000 });
+  }
+
+  function toggleOdpEdit() {
+    const v = document.getElementById('update_odp').value;
+    document.getElementById('odpEdit').style.display = v === '1' ? 'block' : 'none';
+  }
+
+  function copyCustomerToOdp() {
+    document.getElementById('odp_lat').value = document.getElementById('lat').value;
+    document.getElementById('odp_lng').value = document.getElementById('lng').value;
+  }
+
+  async function onOdpChanged() {
+    const sel = document.getElementById('odp_id');
+    const opt = sel.options[sel.selectedIndex];
+    const odpId = sel.value;
+    document.getElementById('odp_lat').value = opt?.dataset?.lat || '';
+    document.getElementById('odp_lng').value = opt?.dataset?.lng || '';
+    document.getElementById('odp_pon_port').value = opt?.dataset?.pon || '';
+    document.getElementById('odp_port_capacity').value = opt?.dataset?.cap || 16;
+
+    const infoEl = document.getElementById('odpInfo');
+    infoEl.innerText = '';
+    if (!odpId) return;
+    try {
+      const res = await fetch(`/tech/api/odps/${encodeURIComponent(odpId)}/ports`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal ambil info ODP');
+      const used = Array.isArray(data.usedPorts) ? data.usedPorts.join(', ') : '';
+      infoEl.innerText = `Port terpakai: ${data.usedCount}/${data.capacity} • Sisa: ${data.remaining}${used ? ' • (' + used + ')' : ''}`;
+    } catch (e) {
+      infoEl.innerText = e.message;
+    }
+  }
+
+  async function loadPppoeUsers() {
+    const routerId = document.getElementById('router_id')?.value || '';
+    const hint = document.getElementById('pppoeHint');
+    const list = document.getElementById('pppoeList');
+    if (hint) hint.innerText = 'Memuat user PPPoE dari MikroTik...';
+    if (list) list.innerHTML = '';
+    try {
+      const url = routerId ? `/tech/api/mikrotik/pppoe-users?routerId=${encodeURIComponent(routerId)}` : `/tech/api/mikrotik/pppoe-users`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memuat user PPPoE');
+      const users = Array.isArray(data) ? data : [];
+      if (list) {
+        list.innerHTML = users
+          .filter(u => u && u.name)
+          .map(u => `<option value="${String(u.name).replace(/"/g, '&quot;')}"></option>`)
+          .join('');
+      }
+      if (hint) hint.innerText = users.length ? `Tersedia ${users.length} user PPPoE.` : 'Tidak ada user PPPoE.';
+    } catch (e) {
+      if (hint) hint.innerText = e.message;
+    }
+  }
+
+  async function loadPppoeProfiles() {
+    const routerId = document.getElementById('router_id')?.value || '';
+    const sel = document.getElementById('isolir_profile');
+    if (sel) sel.innerHTML = '';
+    try {
+      const url = routerId ? `/tech/api/mikrotik/pppoe-profiles?routerId=${encodeURIComponent(routerId)}` : `/tech/api/mikrotik/pppoe-profiles`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memuat profile PPPoE');
+      const profiles = Array.isArray(data) ? data : [];
+      const opts = [];
+      opts.push('<option value="isolir">isolir</option>');
+      for (const p of profiles) {
+        if (!p || !p.name || p.name === 'isolir') continue;
+        opts.push(`<option value="${String(p.name).replace(/"/g, '&quot;')}">${p.name}</option>`);
+      }
+      if (sel) sel.innerHTML = opts.join('');
+    } catch (e) {
+      if (sel) sel.innerHTML = '<option value="isolir">isolir</option>';
+    }
+  }
+
+  loadPppoeUsers();
+  loadPppoeProfiles();
+</script>
+
+<%- include('partials/bottom_nav') %>

@@ -1,5 +1,6 @@
 const axios = require('axios');
 require('dotenv').config();
+const { logger } = require('./logger');
 // const { sendTechnicianMessage } = require('./sendMessage');
 // const mikrotik = require('./mikrotik');
 // const { getMikrotikConnection } = require('./mikrotik');
@@ -26,12 +27,12 @@ const axiosInstance = axios.create({
 const genieacsApi = {
     async getDevices() {
         try {
-            console.log('Getting all devices...');
+            logger.debug('[GenieACS] Getting all devices...');
             const response = await axiosInstance.get('/devices');
-            console.log(`Found ${response.data?.length || 0} devices`);
+            logger.debug(`[GenieACS] Found ${response.data?.length || 0} devices`);
             return response.data;
         } catch (error) {
-            console.error('Error getting devices:', error.response?.data || error.message);
+            logger.error(`[GenieACS] Error getting devices: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
             throw error;
         }
     },
@@ -53,7 +54,7 @@ const genieacsApi = {
 
             return response.data[0]; // Mengembalikan device pertama yang ditemukan
         } catch (error) {
-            console.error(`Error finding device with phone number ${phoneNumber}:`, error.response?.data || error.message);
+            logger.error(`[GenieACS] Error finding device with phone number ${phoneNumber}: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
             throw error;
         }
     },
@@ -63,7 +64,7 @@ const genieacsApi = {
             const device = await this.findDeviceByPhoneNumber(phoneNumber);
             return await this.getDevice(device._id);
         } catch (error) {
-            console.error(`Error getting device by phone number ${phoneNumber}:`, error.message);
+            logger.error(`[GenieACS] Error getting device by phone number ${phoneNumber}: ${error.message}`);
             throw error;
         }
     },
@@ -73,14 +74,14 @@ const genieacsApi = {
             const response = await axiosInstance.get(`/devices/${encodeURIComponent(deviceId)}`);
             return response.data;
         } catch (error) {
-            console.error(`Error getting device ${deviceId}:`, error.response?.data || error.message);
+            logger.error(`[GenieACS] Error getting device ${deviceId}: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
             throw error;
         }
     },
 
     async setParameterValues(deviceId, parameters) {
         try {
-            console.log('Setting parameters for device:', deviceId, parameters);
+            logger.debug(`[GenieACS] Setting parameters for device: ${deviceId}`);
 
             // Format parameter values untuk GenieACS
             const parameterValues = [];
@@ -106,7 +107,7 @@ const genieacsApi = {
                 }
             }
 
-            console.log('Formatted parameter values:', parameterValues);
+            logger.debug(`[GenieACS] Formatted parameter values count: ${parameterValues.length}`);
 
             // Kirim task ke GenieACS
             const task = {
@@ -119,7 +120,7 @@ const genieacsApi = {
                 task
             );
 
-            console.log('Parameter update response:', response.data);
+            logger.debug('[GenieACS] Parameter update task queued');
 
             // Kirim refresh task
             const refreshTask = {
@@ -132,11 +133,11 @@ const genieacsApi = {
                 refreshTask
             );
 
-            console.log('Refresh task response:', refreshResponse.data);
+            logger.debug('[GenieACS] Refresh task queued');
 
             return response.data;
         } catch (error) {
-            console.error(`Error setting parameters for device ${deviceId}:`, error.response?.data || error.message);
+            logger.error(`[GenieACS] Error setting parameters for device ${deviceId}: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
             throw error;
         }
     },
@@ -153,7 +154,7 @@ const genieacsApi = {
             );
             return response.data;
         } catch (error) {
-            console.error(`Error rebooting device ${deviceId}:`, error.response?.data || error.message);
+            logger.error(`[GenieACS] Error rebooting device ${deviceId}: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
             throw error;
         }
     },
@@ -170,7 +171,7 @@ const genieacsApi = {
             );
             return response.data;
         } catch (error) {
-            console.error(`Error factory resetting device ${deviceId}:`, error.response?.data || error.message);
+            logger.error(`[GenieACS] Error factory resetting device ${deviceId}: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
             throw error;
         }
     },
@@ -181,14 +182,14 @@ const genieacsApi = {
             const response = await axiosInstance.get(`/devices/${encodeURIComponent(deviceId)}?${queryString}`);
             return response.data;
         } catch (error) {
-            console.error(`Error getting parameters for device ${deviceId}:`, error.response?.data || error.message);
+            logger.error(`[GenieACS] Error getting parameters for device ${deviceId}: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
             throw error;
         }
     },
 
     async getDeviceInfo(deviceId) {
         try {
-            console.log(`Getting device info for device ID: ${deviceId}`);
+            logger.debug(`[GenieACS] Getting device info for device ID: ${deviceId}`);
             
             // Mendapatkan device detail
             const deviceResponse = await axios.get(`${GENIEACS_URL}/devices/${encodeURIComponent(deviceId)}`, {
@@ -199,21 +200,21 @@ const genieacsApi = {
             });
 
             if (!deviceResponse.data) {
-                console.error('No device data found');
+                logger.warn('[GenieACS] No device data found');
                 return null;
             }
 
-            console.log('Device data retrieved successfully');
+            logger.debug('[GenieACS] Device data retrieved successfully');
             return deviceResponse.data;
         } catch (error) {
-            console.error('Error getting device info:', error.response?.data || error.message);
+            logger.error(`[GenieACS] Error getting device info: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
             return null;
         }
     },
 
     async getVirtualParameters(deviceId) {
         try {
-            console.log(`Getting virtual parameters for device ID: ${deviceId}`);
+            logger.debug(`[GenieACS] Getting virtual parameters for device ID: ${deviceId}`);
             
             const virtualParams = [
                 // Serial Number
@@ -278,10 +279,10 @@ const genieacsApi = {
                 }
             });
 
-            console.log('Virtual parameters retrieved successfully');
+            logger.debug('[GenieACS] Virtual parameters retrieved successfully');
             return response.data;
         } catch (error) {
-            console.error('Error getting virtual parameters:', error.response?.data || error.message);
+            logger.error(`[GenieACS] Error getting virtual parameters: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
             return null;
         }
     },
@@ -290,14 +291,14 @@ const genieacsApi = {
 // Fungsi untuk memeriksa nilai RXPower dari semua perangkat
 async function monitorRXPower(threshold = -27) {
     try {
-        console.log(`Memulai pemantauan RXPower dengan threshold ${threshold} dBm`);
+        logger.info(`[RXPower] Memulai pemantauan RXPower dengan threshold ${threshold} dBm`);
         
         // Ambil semua perangkat
         const devices = await genieacsApi.getDevices();
-        console.log(`Memeriksa RXPower untuk ${devices.length} perangkat...`);
+        logger.info(`[RXPower] Memeriksa RXPower untuk ${devices.length} perangkat...`);
         
         // Ambil data PPPoE dari Mikrotik
-        console.log('Mengambil data PPPoE dari Mikrotik...');
+        logger.debug('[RXPower] Mengambil data PPPoE dari Mikrotik...');
         // const conn = await getMikrotikConnection(); // Removed Mikrotik connection
         let pppoeSecrets = [];
         
@@ -366,10 +367,10 @@ async function monitorRXPower(threshold = -27) {
                         if (matchingSecret) {
                             // Jika ditemukan secret yang cocok, gunakan nama secret sebagai username
                             pppoeUsername = matchingSecret.name;
-                            console.log(`Menemukan PPPoE username ${pppoeUsername} untuk perangkat ${shortDeviceId} dari PPPoE secret`);
+                            logger.debug(`[RXPower] Menemukan PPPoE username ${pppoeUsername} untuk perangkat ${shortDeviceId} dari PPPoE secret`);
                         }
                     } else {
-                        console.log(`Menemukan PPPoE username ${pppoeUsername} untuk perangkat ${shortDeviceId} dari parameter perangkat`);
+                        logger.debug(`[RXPower] Menemukan PPPoE username ${pppoeUsername} untuk perangkat ${shortDeviceId} dari parameter perangkat`);
                     }
                     
                     // Jika masih tidak ditemukan, coba cari dari tag perangkat
@@ -378,9 +379,9 @@ async function monitorRXPower(threshold = -27) {
                         const pppoeTag = device._tags.find(tag => tag.startsWith('pppoe:'));
                         if (pppoeTag) {
                             pppoeUsername = pppoeTag.replace('pppoe:', '');
-                            console.log(`Menemukan PPPoE username ${pppoeUsername} untuk perangkat ${shortDeviceId} dari tag`);
+                            logger.debug(`[RXPower] Menemukan PPPoE username ${pppoeUsername} untuk perangkat ${shortDeviceId} dari tag`);
                         } else {
-                            console.log(`Tidak menemukan PPPoE username untuk perangkat ${shortDeviceId}, tags: ${JSON.stringify(device._tags)}`);
+                            logger.debug(`[RXPower] Tidak menemukan PPPoE username untuk perangkat ${shortDeviceId}, tags: ${JSON.stringify(device._tags)}`);
                         }
                     }
                     
@@ -393,10 +394,10 @@ async function monitorRXPower(threshold = -27) {
                     };
                     
                     criticalDevices.push(deviceInfo);
-                    console.log(`Perangkat dengan RXPower rendah: ${deviceInfo.id}, RXPower: ${rxPower} dBm, PPPoE: ${pppoeUsername}`);
+                    logger.info(`[RXPower] Perangkat redaman tinggi: ${deviceInfo.id}, RXPower: ${rxPower} dBm, PPPoE: ${pppoeUsername}`);
                 }
             } catch (deviceError) {
-                console.error(`Error memeriksa RXPower untuk perangkat ${device._id}:`, deviceError);
+                logger.error(`[RXPower] Error memeriksa RXPower untuk perangkat ${device._id}: ${deviceError.message || String(deviceError)}`);
             }
         }
         
@@ -418,9 +419,9 @@ async function monitorRXPower(threshold = -27) {
             
             // Kirim pesan ke grup teknisi dengan prioritas tinggi
             // await sendTechnicianMessage(message, 'high'); // Removed sendTechnicianMessage
-            console.log(`Pesan peringatan RXPower terkirim untuk ${criticalDevices.length} perangkat`);
+            logger.info(`[RXPower] Pesan peringatan dibuat untuk ${criticalDevices.length} perangkat`);
         } else {
-            console.log('Tidak ada perangkat dengan nilai RXPower di bawah threshold');
+            logger.info('[RXPower] Tidak ada perangkat dengan nilai RXPower di bawah threshold');
         }
         
         return {
@@ -429,7 +430,7 @@ async function monitorRXPower(threshold = -27) {
             message: `${criticalDevices.length} perangkat memiliki RXPower di atas threshold`
         };
     } catch (error) {
-        console.error('Error memantau RXPower:', error);
+        logger.error(`[RXPower] Error memantau RXPower: ${error.message || String(error)}`);
         return {
             success: false,
             message: `Error memantau RXPower: ${error.message}`,
@@ -458,7 +459,7 @@ function getRXPowerValue(device, path) {
         
         return null;
     } catch (error) {
-        console.error(`Error getting RXPower from path ${path}:`, error);
+        logger.debug(`[RXPower] Error getting RXPower from path ${path}: ${error.message || String(error)}`);
         return null;
     }
 }

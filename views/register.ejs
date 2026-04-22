@@ -8,6 +8,8 @@
   </title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <link rel="stylesheet" href="/css/style.css">
   <style>
     body {
@@ -121,6 +123,8 @@
       color: #2ed573;
     }
 
+    #picker-map { height: 320px; width: 100%; border-radius: 12px; }
+
     @media (max-width: 576px) {
       .register-container {
         padding: 10px;
@@ -196,6 +200,23 @@
                   </div>
 
                   <div>
+                    <label class="form-label"><i class="bi bi-map me-1"></i>Lokasi di Peta (Opsional)</label>
+                    <div class="d-flex gap-2">
+                      <button type="button" class="btn btn-outline-secondary w-100" style="border-radius:12px" onclick="openPicker()">
+                        <i class="bi bi-geo-alt-fill me-1"></i>Pilih di Peta
+                      </button>
+                      <button type="button" class="btn btn-outline-info" style="border-radius:12px;white-space:nowrap" onclick="getLocation()">
+                        <i class="bi bi-crosshair me-1"></i>GPS
+                      </button>
+                    </div>
+                    <input type="hidden" name="lat" id="reg_lat">
+                    <input type="hidden" name="lng" id="reg_lng">
+                    <div class="text-muted mt-2" style="font-size: 11px;">
+                      <span id="coordText">Koordinat belum dipilih.</span>
+                    </div>
+                  </div>
+
+                  <div>
                     <label class="form-label"><i class="bi bi-box-seam me-1"></i>Pilih Paket Layanan</label>
                     <select class="form-select" name="package_id" required>
                       <option value="" disabled selected>Pilih salah satu paket...</option>
@@ -229,6 +250,82 @@
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="mapPickerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content" style="border-radius: 16px; overflow:hidden;">
+        <div class="modal-header">
+          <h6 class="modal-title"><i class="bi bi-geo-alt-fill me-2"></i>Pilih Lokasi Pemasangan</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="picker-map"></div>
+          <div class="text-muted mt-2" style="font-size: 12px;">
+            Geser pin atau klik peta untuk menentukan titik lokasi.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" style="border-radius: 12px;" data-bs-dismiss="modal">Selesai</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const officeLat = Number('<%= settings.office_lat || "" %>') || -6.200000;
+    const officeLng = Number('<%= settings.office_lng || "" %>') || 106.816666;
+    let pickerMap, pickerMarker, pickerModal;
+
+    function setCoords(lat, lng) {
+      const latStr = Number(lat).toFixed(8);
+      const lngStr = Number(lng).toFixed(8);
+      document.getElementById('reg_lat').value = latStr;
+      document.getElementById('reg_lng').value = lngStr;
+      document.getElementById('coordText').innerText = `Lat: ${latStr} • Lng: ${lngStr}`;
+    }
+
+    function openPicker() {
+      pickerModal = pickerModal || new bootstrap.Modal(document.getElementById('mapPickerModal'));
+      pickerModal.show();
+
+      const latVal = parseFloat(document.getElementById('reg_lat').value) || officeLat;
+      const lngVal = parseFloat(document.getElementById('reg_lng').value) || officeLng;
+
+      setTimeout(() => {
+        if (!pickerMap) {
+          pickerMap = L.map('picker-map').setView([latVal, lngVal], 16);
+          L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+          }).addTo(pickerMap);
+
+          pickerMarker = L.marker([latVal, lngVal], { draggable: true }).addTo(pickerMap);
+          pickerMarker.on('dragend', () => {
+            const p = pickerMarker.getLatLng();
+            setCoords(p.lat, p.lng);
+          });
+          pickerMap.on('click', (e) => {
+            pickerMarker.setLatLng(e.latlng);
+            setCoords(e.latlng.lat, e.latlng.lng);
+          });
+        } else {
+          pickerMap.setView([latVal, lngVal], 16);
+          pickerMarker.setLatLng([latVal, lngVal]);
+          pickerMap.invalidateSize();
+        }
+      }, 250);
+    }
+
+    function getLocation() {
+      if (!navigator.geolocation) return alert('GPS tidak didukung di perangkat ini.');
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setCoords(pos.coords.latitude, pos.coords.longitude);
+      }, (err) => {
+        alert('Gagal mengambil lokasi: ' + (err.message || err));
+      }, { enableHighAccuracy: true, timeout: 8000 });
+    }
+  </script>
 </body>
 
 </html>

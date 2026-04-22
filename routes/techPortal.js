@@ -4,6 +4,9 @@ const techSvc = require('../services/techService');
 const customerSvc = require('../services/customerService');
 const odpSvc = require('../services/odpService');
 const { getSetting } = require('../config/settingsManager');
+const mikrotikService = require('../services/mikrotikService');
+const db = require('../config/database');
+const oltSvc = require('../services/oltService');
 
 function requireTechSession(req, res, next) {
   if (req.session && req.session.isTechnician && req.session.techId) {
@@ -181,8 +184,152 @@ router.get('/monitoring', requireTechSession, (req, res) => {
   });
 });
 
+// --- CREATE CUSTOMER (Technician) ---
+router.get('/customers/new', requireTechSession, (req, res) => {
+  const packages = customerSvc.getAllPackages();
+  const odps = odpSvc.getAllOdps();
+  const routers = mikrotikService.getAllRouters();
+  const olts = oltSvc.getAllOlts();
+  res.render('tech/create_customer', {
+    title: 'Tambah Pelanggan',
+    company: company(),
+    activePage: 'create_customer',
+    packages,
+    odps,
+    routers,
+    olts,
+    msg: flashMsg(req)
+  });
+});
+
+router.post('/customers', requireTechSession, express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim();
+    if (!name) throw new Error('Nama pelanggan wajib diisi');
+
+    const customerData = {
+      name,
+      phone: String(req.body.phone || '').trim(),
+      email: String(req.body.email || '').trim(),
+      address: String(req.body.address || '').trim(),
+      package_id: req.body.package_id ? Number(req.body.package_id) : null,
+      pppoe_username: String(req.body.pppoe_username || '').trim(),
+      router_id: req.body.router_id ? Number(req.body.router_id) : null,
+      olt_id: req.body.olt_id ? Number(req.body.olt_id) : null,
+      odp_id: req.body.odp_id ? Number(req.body.odp_id) : null,
+      pon_port: String(req.body.pon_port || '').trim(),
+      lat: String(req.body.lat || '').trim(),
+      lng: String(req.body.lng || '').trim(),
+      isolir_profile: String(req.body.isolir_profile || 'isolir').trim() || 'isolir',
+      status: String(req.body.status || 'active').trim() || 'active',
+      install_date: req.body.install_date ? String(req.body.install_date).trim() : null,
+      notes: String(req.body.notes || '').trim(),
+      auto_isolate: req.body.auto_isolate !== undefined ? Number(req.body.auto_isolate) : 1,
+      isolate_day: req.body.isolate_day !== undefined ? Number(req.body.isolate_day) : 10
+    };
+
+    if (customerData.pppoe_username) {
+      const existing = db.prepare('SELECT id, name FROM customers WHERE router_id IS ? AND pppoe_username = ? LIMIT 1').get(customerData.router_id ?? null, customerData.pppoe_username);
+      if (existing) throw new Error(`PPPoE Username sudah dipakai pelanggan lain: ${existing.name}`);
+
+      let conn = null;
+      try {
+        conn = await mikrotikService.getConnection(customerData.router_id || null);
+        const results = await conn.client.menu('/ppp/secret')
+          .where('service', 'pppoe')
+          .where('name', customerData.pppoe_username)
+          .get();
+        if (!Array.isArray(results) || results.length === 0) throw new Error('PPPoE Username tidak ditemukan di MikroTik');
+      } finally {
+        if (conn && conn.api) conn.api.close();
+      }
+    }
+
+    const inserted = customerSvc.createCustomer(customerData);
+
+    if (customerData.pppoe_username) {
+      let targetProfile = '';
+      if (customerData.status === 'suspended') {
+        targetProfile = customerData.isolir_profile || 'isolir';
+      } else if (customerData.package_id) {
+        const pkg = customerSvc.getPackageById(customerData.package_id);
+        if (pkg) targetProfile = pkg.name;
+      }
+      if (targetProfile) {
+        try {
+          await mikrotikService.setPppoeProfile(customerData.pppoe_username, targetProfile, customerData.router_id);
+        } catch (mErr) {}
+      }
+    }
+
+    const updateOdpFlag = String(req.body.update_odp || '') === '1';
+    if (updateOdpFlag && customerData.odp_id) {
+      const existing = odpSvc.getOdpById(customerData.odp_id);
+      if (existing) {
+        const newLat = String(req.body.odp_lat || '').trim();
+        const newLng = String(req.body.odp_lng || '').trim();
+        const newCap = req.body.odp_port_capacity !== undefined && req.body.odp_port_capacity !== null && String(req.body.odp_port_capacity).trim() !== ''
+          ? Number(req.body.odp_port_capacity)
+          : (existing.port_capacity || 16);
+        const newPon = String(req.body.odp_pon_port || '').trim();
+
+        odpSvc.updateOdp(existing.id, {
+          name: existing.name,
+          olt_id: existing.olt_id,
+          pon_port: newPon || existing.pon_port || '',
+          port_capacity: Number.isFinite(newCap) && newCap > 0 ? Math.floor(newCap) : (existing.port_capacity || 16),
+          lat: newLat || existing.lat || '',
+          lng: newLng || existing.lng || '',
+          description: existing.description || ''
+        });
+      }
+    }
+
+    req.session._msg = { type: 'success', text: `Pelanggan "${name}" berhasil dibuat.` };
+    res.redirect('/tech/customers/new');
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal membuat pelanggan: ' + e.message };
+    res.redirect('/tech/customers/new');
+  }
+});
+
 // API Endpoints for Technician
 const customerDevice = require('../services/customerDeviceService');
+
+router.get('/api/mikrotik/pppoe-users', requireTechSession, async (req, res) => {
+  try {
+    const routerId = req.query.routerId ? Number(req.query.routerId) : null;
+    const users = await mikrotikService.getPppoeUsers(routerId);
+    const usedRows = db.prepare('SELECT pppoe_username FROM customers WHERE router_id IS ? AND pppoe_username IS NOT NULL AND TRIM(pppoe_username) != ""').all(routerId);
+    const used = new Set(usedRows.map(r => String(r.pppoe_username).trim()).filter(Boolean));
+    const filtered = (Array.isArray(users) ? users : []).filter(u => u && u.name && !used.has(String(u.name).trim()));
+    res.json(filtered);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/api/mikrotik/pppoe-profiles', requireTechSession, async (req, res) => {
+  try {
+    const routerId = req.query.routerId ? Number(req.query.routerId) : null;
+    const profiles = await mikrotikService.getPppoeProfiles(routerId);
+    res.json(profiles);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/api/odps/:id/ports', requireTechSession, (req, res) => {
+  try {
+    const odpId = Number(req.params.id);
+    if (!odpId) return res.status(400).json({ error: 'ODP tidak valid' });
+    const usage = odpSvc.getOdpPortUsage(odpId);
+    if (!usage) return res.status(404).json({ error: 'ODP tidak ditemukan' });
+    res.json(usage);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 router.get('/api/devices', requireTechSession, async (req, res) => {
   try {

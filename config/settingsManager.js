@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { logger } = require('./logger');
 
 // Cache untuk settings dengan timestamp
 let settingsCache = null;
@@ -15,7 +16,7 @@ function getSettings() {
   try {
     return JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
   } catch (error) {
-    console.error('❌ Error reading settings.json:', error.message);
+    logger.error(`[settings] Error reading settings.json: ${error.message}`);
     return {};
   }
 }
@@ -69,15 +70,15 @@ function startSettingsWatcher() {
         const host = s.server_host || 'localhost';
         const gurl = s.genieacs_url || '(tidak diatur)';
         const company = s.company_header || '(default)';
-        console.log('[settings] settings.json dimuat ulang —', `port ${port}, host ${host}, company: ${company}, GenieACS: ${gurl}`);
+        logger.info(`[settings] settings.json dimuat ulang — port ${port}, host ${host}, company: ${company}, GenieACS: ${gurl}`);
       } catch (error) {
-        console.error('[settings] Gagal memuat ulang settings.json:', error.message);
+        logger.error(`[settings] Gagal memuat ulang settings.json: ${error.message}`);
       }
     });
 
-    console.log('[settings] Memantau perubahan settings.json');
+    logger.info('[settings] Memantau perubahan settings.json');
   } catch (error) {
-    console.error('❌ Error starting settings watcher:', error.message);
+    logger.error(`[settings] Error starting settings watcher: ${error.message}`);
   }
 }
 
@@ -94,7 +95,7 @@ function saveSettings(newSettings) {
     settingsCacheTime = Date.now();
     return true;
   } catch (error) {
-    console.error('❌ Error saving settings.json:', error.message);
+    logger.error(`[settings] Error saving settings.json: ${error.message}`);
     return false;
   }
 }

@@ -80,7 +80,7 @@ router.get('/register', (req, res) => {
 router.post('/register', async (req, res) => {
   const settings = getSettingsWithCache();
   const packages = customerSvc.getAllPackages().filter(p => p.is_active !== 0);
-  const { name, phone, email, address, package_id } = req.body;
+  const { name, phone, email, address, package_id, lat, lng } = req.body;
 
   try {
     if (!name || !phone || !address || !package_id) {
@@ -94,6 +94,8 @@ router.post('/register', async (req, res) => {
       email,
       address,
       package_id,
+      lat: String(lat || '').trim(),
+      lng: String(lng || '').trim(),
       status: 'inactive',
       notes: 'Pendaftar Baru via Online'
     });
@@ -105,9 +107,13 @@ router.post('/register', async (req, res) => {
       const pkgName = selectedPkg ? selectedPkg.name : 'Tidak diketahui';
       
       const adminMsg = `🔔 *PENDAFTARAN BARU*\n\nAda calon pelanggan baru yang mendaftar via web:\n\n👤 *Nama:* ${name}\n📞 *WA:* ${phone}\n📍 *Alamat:* ${address}\n📦 *Paket:* ${pkgName}\n\nSilakan cek di panel Admin untuk menindaklanjuti.`;
+      const latStr = String(lat || '').trim();
+      const lngStr = String(lng || '').trim();
+      const mapLine = (latStr && lngStr) ? `\n🗺️ *Lokasi:* https://maps.google.com/?q=${encodeURIComponent(latStr)},${encodeURIComponent(lngStr)}` : '';
+      const finalAdminMsg = adminMsg + mapLine;
       
       for (const adminPhone of settings.whatsapp_admin_numbers) {
-        try { await sendWA(adminPhone, adminMsg); } catch(e) { /* ignore */ }
+        try { await sendWA(adminPhone, finalAdminMsg); } catch(e) { /* ignore */ }
       }
     }
 

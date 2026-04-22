@@ -166,8 +166,10 @@
     <h1 class="top-nav-title">
       <%= title %>
     </h1>
-    <a href="/tech/logout" class="top-nav-btn" onclick="return confirm('Apakah Anda yakin ingin logout?')"><i
-        class="bi bi-box-arrow-right"></i></a>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a href="/tech/customers/new" class="top-nav-btn" title="Tambah Pelanggan"><i class="bi bi-person-plus-fill"></i></a>
+      <a href="/tech/logout" class="top-nav-btn" onclick="return confirm('Apakah Anda yakin ingin logout?')"><i class="bi bi-box-arrow-right"></i></a>
+    </div>
   </div>
 
   <div class="container py-3">
