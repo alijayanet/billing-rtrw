@@ -79,9 +79,10 @@ npm start
 ### 3. Akses Portal
 Setelah instalasi berhasil, portal dapat diakses melalui browser:
 - **Admin Portal**: `http://[IP-SERVER]:3001/admin/login`
+- 'User : admin Pass : admin123'
 - **teknisi Portal**: `http://[IP-SERVER]:3001/tech/login`
 - **Customer Portal**: `http://[IP-SERVER]:3001/login`
-- **Credential Login**: 'User : admin Pass : admin123'
+
 
 
 
