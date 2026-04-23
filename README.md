@@ -110,7 +110,7 @@ install pm2 -g
 ## ⚙️ Jalankan Aplikasi Menggunakan pm2
 
 ```bash
-pm2 start app-customer.php --name billing-rtrw
+pm2 start app-customer.js --name billing-rtrw
 ```
 
 
