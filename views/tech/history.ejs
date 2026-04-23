@@ -1,21 +1,21 @@
 <%- include('partials/header') %>
 
 <div class="mb-4">
-  <h5 class="mb-0 fw-bold">Riwayat Tugas</h5>
-  <div class="text-secondary" style="font-size: 12px;">50 tugas terakhir yang sudah diselesaikan</div>
+  <h5 class="mb-0 fw-bold"><%= t('tech.history_page.title', 'Riwayat Tugas') %></h5>
+  <div class="text-secondary" style="font-size: 12px;"><%= t('tech.history_page.subtitle', '50 tugas terakhir yang sudah diselesaikan') %></div>
 </div>
 
 <% if (tickets.length === 0) { %>
   <div class="text-center py-5">
     <i class="bi bi-clock-history text-secondary" style="font-size: 40px;"></i>
-    <p class="text-secondary mt-2 small">Belum ada riwayat tugas yang diselesaikan.</p>
+    <p class="text-secondary mt-2 small"><%= t('tech.history_page.empty', 'Belum ada riwayat tugas yang diselesaikan.') %></p>
   </div>
 <% } else { %>
   <% tickets.forEach(t => { %>
     <div class="t-card border-success border-opacity-25" style="opacity: 0.8;">
       <div class="d-flex justify-content-between align-items-start mb-2">
         <span class="badge-status badge-resolved">
-          <i class="bi bi-check-circle-fill"></i> Selesai
+          <i class="bi bi-check-circle-fill"></i> <%= t('tech.ticket.resolved', 'Selesai') %>
         </span>
         <span class="text-secondary" style="font-size: 11px;"><%= new Date(t.updated_at).toLocaleString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) %></span>
       </div>

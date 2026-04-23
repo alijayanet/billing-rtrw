@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Broadcast WhatsApp | <%= company %></title>
+  <title><%= t('admin.broadcast.title', 'Broadcast WhatsApp') %> | <%= company %></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/css/admin.css">
 </head>
@@ -10,7 +10,7 @@
 <%- include('partials/sidebar', { activePage: 'broadcast', company }) %>
 <div class="mw">
   <div class="topbar">
-    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-megaphone"></i> Broadcast WhatsApp</div>
+    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-megaphone"></i> <%= t('admin.broadcast.title', 'Broadcast WhatsApp') %></div>
     <div class="tb-right">
       <span class="adm-badge"><i class="bi bi-person-fill"></i> Admin</span>
       <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>
@@ -43,7 +43,7 @@
 
           <div class="form-row" style="margin-bottom: 15px;">
             <div class="fg">
-              <label class="fl">Target Penerima</label>
+              <label class="fl"><%= t('admin.broadcast.target', 'Target Penerima') %></label>
               <select class="fs" name="target" id="targetSelect" required style="width: 100%;">
                 <option value="all">Semua Pelanggan (Aktif & Isolir)</option>
                 <option value="active">Hanya Pelanggan Aktif</option>
@@ -52,7 +52,7 @@
               </select>
             </div>
             <div class="fg">
-              <label class="fl">Jeda Antar Pesan (Detik)</label>
+              <label class="fl"><%= t('admin.broadcast.delay', 'Jeda Antar Pesan (Detik)') %></label>
               <input class="fc" type="number" name="delay" value="<%= getSetting('whatsapp_broadcast_delay', 2) %>" min="1" max="60">
             </div>
           </div>
@@ -63,7 +63,7 @@
           
           <div class="form-row">
             <div class="fg" style="width: 100%;">
-              <label class="fl">Isi Pesan WhatsApp</label>
+              <label class="fl"><%= t('admin.broadcast.message', 'Isi Pesan WhatsApp') %></label>
               <textarea class="fc" name="message" id="messageBox" rows="8" required style="width: 100%;"></textarea>
               <div style="font-size: 11px; color: var(--muted); margin-top: 6px;">
                 <i class="bi bi-info-circle"></i> Variabel: <b>{{nama}}</b>, <b>{{tagihan}}</b>, <b>{{rincian}}</b>, <b>{{paket}}</b>, <b>{{link}}</b> (Link Portal).
@@ -74,7 +74,7 @@
           </div>
         </div>
         <div class="card-bd" style="border-top: 1px solid var(--border); background: var(--bg2); display: flex; justify-content: flex-end;">
-          <button type="submit" class="btn btn-p"><i class="bi bi-send"></i> Mulai Broadcast</button>
+          <button type="submit" class="btn btn-p"><i class="bi bi-send"></i> <%= t('admin.broadcast.start', 'Mulai Broadcast') %></button>
         </div>
       </form>
     </div>

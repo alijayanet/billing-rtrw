@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Laporan | <%= company %></title>
+  <title><%= t('admin.nav.finance_report', 'Laporan Keuangan') %> | <%= company %></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/css/admin.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,7 +11,7 @@
 <%- include('partials/sidebar', { activePage: 'reports', company }) %>
 <div class="mw">
   <div class="topbar">
-    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-bar-chart-line"></i> Laporan Keuangan</div>
+    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-bar-chart-line"></i> <%= t('admin.nav.finance_report', 'Laporan Keuangan') %></div>
     <div class="tb-right">
       <select class="fs" id="yearSelect" style="width:90px" onchange="window.location='/admin/reports?year='+this.value">
         <% for(let y=new Date().getFullYear(); y>=2023; y--){ %>

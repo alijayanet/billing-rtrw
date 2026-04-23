@@ -36,3 +36,91 @@
 2026-04-20 08:14:50 error: Error getting PPPoE users:
 2026-04-20 08:15:06 error: Failed to connect to MikroTik (192.168.8.1):
 2026-04-20 08:15:06 error: Error getting PPPoE profiles:
+2026-04-21 12:07:14 error: [SNMP] Error fetching OLT Server (192.168.8.88): Request timed out
+2026-04-21 12:54:40 error: Unhandled Rejection at:
+2026-04-21 13:32:10 error: [OLT-WEB] Gagal ambil data via Web untuk 192.168.8.88: Request failed with status code 401
+2026-04-21 13:35:04 error: [OLT-WEB] Gagal ambil data via Web untuk 192.168.8.88: Request failed with status code 404
+2026-04-21 14:18:46 error: Unhandled Rejection at:
+2026-04-21 14:21:11 error: Unhandled Rejection at:
+2026-04-21 14:21:58 error: Unhandled Rejection at:
+2026-04-21 14:27:18 error: Unhandled Rejection: ReferenceError: decodeUptime is not defined
+    at D:\app-customer\services\oltService.js:378:50
+2026-04-22 08:04:46 error: Error adding Hotspot user profile: invalid time value for argument session-timeout
+2026-04-23 10:21:25 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 10:21:25 error: Error getting Hotspot user profiles:
+2026-04-23 11:13:19 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:19 error: Error getting active PPPoE sessions:
+2026-04-23 11:13:19 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:19 error: Error getting PPPoE secrets:
+2026-04-23 11:13:19 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:19 error: Error getting active Hotspot sessions:
+2026-04-23 11:13:19 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:19 error: Error getting Hotspot users:
+2026-04-23 11:13:22 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:22 error: Error getting PPPoE profiles:
+2026-04-23 11:13:22 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:22 error: Error getting Hotspot user profiles:
+2026-04-23 11:13:25 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:25 error: Error getting Hotspot user profiles:
+2026-04-23 11:13:44 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:44 error: Error getting Hotspot users:
+2026-04-23 11:13:44 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:44 error: Error getting PPPoE secrets:
+2026-04-23 11:13:44 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:44 error: Error getting PPPoE profiles:
+2026-04-23 11:13:44 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:44 error: Error getting active PPPoE sessions:
+2026-04-23 11:13:44 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:44 error: Error getting Hotspot user profiles:
+2026-04-23 11:13:44 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:45 error: Error getting active Hotspot sessions:
+2026-04-23 11:13:59 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:13:59 error: Error getting PPPoE profiles:
+2026-04-23 11:14:15 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:15 error: Error getting PPPoE profiles:
+2026-04-23 11:14:15 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:15 error: Error getting PPPoE users:
+2026-04-23 11:14:17 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:17 error: Error getting PPPoE users:
+2026-04-23 11:14:41 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:41 error: Error getting Hotspot user profiles:
+2026-04-23 11:14:43 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:43 error: Error getting PPPoE secrets:
+2026-04-23 11:14:43 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:43 error: Error getting active PPPoE sessions:
+2026-04-23 11:14:43 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:43 error: Error getting Hotspot users:
+2026-04-23 11:14:43 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:43 error: Error getting active Hotspot sessions:
+2026-04-23 11:14:43 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:43 error: Error getting PPPoE profiles:
+2026-04-23 11:14:45 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:14:45 error: Error getting Hotspot user profiles:
+2026-04-23 11:17:33 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:17:33 error: Error getting PPPoE secrets:
+2026-04-23 11:17:33 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:17:33 error: Error getting active PPPoE sessions:
+2026-04-23 11:17:33 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:17:33 error: Error getting Hotspot users:
+2026-04-23 11:17:33 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:17:33 error: Error getting Hotspot user profiles:
+2026-04-23 11:17:33 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:17:33 error: Error getting active Hotspot sessions:
+2026-04-23 11:17:33 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:17:33 error: Error getting PPPoE profiles:
+2026-04-23 11:17:36 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:17:36 error: Error getting Hotspot user profiles:
+2026-04-23 11:27:36 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:27:36 error: Error getting active PPPoE sessions:
+2026-04-23 11:27:36 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:27:36 error: Error getting active Hotspot sessions:
+2026-04-23 11:27:36 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:27:36 error: Error getting PPPoE secrets:
+2026-04-23 11:27:36 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:27:36 error: Error getting Hotspot users:
+2026-04-23 11:27:38 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:27:38 error: Error getting PPPoE profiles:
+2026-04-23 11:27:38 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:27:38 error: Error getting Hotspot user profiles:
+2026-04-23 11:27:38 error: Failed to connect to MikroTik (192.168.8.1):
+2026-04-23 11:27:38 error: Error getting Hotspot user profiles:

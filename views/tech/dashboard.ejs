@@ -1,43 +1,44 @@
 <%- include('partials/header') %>
 
 <div class="mb-4">
-  <div class="text-secondary small">Halo, Selamat Bekerja!</div>
+  <div class="text-secondary small"><%= t('tech.dashboard.greeting', 'Halo, Selamat Bekerja!') %></div>
   <div class="fs-5 fw-bold"><i class="bi bi-person-badge text-primary me-2"></i><%= techName %></div>
 </div>
 
 <div class="stat-grid">
   <div class="stat-box" style="border-left: 3px solid #f59e0b;">
-    <div class="lbl">Sedang Dikerjakan</div>
+    <div class="lbl"><%= t('tech.dashboard.in_progress', 'Sedang Dikerjakan') %></div>
     <div class="val text-warning"><%= stats.inProgress %></div>
   </div>
   <div class="stat-box" style="border-left: 3px solid #10b981;">
-    <div class="lbl">Selesai Hari Ini</div>
+    <div class="lbl"><%= t('tech.dashboard.resolved_today', 'Selesai Hari Ini') %></div>
     <div class="val text-success"><%= stats.resolved %></div>
   </div>
 </div>
 
 <h6 class="mb-3 text-secondary fw-bold text-uppercase" style="font-size: 13px; letter-spacing: 1px;">
-  <i class="bi bi-list-task me-1"></i> Tugas Aktif Anda (<%= tickets.length %>)
+  <i class="bi bi-list-task me-1"></i> <%= t('tech.dashboard.active_tasks', 'Tugas Aktif Anda') %> (<%= tickets.length %>)
 </h6>
 
 <% if (tickets.length === 0) { %>
   <div class="text-center py-5">
     <i class="bi bi-check2-circle text-success" style="font-size: 40px;"></i>
-    <p class="text-secondary mt-2 small">Bagus! Tidak ada tugas aktif saat ini.<br>Silakan cek tab "Tiket Baru" untuk mengambil tugas.</p>
+    <p class="text-secondary mt-2 small"><%= t('tech.dashboard.empty_active', 'Bagus! Tidak ada tugas aktif saat ini.') %><br><%= t('tech.dashboard.empty_active_hint', 'Silakan cek tab "Tiket Baru" untuk mengambil tugas.') %></p>
   </div>
 <% } else { %>
   <% tickets.forEach(t => { %>
     <div class="t-card">
       <div class="d-flex justify-content-between align-items-start mb-2">
         <span class="badge-status badge-<%= t.status %>">
-          <% if(t.status === 'in_progress') { %> <i class="bi bi-tools"></i> Sedang Dikerjakan <% } else { %> <%= t.status %> <% } %>
+          <% let statusLabel = t.status; if (t.status === 'open') statusLabel = t('tech.ticket.open', 'Belum Ditangani'); if (t.status === 'in_progress') statusLabel = t('tech.ticket.in_progress', 'Sedang Dikerjakan'); if (t.status === 'resolved') statusLabel = t('tech.ticket.resolved', 'Selesai'); %>
+          <% if(t.status === 'in_progress') { %> <i class="bi bi-tools"></i> <%= statusLabel %> <% } else { %> <%= statusLabel %> <% } %>
         </span>
         <span class="text-secondary" style="font-size: 11px;"><%= new Date(t.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) %></span>
       </div>
       
       <div class="fw-bold mb-1" style="font-size: 15px;"><%= t.customer_name %></div>
       <div class="text-secondary mb-2" style="font-size: 12px;">
-        <i class="bi bi-geo-alt-fill me-1"></i><%= t.customer_address || 'Tidak ada alamat' %><br>
+        <i class="bi bi-geo-alt-fill me-1"></i><%= t.customer_address || t('tech.ticket.no_address', 'Tidak ada alamat') %><br>
         <i class="bi bi-telephone-fill me-1"></i><a href="https://wa.me/<%= t.customer_phone %>" class="text-decoration-none text-info"><%= t.customer_phone || '-' %></a>
       </div>
       
@@ -47,7 +48,7 @@
       </div>
       
       <button type="button" class="btn btn-success btn-action" data-bs-toggle="modal" data-bs-target="#resolveModal<%= t.id %>">
-        <i class="bi bi-check-circle-fill me-2"></i> Tandai Selesai
+        <i class="bi bi-check-circle-fill me-2"></i> <%= t('tech.ticket.mark_resolved', 'Tandai Selesai') %>
       </button>
 
       <!-- Modal Selesai -->
@@ -55,18 +56,18 @@
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content" style="background: #1e293b; border: 1px solid #334155;">
             <div class="modal-header border-bottom border-secondary">
-              <h6 class="modal-title">Selesaikan Tugas</h6>
+              <h6 class="modal-title"><%= t('tech.ticket.resolve_title', 'Selesaikan Tugas') %></h6>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center py-4">
               <i class="bi bi-check-circle-fill text-success" style="font-size: 40px;"></i>
-              <p class="mt-3 mb-0" style="font-size: 14px;">Apakah Anda yakin tugas untuk keluhan <b>"<%= t.subject %>"</b> pelanggan <b><%= t.customer_name %></b> sudah selesai dikerjakan?</p>
+              <p class="mt-3 mb-0" style="font-size: 14px;"><%= t('tech.ticket.resolve_confirm_prefix', 'Apakah Anda yakin tugas untuk keluhan') %> <b>"<%= t.subject %>"</b> pelanggan <b><%= t.customer_name %></b> <%= t('tech.ticket.resolve_confirm_suffix', 'sudah selesai dikerjakan?') %></p>
             </div>
             <div class="modal-footer border-top border-secondary flex-nowrap p-0">
-              <button type="button" class="btn btn-link text-secondary text-decoration-none col-6 m-0 border-end border-secondary" data-bs-dismiss="modal">Batal</button>
+              <button type="button" class="btn btn-link text-secondary text-decoration-none col-6 m-0 border-end border-secondary" data-bs-dismiss="modal"><%= t('tech.ticket.cancel', 'Batal') %></button>
               <form method="POST" action="/tech/tickets/<%= t.id %>/update" class="col-6 m-0">
                 <input type="hidden" name="status" value="resolved">
-                <button type="submit" class="btn btn-link text-success text-decoration-none fw-bold w-100 m-0">Ya, Selesai</button>
+                <button type="submit" class="btn btn-link text-success text-decoration-none fw-bold w-100 m-0"><%= t('tech.ticket.yes_resolved', 'Ya, Selesai') %></button>
               </form>
             </div>
           </div>

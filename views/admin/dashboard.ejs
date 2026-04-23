@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title><%= title %> | <%= company %></title>
@@ -50,32 +50,32 @@
     <div class="tb-title">
       <button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
       <i class="bi bi-speedometer2"></i>
-      <span id="page-title">Dashboard</span>
+      <span id="page-title"><%= t('admin.nav.dashboard', 'Dashboard') %></span>
     </div>
     <div class="tb-right">
-      <div class="realtime-bar"><span class="live-dot"></span> Live Update</div>
+      <div class="realtime-bar"><span class="live-dot"></span> <%= t('admin.dashboard.live_update', 'Live Update') %></div>
       <span class="adm-badge">
         <i class="bi bi-person-fill"></i> 
-        <%= (typeof session !== 'undefined' && session.isCashier) ? 'Kasir' : 'Admin' %>
+        <%= (typeof session !== 'undefined' && session.isCashier) ? t('admin.role.cashier', 'Kasir') : t('admin.role.admin', 'Admin') %>
       </span>
-      <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i> Logout</a>
+      <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i> <%= t('common.logout', 'Logout') %></a>
     </div>
   </div>
 
   <div class="page">
     <!-- INFO BAR: Portal Link -->
     <div class="alert alert-i" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:10px 15px">
-      <span><i class="bi bi-link-45deg"></i> <strong>Link Portal Pelanggan:</strong> <code id="portal-link-url">...</code></span>
-      <button class="btn btn-g btn-sm" onclick="copyPortalLink()"><i class="bi bi-copy"></i> Salin Link</button>
+      <span><i class="bi bi-link-45deg"></i> <strong><%= t('admin.dashboard.portal_link', 'Link Portal Pelanggan') %>:</strong> <code id="portal-link-url">...</code></span>
+      <button class="btn btn-g btn-sm" onclick="copyPortalLink()"><i class="bi bi-copy"></i> <%= t('common.copy_link', 'Salin Link') %></button>
     </div>
 
     <!-- TAB NAVIGATION -->
     <div class="tab-bar">
       <button class="tab-btn active" id="tab-dash" onclick="showTab('dashboard')">
-        <i class="bi bi-speedometer2"></i>Dashboard
+        <i class="bi bi-speedometer2"></i><%= t('admin.nav.dashboard', 'Dashboard') %>
       </button>
       <button class="tab-btn" id="tab-mon" onclick="showTab('monitoring')">
-        <i class="bi bi-router"></i>Monitoring ONU
+        <i class="bi bi-router"></i><%= t('admin.dashboard.monitoring_onu', 'Monitoring ONU') %>
       </button>
     </div>
 

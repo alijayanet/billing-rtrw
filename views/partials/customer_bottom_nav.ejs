@@ -70,19 +70,19 @@
 <nav class="customer-bottom-nav">
   <a href="/customer/dashboard#home-section" class="nav-item <%= activeNav === 'home' ? 'active' : '' %>">
     <i class="bi bi-house-door-fill"></i>
-    <span>Beranda</span>
+    <span><%= t('customer.nav.home', 'Beranda') %></span>
   </a>
   <a href="/customer/dashboard#billing-section" class="nav-item <%= activeNav === 'billing' ? 'active' : '' %>">
     <i class="bi bi-receipt-cutoff"></i>
-    <span>Tagihan</span>
+    <span><%= t('customer.nav.billing', 'Tagihan') %></span>
   </a>
   <a href="/customer/dashboard#ticket-section" class="nav-item <%= activeNav === 'ticket' ? 'active' : '' %>">
     <i class="bi bi-headset"></i>
-    <span>Bantuan</span>
+    <span><%= t('customer.nav.help', 'Bantuan') %></span>
   </a>
   <a href="/customer/dashboard#settings-section" class="nav-item <%= activeNav === 'settings' ? 'active' : '' %>">
     <i class="bi bi-gear-fill"></i>
-    <span>WiFi</span>
+    <span><%= t('customer.nav.wifi', 'WiFi') %></span>
   </a>
 </nav>
 

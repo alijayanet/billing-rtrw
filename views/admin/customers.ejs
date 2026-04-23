@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Pelanggan | <%= company %></title>
+  <title><%= t('admin.customers.title', 'Pelanggan') %> | <%= company %></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -16,7 +16,7 @@
 <%- include('partials/sidebar', { activePage: 'customers', company }) %>
 <div class="mw">
   <div class="topbar">
-    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-people"></i> Manajemen Pelanggan</div>
+    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-people"></i> <%= t('admin.customers.manage_title', 'Manajemen Pelanggan') %></div>
     <div class="tb-right">
       <span class="adm-badge"><i class="bi bi-person-fill"></i> Admin</span>
       <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>
@@ -41,18 +41,18 @@
     <!-- Search & Add -->
     <div class="card">
       <div class="card-hd">
-        <h6><i class="bi bi-people"></i> Daftar Pelanggan (<%= customers.length %>)</h6>
+        <h6><i class="bi bi-people"></i> <%= t('admin.customers.list', 'Daftar Pelanggan') %> (<%= customers.length %>)</h6>
         <div style="display:flex;gap:8px">
-          <a href="/admin/customers/export" class="btn btn-g btn-sm"><i class="bi bi-file-earmark-excel"></i> Export Excel</a>
-          <button class="btn btn-g btn-sm" onclick="openModal('importModal')"><i class="bi bi-file-earmark-arrow-up"></i> Import Excel</button>
-          <button class="btn btn-p btn-sm" onclick="openModal('addModal')"><i class="bi bi-plus-lg"></i> Tambah Pelanggan</button>
+          <a href="/admin/customers/export" class="btn btn-g btn-sm"><i class="bi bi-file-earmark-excel"></i> <%= t('admin.customers.export_excel', 'Export Excel') %></a>
+          <button class="btn btn-g btn-sm" onclick="openModal('importModal')"><i class="bi bi-file-earmark-arrow-up"></i> <%= t('admin.customers.import_excel', 'Import Excel') %></button>
+          <button class="btn btn-p btn-sm" onclick="openModal('addModal')"><i class="bi bi-plus-lg"></i> <%= t('admin.customers.add', 'Tambah Pelanggan') %></button>
         </div>
       </div>
       <div class="card-bd" style="padding-bottom:0">
         <form method="GET" action="/admin/customers" class="srow">
           <div class="sinput" style="max-width:340px">
             <i class="bi bi-search"></i>
-            <input class="fc" name="search" placeholder="Cari nama, telepon, tag..." value="<%= search %>">
+            <input class="fc" name="search" placeholder="<%= t('admin.customers.search_placeholder', 'Cari nama, telepon, tag...') %>" value="<%= search %>">
           </div>
           <select class="fs" name="status" style="width:140px" onchange="this.form.submit()">
             <option value="">Semua Status</option>
@@ -61,7 +61,7 @@
             <option value="inactive" <%= filterStatus==='inactive' ? 'selected':'' %>>Nonaktif</option>
           </select>
           <button class="btn btn-g btn-sm" type="submit"><i class="bi bi-search"></i> Cari</button>
-          <% if (search || filterStatus) { %><a href="/admin/customers" class="btn btn-g btn-sm"><i class="bi bi-x"></i> Reset</a><% } %>
+          <% if (search || filterStatus) { %><a href="/admin/customers" class="btn btn-g btn-sm"><i class="bi bi-x"></i> <%= t('common.reset', 'Reset') %></a><% } %>
         </form>
       </div>
       <div class="tbl-wrap">
@@ -74,7 +74,7 @@
           </thead>
           <tbody>
           <% if (customers.length === 0) { %>
-            <tr><td colspan="8" class="text-center text-muted" style="padding:32px">Belum ada pelanggan</td></tr>
+            <tr><td colspan="8" class="text-center text-muted" style="padding:32px"><%= t('admin.customers.empty', 'Belum ada pelanggan') %></td></tr>
           <% } %>
           <% customers.forEach((c, i) => { %>
             <tr>

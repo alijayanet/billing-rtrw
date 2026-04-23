@@ -1,0 +1,242 @@
+{
+  "common": {
+    "menu": "Menu",
+    "home": "Home",
+    "login": "Login",
+    "search": "Search",
+    "filter": "Filter",
+    "reset": "Reset",
+    "cancel": "Cancel",
+    "save": "Save",
+    "add": "Add",
+    "copy_link": "Copy Link",
+    "logout": "Logout",
+    "language": "Language"
+  },
+  "admin": {
+    "panel": "Admin Panel",
+    "role": {
+      "admin": "Admin",
+      "cashier": "Cashier"
+    },
+    "dashboard": {
+      "live_update": "Live Update",
+      "portal_link": "Customer Portal Link",
+      "monitoring_onu": "ONU Monitoring"
+    },
+    "whatsapp": {
+      "status_title": "WhatsApp Status",
+      "checking": "Checking status...",
+      "please_wait": "Please wait.",
+      "connected": "Connected",
+      "need_scan": "Scan Required",
+      "refresh_status": "Refresh Status",
+      "reset_session": "Reset Session",
+      "test_notification": "Send Test"
+    },
+    "broadcast": {
+      "title": "WhatsApp Broadcast",
+      "start": "Start Broadcast",
+      "target": "Recipients",
+      "delay": "Delay Between Messages (Seconds)",
+      "message": "WhatsApp Message"
+    },
+    "billing": {
+      "title": "Invoices",
+      "manage_title": "Invoice Management",
+      "generate": "Generate Invoices",
+      "search_placeholder": "Search name / phone...",
+      "all_months": "All Months",
+      "all_status": "All Status",
+      "unpaid": "Unpaid",
+      "paid": "Paid",
+      "list": "Invoice List",
+      "empty": "No invoices found. Generate monthly invoices first."
+    },
+    "customers": {
+      "title": "Customers",
+      "manage_title": "Customer Management",
+      "list": "Customer List",
+      "add": "Add Customer",
+      "export_excel": "Export Excel",
+      "import_excel": "Import Excel",
+      "search_placeholder": "Search name, phone, tag...",
+      "empty": "No customers yet"
+    },
+    "packages": {
+      "title": "Internet Packages",
+      "list": "Package List",
+      "add": "Add Package",
+      "empty": "No packages yet. Add your first package!"
+    },
+    "settings": {
+      "title": "Settings",
+      "system_title": "System Settings"
+    },
+    "section": {
+      "main": "MAIN",
+      "billing": "BILLING",
+      "service": "SERVICE",
+      "user_management": "USER MANAGEMENT",
+      "system": "SYSTEM"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "mikrotik_monitoring": "MikroTik Monitoring",
+      "voucher_hotspot": "Hotspot Voucher",
+      "router_management": "Router Management",
+      "olt_management": "OLT Management",
+      "network_map": "Network Map",
+      "whatsapp_status": "WhatsApp Status",
+      "customers": "Customers",
+      "internet_packages": "Internet Packages",
+      "invoices": "Invoices",
+      "finance_report": "Financial Reports",
+      "customer_tickets": "Customer Tickets",
+      "technicians": "Technicians",
+      "cashiers": "Cashiers",
+      "settings": "Settings"
+    }
+  },
+  "tech": {
+    "login_title": "Technician Login",
+    "portal_title": "Technician Portal",
+    "new_customer": "Add Customer",
+    "logout_confirm": "Are you sure you want to log out?",
+    "dashboard": {
+      "greeting": "Hello, have a great day!",
+      "in_progress": "In Progress",
+      "resolved_today": "Resolved Today",
+      "active_tasks": "Your Active Tasks",
+      "empty_active": "Great! No active tasks right now.",
+      "empty_active_hint": "Please check the \"New Tickets\" tab to take a task."
+    },
+    "ticket": {
+      "open": "Not Assigned",
+      "in_progress": "In Progress",
+      "resolved": "Resolved",
+      "no_address": "No address",
+      "mark_resolved": "Mark as Resolved",
+      "resolve_title": "Resolve Task",
+      "resolve_confirm_prefix": "Are you sure the task for complaint",
+      "resolve_confirm_suffix": "has been completed?",
+      "cancel": "Cancel",
+      "yes_resolved": "Yes, Resolve"
+    },
+    "pool": {
+      "title": "New Tickets",
+      "subtitle": "Unassigned complaints list",
+      "empty": "No new complaints at the moment.",
+      "empty_hint": "All customers are running normally.",
+      "take_confirm": "Take this ticket and work on it now?",
+      "take_action": "Take This Task"
+    },
+    "history_page": {
+      "title": "Task History",
+      "subtitle": "Last 50 resolved tasks",
+      "empty": "No resolved task history yet."
+    },
+    "nav": {
+      "my_tasks": "My Tasks",
+      "new_tickets": "New Tickets",
+      "map": "Map",
+      "monitor": "Monitor",
+      "history": "History"
+    }
+  },
+  "customer": {
+    "login_title": "Customer Login",
+    "portal_title": "Customer Portal",
+    "id_tag": "Customer ID/Tag",
+    "id_tag_placeholder": "Enter your customer ID/tag",
+    "otp_sent_via_wa": "OTP code will be sent via WhatsApp",
+    "sign_in": "Sign In",
+    "not_subscribed": "Not subscribed yet?",
+    "register_new": "New Installation Request",
+    "otp_title": "OTP Verification",
+    "dashboard_title": "Customer Dashboard",
+    "dashboard": {
+      "portal": "Customer Portal",
+      "hello": "Hello",
+      "service": "Service",
+      "active": "ACTIVE",
+      "suspended": "SUSPENDED",
+      "device_status": "Device Status",
+      "current_ssid": "Current SSID",
+      "software_version": "Software Version",
+      "last_inform": "Last Inform",
+      "rx_power": "RX Power",
+      "pppoe_ip": "PPPoE IP",
+      "pppoe_username": "PPPoE Username",
+      "connected_users": "Connected Users"
+    },
+    "billing": {
+      "title": "Billing Status & History",
+      "period": "Period",
+      "service_package": "Service / Package",
+      "amount": "Amount",
+      "status": "Status",
+      "paid": "PAID",
+      "paid_at": "Paid",
+      "pay_online": "PAY ONLINE",
+      "unpaid": "UNPAID",
+      "empty": "No billing data.",
+      "internet_service": "Internet Service"
+    },
+    "ticket": {
+      "title": "Support Tickets",
+      "report_1": "REPORT",
+      "report_2": "ISSUE",
+      "time": "Time",
+      "issue": "Issue",
+      "status": "Status",
+      "waiting": "Waiting",
+      "in_progress": "In Progress",
+      "resolved": "Resolved",
+      "empty": "No ticket history yet."
+    },
+    "wifi": {
+      "change_ssid": "Change WiFi Name (SSID)",
+      "current_ssid": "Current SSID",
+      "new_ssid_placeholder": "New WiFi name",
+      "change_ssid_btn": "Change SSID",
+      "change_password": "Change WiFi Password",
+      "new_password_placeholder": "New password",
+      "change_password_btn": "Change Password"
+    },
+    "reboot": {
+      "device": "Reboot Device",
+      "confirm": "Are you sure you want to reboot your device?"
+    },
+    "devices": {
+      "title": "Connected Devices",
+      "hostname": "Hostname",
+      "ip": "IP",
+      "mac": "MAC",
+      "interface": "Interface",
+      "status": "Status",
+      "online": "Online",
+      "offline": "Offline",
+      "empty": "No devices are currently connected."
+    },
+    "help": {
+      "contact_admin": "If you have issues, please contact admin via WhatsApp."
+    },
+    "footer": {
+      "about": "About",
+      "tos": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "contact": "Contact"
+    },
+    "payment": {
+      "choose_title": "Choose Payment",
+      "choose_desc": "Please choose a payment method for the bill amount"
+    },
+    "nav": {
+      "home": "Home",
+      "billing": "Billing",
+      "help": "Help",
+      "wifi": "WiFi"
+    }
+  }
+}

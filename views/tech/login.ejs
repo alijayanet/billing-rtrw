@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Teknisi Login - <%= company %>
+  <title><%= t('tech.login_title', 'Login Teknisi') %> - <%= company %>
   </title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
@@ -65,7 +65,7 @@
 <body>
   <div class="login-card text-center">
     <div class="brand-icon"><i class="bi bi-tools"></i></div>
-    <h3 class="mb-1 fw-bold">Teknisi Portal</h3>
+    <h3 class="mb-1 fw-bold"><%= t('tech.portal_title', 'Portal Teknisi') %></h3>
     <p class="text-secondary mb-4 small">
       <%= company %>
     </p>

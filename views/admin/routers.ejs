@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Router | <%= company %></title>
+  <title><%= t('admin.nav.router_management', 'Manajemen Router') %> | <%= company %></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/css/admin.css">
 </head>
@@ -10,7 +10,7 @@
 <%- include('partials/sidebar', { activePage: 'routers', company }) %>
 <div class="mw">
   <div class="topbar">
-    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-hdd-network"></i> Manajemen Router MikroTik</div>
+    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-hdd-network"></i> <%= t('admin.nav.router_management', 'Manajemen Router') %></div>
     <div class="tb-right">
       <span class="adm-badge"><i class="bi bi-person-fill"></i> Admin</span>
       <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>

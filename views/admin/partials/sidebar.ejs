@@ -7,73 +7,77 @@
       <div class="sb-name">
         <%= company %>
       </div>
-      <div class="sb-sub">Admin Panel</div>
+      <div class="sb-sub"><%= t('admin.panel', 'Admin Panel') %></div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <a href="/lang/id" class="btn btn-g btn-sm" style="padding:4px 8px">ID</a>
+        <a href="/lang/en" class="btn btn-g btn-sm" style="padding:4px 8px">EN</a>
+      </div>
     </div>
     <button class="sb-close btn-g btn-sm" onclick="toggleSidebar()"><i class="bi bi-x-lg"></i></button>
   </div>
   <nav class="sb-nav">
-    <div class="sb-section">UTAMA</div>
+    <div class="sb-section"><%= t('admin.section.main', 'UTAMA') %></div>
     <a href="/admin" class="sb-item <%= (!activePage || activePage==='dashboard') ? 'active' : '' %>">
-      <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+      <i class="bi bi-speedometer2"></i><span><%= t('admin.nav.dashboard', 'Dashboard') %></span>
     </a>
     <a href="/admin/mikrotik" class="sb-item <%= activePage==='mikrotik' ? 'active' : '' %>">
-      <i class="bi bi-router"></i><span>Monitoring MikroTik</span>
+      <i class="bi bi-router"></i><span><%= t('admin.nav.mikrotik_monitoring', 'Monitoring MikroTik') %></span>
     </a>
     <a href="/admin/vouchers" class="sb-item <%= activePage==='vouchers' ? 'active' : '' %>">
-      <i class="bi bi-ticket-perforated"></i><span>Voucher Hotspot</span>
+      <i class="bi bi-ticket-perforated"></i><span><%= t('admin.nav.voucher_hotspot', 'Voucher Hotspot') %></span>
     </a>
     <a href="/admin/routers" class="sb-item <%= activePage==='routers' ? 'active' : '' %>">
-      <i class="bi bi-hdd-network"></i><span>Manajemen Router</span>
+      <i class="bi bi-hdd-network"></i><span><%= t('admin.nav.router_management', 'Manajemen Router') %></span>
     </a>
     <a href="/admin/olts" class="sb-item <%= activePage==='olts' ? 'active' : '' %>">
-      <i class="bi bi-hdd-rack"></i><span>Manajemen OLT</span>
+      <i class="bi bi-hdd-rack"></i><span><%= t('admin.nav.olt_management', 'Manajemen OLT') %></span>
     </a>
     <a href="/admin/map" class="sb-item <%= activePage==='map' ? 'active' : '' %>">
-      <i class="bi bi-map"></i><span>Peta Jaringan</span>
+      <i class="bi bi-map"></i><span><%= t('admin.nav.network_map', 'Peta Jaringan') %></span>
     </a>
     <a href="/admin/whatsapp" class="sb-item <%= activePage==='whatsapp' ? 'active' : '' %>">
-      <i class="bi bi-whatsapp"></i><span>Status WhatsApp</span>
+      <i class="bi bi-whatsapp"></i><span><%= t('admin.nav.whatsapp_status', 'Status WhatsApp') %></span>
     </a>
     <!-- <a href="/admin/whatsapp/broadcast" class="sb-item <%= activePage==='broadcast' ? 'active' : '' %>">
       <i class="bi bi-megaphone"></i><span>Broadcast WA</span>
     </a> -->
-    <div class="sb-section">BILLING</div>
+    <div class="sb-section"><%= t('admin.section.billing', 'BILLING') %></div>
     <a href="/admin/customers" class="sb-item <%= activePage==='customers' ? 'active' : '' %>">
-      <i class="bi bi-people"></i><span>Pelanggan</span>
+      <i class="bi bi-people"></i><span><%= t('admin.nav.customers', 'Pelanggan') %></span>
     </a>
     <a href="/admin/packages" class="sb-item <%= activePage==='packages' ? 'active' : '' %>">
-      <i class="bi bi-box-seam"></i><span>Paket Internet</span>
+      <i class="bi bi-box-seam"></i><span><%= t('admin.nav.internet_packages', 'Paket Internet') %></span>
     </a>
     <a href="/admin/billing" class="sb-item <%= activePage==='billing' ? 'active' : '' %>">
-      <i class="bi bi-receipt"></i><span>Tagihan</span>
+      <i class="bi bi-receipt"></i><span><%= t('admin.nav.invoices', 'Tagihan') %></span>
     </a>
     <a href="/admin/reports" class="sb-item <%= activePage==='reports' ? 'active' : '' %>">
-      <i class="bi bi-bar-chart-line"></i><span>Laporan Keuangan</span>
+      <i class="bi bi-bar-chart-line"></i><span><%= t('admin.nav.finance_report', 'Laporan Keuangan') %></span>
     </a>
-    <div class="sb-section">LAYANAN</div>
+    <div class="sb-section"><%= t('admin.section.service', 'LAYANAN') %></div>
     <a href="/admin/tickets" class="sb-item <%= activePage==='tickets' ? 'active' : '' %>">
-      <i class="bi bi-headset"></i><span>Keluhan Pelanggan</span>
+      <i class="bi bi-headset"></i><span><%= t('admin.nav.customer_tickets', 'Keluhan Pelanggan') %></span>
     </a>
 
     <% if (typeof session !=='undefined' && session.isAdmin) { %>
-      <div class="sb-section">MANAJEMEN USER</div>
+      <div class="sb-section"><%= t('admin.section.user_management', 'MANAJEMEN USER') %></div>
       <a href="/admin/technicians" class="sb-item <%= activePage==='technicians' ? 'active' : '' %>">
-        <i class="bi bi-person-gear"></i><span>Teknisi</span>
+        <i class="bi bi-person-gear"></i><span><%= t('admin.nav.technicians', 'Teknisi') %></span>
       </a>
       <a href="/admin/cashiers" class="sb-item <%= activePage==='cashiers' ? 'active' : '' %>">
-        <i class="bi bi-person-vcard"></i><span>Kasir</span>
+        <i class="bi bi-person-vcard"></i><span><%= t('admin.nav.cashiers', 'Kasir') %></span>
       </a>
       <% } %>
 
-        <div class="sb-section">SISTEM</div>
+        <div class="sb-section"><%= t('admin.section.system', 'SISTEM') %></div>
         <% if (typeof session !=='undefined' && session.isAdmin) { %>
           <a href="/admin/settings" class="sb-item <%= activePage==='settings' ? 'active' : '' %>">
-            <i class="bi bi-gear"></i><span>Pengaturan</span>
+            <i class="bi bi-gear"></i><span><%= t('admin.nav.settings', 'Pengaturan') %></span>
           </a>
 
           <% } %>
             <a href="/admin/logout" class="sb-item logout">
-              <i class="bi bi-box-arrow-left"></i><span>Logout</span>
+              <i class="bi bi-box-arrow-left"></i><span><%= t('common.logout', 'Logout') %></span>
             </a>
             <div class="mt-4 px-3 py-2 text-center" style="border-top: 1px solid rgba(255,255,255,0.1);">
               <a href="https://github.com/alijayanet/billing-rtrw" target="_blank"
@@ -97,15 +101,15 @@
 <nav class="bottom-nav" id="bottomNav">
   <a href="/admin" class="bn-item <%= (!activePage || activePage==='dashboard') ? 'active' : '' %>">
     <i class="bi bi-speedometer2"></i>
-    <span>Beranda</span>
+    <span><%= t('common.home', 'Beranda') %></span>
   </a>
   <a href="/admin/customers" class="bn-item <%= activePage==='customers' ? 'active' : '' %>">
     <i class="bi bi-people"></i>
-    <span>Pelanggan</span>
+    <span><%= t('admin.nav.customers', 'Pelanggan') %></span>
   </a>
   <a href="/admin/billing" class="bn-item <%= activePage==='billing' ? 'active' : '' %>">
     <i class="bi bi-receipt"></i>
-    <span>Tagihan</span>
+    <span><%= t('admin.nav.invoices', 'Tagihan') %></span>
   </a>
   <a href="/admin/mikrotik" class="bn-item <%= activePage==='mikrotik' ? 'active' : '' %>">
     <i class="bi bi-router"></i>
@@ -113,6 +117,6 @@
   </a>
   <button class="bn-item" onclick="toggleSidebar()">
     <i class="bi bi-grid-3x3-gap"></i>
-    <span>Menu</span>
+    <span><%= t('common.menu', 'Menu') %></span>
   </button>
 </nav>

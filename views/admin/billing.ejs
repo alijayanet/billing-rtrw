@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Tagihan | <%= company %></title>
+  <title><%= t('admin.billing.title', 'Tagihan') %> | <%= company %></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/css/admin.css">
   <style>
@@ -14,9 +14,9 @@
 <%- include('partials/sidebar', { activePage: 'billing', company }) %>
 <div class="mw">
   <div class="topbar">
-    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-receipt"></i> Manajemen Tagihan</div>
+    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-receipt"></i> <%= t('admin.billing.manage_title', 'Manajemen Tagihan') %></div>
     <div class="tb-right">
-      <button class="btn btn-p btn-sm" onclick="openModal('genModal')"><i class="bi bi-lightning-charge"></i> Generate Tagihan</button>
+      <button class="btn btn-p btn-sm" onclick="openModal('genModal')"><i class="bi bi-lightning-charge"></i> <%= t('admin.billing.generate', 'Generate Tagihan') %></button>
       <span class="adm-badge"><i class="bi bi-person-fill"></i> Admin</span>
       <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>
     </div>
@@ -41,10 +41,10 @@
     <form method="GET" action="/admin/billing" class="filter-bar">
       <div class="sinput" style="max-width:260px">
         <i class="bi bi-search"></i>
-        <input class="fc" name="search" placeholder="Cari nama / telepon..." value="<%= search %>">
+        <input class="fc" name="search" placeholder="<%= t('admin.billing.search_placeholder', 'Cari nama / telepon...') %>" value="<%= search %>">
       </div>
       <select class="fs" name="month" style="width:130px">
-        <option value="">Semua Bulan</option>
+        <option value=""><%= t('admin.billing.all_months', 'Semua Bulan') %></option>
         <% const monthNames=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
            for(let m=1;m<=12;m++){%>
         <option value="<%= m %>" <%= filterMonth==m?'selected':'' %>><%= monthNames[m-1] %></option>
@@ -56,18 +56,18 @@
         <% } %>
       </select>
       <select class="fs" name="status" style="width:130px">
-        <option value="all" <%= filterStatus==='all'?'selected':'' %>>Semua Status</option>
-        <option value="unpaid" <%= filterStatus==='unpaid'?'selected':'' %>>Belum Bayar</option>
-        <option value="paid" <%= filterStatus==='paid'?'selected':'' %>>Sudah Bayar</option>
+        <option value="all" <%= filterStatus==='all'?'selected':'' %>><%= t('admin.billing.all_status', 'Semua Status') %></option>
+        <option value="unpaid" <%= filterStatus==='unpaid'?'selected':'' %>><%= t('admin.billing.unpaid', 'Belum Bayar') %></option>
+        <option value="paid" <%= filterStatus==='paid'?'selected':'' %>><%= t('admin.billing.paid', 'Sudah Bayar') %></option>
       </select>
-      <button class="btn btn-g btn-sm" type="submit"><i class="bi bi-funnel"></i> Filter</button>
-      <a href="/admin/billing" class="btn btn-g btn-sm"><i class="bi bi-x"></i> Reset</a>
+      <button class="btn btn-g btn-sm" type="submit"><i class="bi bi-funnel"></i> <%= t('common.filter', 'Filter') %></button>
+      <a href="/admin/billing" class="btn btn-g btn-sm"><i class="bi bi-x"></i> <%= t('common.reset', 'Reset') %></a>
     </form>
 
     <!-- Table -->
     <div class="card">
       <div class="card-hd">
-        <h6><i class="bi bi-list-ul"></i> Daftar Tagihan (<%= invoices.length %>)</h6>
+        <h6><i class="bi bi-list-ul"></i> <%= t('admin.billing.list', 'Daftar Tagihan') %> (<%= invoices.length %>)</h6>
       </div>
       <div class="tbl-wrap">
         <table class="dtbl">
@@ -76,7 +76,7 @@
           </thead>
           <tbody>
           <% if (invoices.length===0) { %>
-            <tr><td colspan="9" class="text-center text-muted" style="padding:32px">Tidak ada tagihan. Generate tagihan bulanan terlebih dahulu.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted" style="padding:32px"><%= t('admin.billing.empty', 'Tidak ada tagihan. Generate tagihan bulanan terlebih dahulu.') %></td></tr>
           <% } %>
           <% invoices.forEach((inv,i)=>{ %>
             <tr class="<%= inv.status==='paid'?'paid-row':'' %>">

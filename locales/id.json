@@ -1,0 +1,242 @@
+{
+  "common": {
+    "menu": "Menu",
+    "home": "Beranda",
+    "login": "Login",
+    "search": "Cari",
+    "filter": "Filter",
+    "reset": "Reset",
+    "cancel": "Batal",
+    "save": "Simpan",
+    "add": "Tambah",
+    "copy_link": "Salin Link",
+    "logout": "Logout",
+    "language": "Bahasa"
+  },
+  "admin": {
+    "panel": "Admin Panel",
+    "role": {
+      "admin": "Admin",
+      "cashier": "Kasir"
+    },
+    "dashboard": {
+      "live_update": "Live Update",
+      "portal_link": "Link Portal Pelanggan",
+      "monitoring_onu": "Monitoring ONU"
+    },
+    "whatsapp": {
+      "status_title": "Status WhatsApp",
+      "checking": "Mengecek status...",
+      "please_wait": "Harap tunggu sebentar.",
+      "connected": "Terhubung",
+      "need_scan": "Perlu Pemindaian",
+      "refresh_status": "Refresh Status",
+      "reset_session": "Hapus Sesi / Reset",
+      "test_notification": "Kirim Test Notif"
+    },
+    "broadcast": {
+      "title": "Broadcast WhatsApp",
+      "start": "Mulai Broadcast",
+      "target": "Target Penerima",
+      "delay": "Jeda Antar Pesan (Detik)",
+      "message": "Isi Pesan WhatsApp"
+    },
+    "billing": {
+      "title": "Tagihan",
+      "manage_title": "Manajemen Tagihan",
+      "generate": "Generate Tagihan",
+      "search_placeholder": "Cari nama / telepon...",
+      "all_months": "Semua Bulan",
+      "all_status": "Semua Status",
+      "unpaid": "Belum Bayar",
+      "paid": "Sudah Bayar",
+      "list": "Daftar Tagihan",
+      "empty": "Tidak ada tagihan. Generate tagihan bulanan terlebih dahulu."
+    },
+    "customers": {
+      "title": "Pelanggan",
+      "manage_title": "Manajemen Pelanggan",
+      "list": "Daftar Pelanggan",
+      "add": "Tambah Pelanggan",
+      "export_excel": "Export Excel",
+      "import_excel": "Import Excel",
+      "search_placeholder": "Cari nama, telepon, tag...",
+      "empty": "Belum ada pelanggan"
+    },
+    "packages": {
+      "title": "Paket Internet",
+      "list": "Daftar Paket",
+      "add": "Tambah Paket",
+      "empty": "Belum ada paket. Tambah paket pertama!"
+    },
+    "settings": {
+      "title": "Pengaturan",
+      "system_title": "Pengaturan Sistem"
+    },
+    "section": {
+      "main": "UTAMA",
+      "billing": "BILLING",
+      "service": "LAYANAN",
+      "user_management": "MANAJEMEN USER",
+      "system": "SISTEM"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "mikrotik_monitoring": "Monitoring MikroTik",
+      "voucher_hotspot": "Voucher Hotspot",
+      "router_management": "Manajemen Router",
+      "olt_management": "Manajemen OLT",
+      "network_map": "Peta Jaringan",
+      "whatsapp_status": "Status WhatsApp",
+      "customers": "Pelanggan",
+      "internet_packages": "Paket Internet",
+      "invoices": "Tagihan",
+      "finance_report": "Laporan Keuangan",
+      "customer_tickets": "Keluhan Pelanggan",
+      "technicians": "Teknisi",
+      "cashiers": "Kasir",
+      "settings": "Pengaturan"
+    }
+  },
+  "tech": {
+    "login_title": "Login Teknisi",
+    "portal_title": "Portal Teknisi",
+    "new_customer": "Tambah Pelanggan",
+    "logout_confirm": "Apakah Anda yakin ingin logout?",
+    "dashboard": {
+      "greeting": "Halo, Selamat Bekerja!",
+      "in_progress": "Sedang Dikerjakan",
+      "resolved_today": "Selesai Hari Ini",
+      "active_tasks": "Tugas Aktif Anda",
+      "empty_active": "Bagus! Tidak ada tugas aktif saat ini.",
+      "empty_active_hint": "Silakan cek tab \"Tiket Baru\" untuk mengambil tugas."
+    },
+    "ticket": {
+      "open": "Belum Ditangani",
+      "in_progress": "Sedang Dikerjakan",
+      "resolved": "Selesai",
+      "no_address": "Tidak ada alamat",
+      "mark_resolved": "Tandai Selesai",
+      "resolve_title": "Selesaikan Tugas",
+      "resolve_confirm_prefix": "Apakah Anda yakin tugas untuk keluhan",
+      "resolve_confirm_suffix": "sudah selesai dikerjakan?",
+      "cancel": "Batal",
+      "yes_resolved": "Ya, Selesai"
+    },
+    "pool": {
+      "title": "Tiket Baru",
+      "subtitle": "Daftar keluhan yang belum ditangani",
+      "empty": "Tidak ada keluhan baru saat ini.",
+      "empty_hint": "Semua pelanggan berjalan normal.",
+      "take_confirm": "Ambil tiket ini untuk Anda kerjakan sekarang?",
+      "take_action": "Ambil Tugas Ini"
+    },
+    "history_page": {
+      "title": "Riwayat Tugas",
+      "subtitle": "50 tugas terakhir yang sudah diselesaikan",
+      "empty": "Belum ada riwayat tugas yang diselesaikan."
+    },
+    "nav": {
+      "my_tasks": "Tugas Saya",
+      "new_tickets": "Tiket Baru",
+      "map": "Peta",
+      "monitor": "Monitor",
+      "history": "Riwayat"
+    }
+  },
+  "customer": {
+    "login_title": "Login Pelanggan",
+    "portal_title": "Portal Pelanggan",
+    "id_tag": "ID/Tag Pelanggan",
+    "id_tag_placeholder": "Masukkan ID/Tag Pelanggan",
+    "otp_sent_via_wa": "Kode OTP akan dikirim via WhatsApp",
+    "sign_in": "Masuk",
+    "not_subscribed": "Belum berlangganan?",
+    "register_new": "Daftar Pemasangan Baru",
+    "otp_title": "Verifikasi OTP",
+    "dashboard_title": "Dashboard Pelanggan",
+    "dashboard": {
+      "portal": "Portal Pelanggan",
+      "hello": "Halo",
+      "service": "Layanan",
+      "active": "AKTIF",
+      "suspended": "ISOLIR",
+      "device_status": "Status Perangkat",
+      "current_ssid": "SSID Saat Ini",
+      "software_version": "Versi Software",
+      "last_inform": "Last Inform",
+      "rx_power": "RX Power",
+      "pppoe_ip": "PPPoE IP",
+      "pppoe_username": "PPPoE Username",
+      "connected_users": "User Terhubung"
+    },
+    "billing": {
+      "title": "Status Tagihan & Riwayat",
+      "period": "Periode",
+      "service_package": "Layanan / Paket",
+      "amount": "Jumlah",
+      "status": "Status",
+      "paid": "LUNAS",
+      "paid_at": "Dibayar",
+      "pay_online": "BAYAR ONLINE",
+      "unpaid": "BELUM BAYAR",
+      "empty": "Tidak ada data tagihan.",
+      "internet_service": "Layanan Internet"
+    },
+    "ticket": {
+      "title": "Tiket Bantuan & Keluhan",
+      "report_1": "LAPORKAN",
+      "report_2": "MASALAH",
+      "time": "Waktu",
+      "issue": "Kendala",
+      "status": "Status",
+      "waiting": "Menunggu",
+      "in_progress": "Dikerjakan",
+      "resolved": "Selesai",
+      "empty": "Belum ada riwayat keluhan."
+    },
+    "wifi": {
+      "change_ssid": "Ganti Nama WiFi (SSID)",
+      "current_ssid": "SSID saat ini",
+      "new_ssid_placeholder": "Nama WiFi baru",
+      "change_ssid_btn": "Ganti SSID",
+      "change_password": "Ganti Password WiFi",
+      "new_password_placeholder": "Password baru",
+      "change_password_btn": "Ganti Password"
+    },
+    "reboot": {
+      "device": "Reboot Perangkat",
+      "confirm": "Yakin ingin reboot perangkat Anda?"
+    },
+    "devices": {
+      "title": "Perangkat Terhubung",
+      "hostname": "Hostname",
+      "ip": "IP",
+      "mac": "MAC",
+      "interface": "Interface",
+      "status": "Status",
+      "online": "Online",
+      "offline": "Offline",
+      "empty": "Tidak ada perangkat yang sedang terhubung."
+    },
+    "help": {
+      "contact_admin": "Jika mengalami kendala, silakan hubungi admin melalui WhatsApp."
+    },
+    "footer": {
+      "about": "Tentang Kami",
+      "tos": "Ketentuan Layanan",
+      "privacy": "Kebijakan Privasi",
+      "contact": "Kontak"
+    },
+    "payment": {
+      "choose_title": "Pilih Pembayaran",
+      "choose_desc": "Silakan pilih metode pembayaran untuk tagihan sebesar"
+    },
+    "nav": {
+      "home": "Beranda",
+      "billing": "Tagihan",
+      "help": "Bantuan",
+      "wifi": "WiFi"
+    }
+  }
+}

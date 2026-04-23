@@ -2,8 +2,8 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h5 class="mb-0 fw-bold">Tiket Baru</h5>
-    <div class="text-secondary" style="font-size: 12px;">Daftar keluhan yang belum ditangani</div>
+    <h5 class="mb-0 fw-bold"><%= t('tech.pool.title', 'Tiket Baru') %></h5>
+    <div class="text-secondary" style="font-size: 12px;"><%= t('tech.pool.subtitle', 'Daftar keluhan yang belum ditangani') %></div>
   </div>
   <div class="bg-danger bg-opacity-25 text-danger rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; font-weight: bold;">
     <%= tickets.length %>
@@ -13,21 +13,21 @@
 <% if (tickets.length === 0) { %>
   <div class="text-center py-5">
     <i class="bi bi-emoji-smile text-secondary" style="font-size: 40px;"></i>
-    <p class="text-secondary mt-2 small">Tidak ada keluhan baru saat ini.<br>Semua pelanggan berjalan normal.</p>
+    <p class="text-secondary mt-2 small"><%= t('tech.pool.empty', 'Tidak ada keluhan baru saat ini.') %><br><%= t('tech.pool.empty_hint', 'Semua pelanggan berjalan normal.') %></p>
   </div>
 <% } else { %>
   <% tickets.forEach(t => { %>
     <div class="t-card border-danger border-opacity-25">
       <div class="d-flex justify-content-between align-items-start mb-2">
         <span class="badge-status badge-open">
-          <i class="bi bi-exclamation-circle-fill"></i> Belum Ditangani
+          <i class="bi bi-exclamation-circle-fill"></i> <%= t('tech.ticket.open', 'Belum Ditangani') %>
         </span>
         <span class="text-secondary" style="font-size: 11px;"><%= new Date(t.created_at).toLocaleString('id-ID', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'}) %></span>
       </div>
       
       <div class="fw-bold mb-1" style="font-size: 15px;"><%= t.customer_name %></div>
       <div class="text-secondary mb-2" style="font-size: 12px;">
-        <i class="bi bi-geo-alt-fill me-1"></i><%= t.customer_address || 'Tidak ada alamat' %>
+        <i class="bi bi-geo-alt-fill me-1"></i><%= t.customer_address || t('tech.ticket.no_address', 'Tidak ada alamat') %>
       </div>
       
       <div class="bg-dark p-2 rounded-3 mb-3" style="font-size: 13px; border: 1px solid #334155;">
@@ -36,8 +36,8 @@
       </div>
       
       <form method="POST" action="/tech/tickets/<%= t.id %>/take">
-        <button type="submit" class="btn btn-primary btn-action" onclick="return confirm('Ambil tiket ini untuk Anda kerjakan sekarang?')">
-          <i class="bi bi-hand-index-thumb-fill me-2"></i> Ambil Tugas Ini
+        <button type="submit" class="btn btn-primary btn-action" onclick="return confirm(<%- JSON.stringify(t('tech.pool.take_confirm', 'Ambil tiket ini untuk Anda kerjakan sekarang?')) %>)">
+          <i class="bi bi-hand-index-thumb-fill me-2"></i> <%= t('tech.pool.take_action', 'Ambil Tugas Ini') %>
         </button>
       </form>
     </div>

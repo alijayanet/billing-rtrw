@@ -1416,6 +1416,32 @@ router.post('/api/vouchers/batches/:id/sync', requireAdmin, async (req, res) => 
   }
 });
 
+router.post('/api/vouchers/batches/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    const batchId = Number(req.params.id);
+    if (!batchId) return res.status(400).json({ error: 'Batch ID tidak valid' });
+
+    const batch = db.prepare('SELECT id, status FROM voucher_batches WHERE id = ?').get(batchId);
+    if (!batch) return res.status(404).json({ error: 'Batch tidak ditemukan' });
+    if (String(batch.status) === 'creating') {
+      return res.status(400).json({ error: 'Batch sedang diproses (creating). Silakan tunggu hingga selesai.' });
+    }
+
+    const stats = db.prepare(`
+      SELECT
+        (SELECT COUNT(1) FROM vouchers v WHERE v.batch_id = ?) AS total,
+        (SELECT COUNT(1) FROM vouchers v WHERE v.batch_id = ? AND v.used_at IS NOT NULL) AS used
+    `).get(batchId, batchId);
+
+    const del = db.prepare('DELETE FROM voucher_batches WHERE id = ?');
+    del.run(batchId);
+
+    res.json({ success: true, deletedBatchId: batchId, deletedVouchers: stats?.total || 0, usedCount: stats?.used || 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/api/mikrotik/secrets', requireAdmin, async (req, res) => {
   try { res.json(await mikrotikService.getPppoeSecrets(req.query.routerId)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1621,6 +1647,26 @@ router.get('/api/whatsapp/status', requireAdmin, async (req, res) => {
       res.status(500).json({ error: e.message });
     }
   });
+
+router.post('/whatsapp/test-notification', requireAdminSession, async (req, res) => {
+  try {
+    const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');
+    if (whatsappStatus.connection !== 'open') {
+      throw new Error('Bot WhatsApp belum terhubung. Silakan scan QR hingga status Terhubung.');
+    }
+    const adminPhone = '087820851413';
+    const msg =
+      `🧪 *TEST NOTIFIKASI WHATSAPP*\n\n` +
+      `✅ Jika pesan ini masuk, berarti notifikasi WhatsApp dari Billing Alijaya System sudah berfungsi.\n` +
+      `📅 Waktu: ${new Date().toLocaleString('id-ID')}`;
+    const ok = await sendWA(adminPhone, msg);
+    if (!ok) throw new Error('Gagal mengirim pesan test (sendWA=false).');
+    req.session._msg = { type: 'success', text: 'Test notifikasi WhatsApp berhasil dikirim.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal kirim test WhatsApp: ' + e.message };
+  }
+  res.redirect('/admin/whatsapp');
+});
 
 router.post('/whatsapp/reset', requireAdminSession, (req, res) => {
   try {

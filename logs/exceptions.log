@@ -40,3 +40,12 @@ Require stack:
     at Module._compile (node:internal/modules/cjs/loader:1562:14)
     at Object..js (node:internal/modules/cjs/loader:1699:10)
     at Module.load (node:internal/modules/cjs/loader:1313:32)
+2026-04-21 12:52:47 error: uncaughtException: extractIdx is not defined
+ReferenceError: extractIdx is not defined
+    at Object.feedCb (D:\app-customer\services\oltService.js:205:32)
+    at Session.walkCb (D:\app-customer\node_modules\net-snmp\index.js:2920:11)
+    at Req.feedCb (D:\app-customer\node_modules\net-snmp\index.js:2241:7)
+    at Session.onSimpleGetResponse [as onResponse] (D:\app-customer\node_modules\net-snmp\index.js:2484:7)
+    at Session.onMsg (D:\app-customer\node_modules\net-snmp\index.js:2459:7)
+    at Socket.emit (node:events:524:28)
+    at UDP.onMessage [as onmessage] (node:dgram:988:8)

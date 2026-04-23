@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Paket Internet | <%= company %></title>
+  <title><%= t('admin.packages.title', 'Paket Internet') %> | <%= company %></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/css/admin.css">
 </head>
@@ -10,7 +10,7 @@
 <%- include('partials/sidebar', { activePage: 'packages', company }) %>
 <div class="mw">
   <div class="topbar">
-    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-box-seam"></i> Paket Internet</div>
+    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-box-seam"></i> <%= t('admin.packages.title', 'Paket Internet') %></div>
     <div class="tb-right">
       <span class="adm-badge"><i class="bi bi-person-fill"></i> Admin</span>
       <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>
@@ -26,8 +26,8 @@
 
     <div class="card">
       <div class="card-hd">
-        <h6><i class="bi bi-box-seam"></i> Daftar Paket (<%= packages.length %>)</h6>
-        <button class="btn btn-p btn-sm" onclick="openModal('addModal')"><i class="bi bi-plus-lg"></i> Tambah Paket</button>
+        <h6><i class="bi bi-box-seam"></i> <%= t('admin.packages.list', 'Daftar Paket') %> (<%= packages.length %>)</h6>
+        <button class="btn btn-p btn-sm" onclick="openModal('addModal')"><i class="bi bi-plus-lg"></i> <%= t('admin.packages.add', 'Tambah Paket') %></button>
       </div>
       <div class="tbl-wrap">
         <table class="dtbl">
@@ -36,7 +36,7 @@
           </thead>
           <tbody>
           <% if (packages.length===0) { %>
-            <tr><td colspan="8" class="text-center text-muted" style="padding:32px">Belum ada paket. Tambah paket pertama!</td></tr>
+            <tr><td colspan="8" class="text-center text-muted" style="padding:32px"><%= t('admin.packages.empty', 'Belum ada paket. Tambah paket pertama!') %></td></tr>
           <% } %>
           <% packages.forEach((p,i)=>{ %>
             <tr>

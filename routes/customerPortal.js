@@ -643,7 +643,13 @@ router.post('/payment/callback', express.json(), async (req, res) => {
       
       // Kirim Notifikasi WA Lunas
       try {
-        const { sendWA } = await import('../services/whatsappBot.mjs');
+        const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');
+        if (whatsappStatus.connection !== 'open') {
+          throw new Error('Bot WhatsApp belum terhubung');
+        }
+        if (!customer.phone) {
+          throw new Error('Nomor WhatsApp pelanggan kosong');
+        }
         const msg = `✅ *PEMBAYARAN BERHASIL*\n\nTerima kasih Kak *${customer.name}*,\n\nPembayaran tagihan internet periode *${checkInv.period_month}/${checkInv.period_year}* telah kami terima via *${gateway}*.\n\n💰 *Total:* Rp ${checkInv.amount.toLocaleString('id-ID')}\n📅 *Waktu:* ${new Date().toLocaleString('id-ID')}\n\nStatus layanan Anda kini telah aktif. Selamat berinternet kembali! 🚀`;
         await sendWA(customer.phone, msg);
       } catch (waErr) {

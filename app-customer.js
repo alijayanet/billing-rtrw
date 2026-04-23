@@ -18,6 +18,7 @@ process.on('unhandledRejection', (reason, promise) => {
 // Settings Management
 const session = require('express-session');
 const { getSetting } = require('./config/settingsManager');
+const { SUPPORTED_LANGS, FALLBACK_LANG, normalizeLang, t } = require('./config/i18n');
 
 // Inisialisasi aplikasi Express
 const app = express();
@@ -43,6 +44,28 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
+
+// i18n middleware (aman: hanya teks UI, tidak mengubah logic fitur)
+app.use((req, res, next) => {
+  if (req.query && typeof req.query.lang === 'string') {
+    const requested = normalizeLang(req.query.lang);
+    req.session.lang = requested;
+  }
+  const saved = req.session?.lang || getSetting('default_lang', FALLBACK_LANG);
+  const lang = normalizeLang(saved);
+  res.locals.lang = lang;
+  res.locals.availableLangs = Array.from(SUPPORTED_LANGS);
+  res.locals.t = (key, fallback = '') => t(lang, key, fallback);
+  next();
+});
+
+app.get('/lang/:lang', (req, res) => {
+  const targetLang = normalizeLang(req.params.lang);
+  req.session.lang = targetLang;
+  const referer = req.get('referer');
+  if (referer) return res.redirect(referer);
+  return res.redirect('/');
+});
 
 // Konstanta
 const VERSION = '2.0.0';

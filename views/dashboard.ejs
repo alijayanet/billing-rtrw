@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Pelanggan | Portal ISP</title>
+  <title><%= t('customer.dashboard_title', 'Dashboard Pelanggan') %> | Portal ISP</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -345,11 +345,11 @@
   <nav class="navbar navbar-light shadow-sm">
     <div class="container d-flex justify-content-between align-items-center">
       <span class="navbar-brand">
-        <img src="/img/logo.png" alt="Logo"> Portal Pelanggan
+        <img src="/img/logo.png" alt="Logo"> <%= t('customer.dashboard.portal', 'Portal Pelanggan') %>
       </span>
       <div class="d-flex align-items-center gap-2">
         <% if (customer.status==='Online' ) { %>
-          <span class="status-badge bg-success">Online</span>
+          <span class="status-badge bg-success"><%= t('customer.devices.online', 'Online') %></span>
           <% } else { %>
             <span class="status-badge bg-secondary">
               <%= customer.status %>
@@ -392,13 +392,13 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                   <h5 class="mb-0">
                     <i class="bi bi-person-circle me-2"></i>
-                    Halo, <span class="fw-bold">
+                    <%= t('customer.dashboard.hello', 'Halo') %>, <span class="fw-bold">
                       <%= profile ? profile.name : customer.phone %>
                     </span>
                   </h5>
                   <% if (profile) { %>
                     <span class="badge <%= profile.status === 'active' ? 'bg-success' : 'bg-danger' %>">
-                      Layanan: <%= profile.status==='active' ? 'AKTIF' : 'ISOLIR' %>
+                      <%= t('customer.dashboard.service', 'Layanan') %>: <%= profile.status==='active' ? t('customer.dashboard.active', 'AKTIF') : t('customer.dashboard.suspended', 'ISOLIR') %>
                     </span>
                     <% } %>
                 </div>
@@ -408,10 +408,10 @@
                       <div class="stat-icon <%= customer.status === 'Online' ? 'online' : 'offline' %>">
                         <i class="bi bi-circle-fill"></i>
                       </div>
-                      <div class="stat-label">Status Perangkat</div>
+                      <div class="stat-label"><%= t('customer.dashboard.device_status', 'Status Perangkat') %></div>
                       <div class="stat-value">
                         <% if (customer.status==='Online' ) { %>
-                          <span class="badge bg-success">Online</span>
+                          <span class="badge bg-success"><%= t('customer.devices.online', 'Online') %></span>
                           <% } else { %>
                             <span class="badge bg-secondary">
                               <%= customer.status %>
@@ -424,7 +424,7 @@
                       <div class="stat-icon wifi">
                         <i class="bi bi-wifi"></i>
                       </div>
-                      <div class="stat-label">SSID Saat Ini</div>
+                      <div class="stat-label"><%= t('customer.dashboard.current_ssid', 'SSID Saat Ini') %></div>
                       <div class="stat-value">
                         <%= customer.ssid %>
                       </div>
@@ -434,7 +434,7 @@
                       <div class="stat-icon cpu">
                         <i class="bi bi-cpu"></i>
                       </div>
-                      <div class="stat-label">Software Version</div>
+                      <div class="stat-label"><%= t('customer.dashboard.software_version', 'Versi Software') %></div>
                       <div class="stat-value">
                         <%= customer.softwareVersion %>
                       </div>
@@ -444,7 +444,7 @@
                       <div class="stat-icon clock">
                         <i class="bi bi-clock-history"></i>
                       </div>
-                      <div class="stat-label">Last Inform</div>
+                      <div class="stat-label"><%= t('customer.dashboard.last_inform', 'Last Inform') %></div>
                       <div class="stat-value">
                         <%= customer.lastInform %>
                       </div>
@@ -454,7 +454,7 @@
                       <div class="stat-icon activity">
                         <i class="bi bi-activity"></i>
                       </div>
-                      <div class="stat-label">RX Power</div>
+                      <div class="stat-label"><%= t('customer.dashboard.rx_power', 'RX Power') %></div>
                       <div class="stat-value">
                         <%= customer.rxPower %>
                       </div>
@@ -464,7 +464,7 @@
                       <div class="stat-icon globe">
                         <i class="bi bi-globe"></i>
                       </div>
-                      <div class="stat-label">PPPoE IP</div>
+                      <div class="stat-label"><%= t('customer.dashboard.pppoe_ip', 'PPPoE IP') %></div>
                       <div class="stat-value">
                         <%= customer.pppoeIP %>
                       </div>
@@ -474,7 +474,7 @@
                       <div class="stat-icon person">
                         <i class="bi bi-person"></i>
                       </div>
-                      <div class="stat-label">PPPoE Username</div>
+                      <div class="stat-label"><%= t('customer.dashboard.pppoe_username', 'PPPoE Username') %></div>
                       <div class="stat-value">
                         <%= customer.pppoeUsername %>
                       </div>
@@ -484,7 +484,7 @@
                       <div class="stat-icon people">
                         <i class="bi bi-people"></i>
                       </div>
-                      <div class="stat-label">User Terhubung</div>
+                      <div class="stat-label"><%= t('customer.dashboard.connected_users', 'User Terhubung') %></div>
                       <div class="stat-value">
                         <%= customer.totalAssociations %>
                       </div>
@@ -495,36 +495,35 @@
 
               <!-- Tagihan Section -->
               <div class="form-section" id="billing-section">
-                <h6><i class="bi bi-receipt"></i> Status Tagihan & Riwayat</h6>
+                <h6><i class="bi bi-receipt"></i> <%= t('customer.billing.title', 'Status Tagihan & Riwayat') %></h6>
                 <% if (invoices && invoices.length> 0) { %>
+                  <% const monthNames = (lang === 'en') ? ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] : ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']; %>
                   <div class="table-responsive">
                     <table class="table table-hover">
                       <thead>
                         <tr>
-                          <th>Periode</th>
-                          <th>Layanan / Paket</th>
-                          <th>Jumlah</th>
-                          <th>Status</th>
+                          <th><%= t('customer.billing.period', 'Periode') %></th>
+                          <th><%= t('customer.billing.service_package', 'Layanan / Paket') %></th>
+                          <th><%= t('customer.billing.amount', 'Jumlah') %></th>
+                          <th><%= t('customer.billing.status', 'Status') %></th>
                         </tr>
                       </thead>
                       <tbody>
                         <% invoices.forEach(function(inv) { %>
                           <tr>
                             <td><strong>
-                                <%=
-                                  ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][inv.period_month]
-                                  %>
+                                <%= monthNames[inv.period_month] %>
                                   <%= inv.period_year %>
                               </strong></td>
                             <td>
-                              <%= inv.package_name || 'Internet Service' %>
+                              <%= inv.package_name || t('customer.billing.internet_service', 'Layanan Internet') %>
                             </td>
                             <td>Rp <%= inv.amount.toLocaleString('id-ID') %>
                             </td>
                             <td>
                               <% if (inv.status==='paid' ) { %>
-                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>LUNAS</span>
-                                <div class="text-muted small" style="font-size:10px">Dibayar: <%= new
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i><%= t('customer.billing.paid', 'LUNAS') %></span>
+                                <div class="text-muted small" style="font-size:10px"><%= t('customer.billing.paid_at', 'Dibayar') %>: <%= new
                                     Date(inv.paid_at).toLocaleDateString('id-ID') %>
                                 </div>
                                 <% } else { %>
@@ -533,10 +532,9 @@
                                       style="font-size:11px; line-height: 1.2; border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; min-width: 85px; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);"
                                       onclick="openPaymentModal('<%= inv.id %>', '<%= inv.amount %>')">
                                       <i class="bi bi-wallet2 d-block mb-1" style="font-size: 16px;"></i>
-                                      BAYAR ONLINE
+                                      <%= t('customer.billing.pay_online', 'BAYAR ONLINE') %>
                                     </button>
-                                    <span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i>BELUM
-                                      BAYAR</span>
+                                    <span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i><%= t('customer.billing.unpaid', 'BELUM BAYAR') %></span>
                                   </div>
                                   <% } %>
                             </td>
@@ -546,17 +544,17 @@
                     </table>
                   </div>
                   <% } else { %>
-                    <p class="text-muted mb-0">Tidak ada data tagihan.</p>
+                    <p class="text-muted mb-0"><%= t('customer.billing.empty', 'Tidak ada data tagihan.') %></p>
                     <% } %>
               </div>
 
               <!-- Keluhan Section -->
               <div class="form-section" id="ticket-section">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                  <h6 class="mb-0"><i class="bi bi-headset"></i> Tiket Bantuan & Keluhan</h6>
+                  <h6 class="mb-0"><i class="bi bi-headset"></i> <%= t('customer.ticket.title', 'Tiket Bantuan & Keluhan') %></h6>
                   <button class="btn btn-sm btn-action btn-ssid py-1 px-3"
                     onclick="new bootstrap.Modal(document.getElementById('ticketModal')).show()">
-                    <i class="bi bi-plus-lg me-1"></i> LAPORKAN <br> MASALAH
+                    <i class="bi bi-plus-lg me-1"></i> <%= t('customer.ticket.report_1', 'LAPORKAN') %> <br> <%= t('customer.ticket.report_2', 'MASALAH') %>
                   </button>
                 </div>
                 <% if (tickets && tickets.length> 0) { %>
@@ -564,9 +562,9 @@
                     <table class="table table-hover">
                       <thead>
                         <tr>
-                          <th>Waktu</th>
-                          <th>Kendala</th>
-                          <th>Status</th>
+                          <th><%= t('customer.ticket.time', 'Waktu') %></th>
+                          <th><%= t('customer.ticket.issue', 'Kendala') %></th>
+                          <th><%= t('customer.ticket.status', 'Status') %></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -587,12 +585,12 @@
                             <td>
                               <% if (t.status==='open' ) { %>
                                 <span class="badge bg-danger"><i
-                                    class="bi bi-exclamation-circle me-1"></i>Menunggu</span>
+                                    class="bi bi-exclamation-circle me-1"></i><%= t('customer.ticket.waiting', 'Menunggu') %></span>
                                 <% } else if (t.status==='in_progress' ) { %>
                                   <span class="badge bg-warning text-dark"><i
-                                      class="bi bi-tools me-1"></i>Dikerjakan</span>
+                                      class="bi bi-tools me-1"></i><%= t('customer.ticket.in_progress', 'Dikerjakan') %></span>
                                   <% } else { %>
-                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Selesai</span>
+                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i><%= t('customer.ticket.resolved', 'Selesai') %></span>
                                     <% } %>
                             </td>
                           </tr>
@@ -601,13 +599,13 @@
                     </table>
                   </div>
                   <% } else { %>
-                    <p class="text-muted mb-0 small">Belum ada riwayat keluhan.</p>
+                    <p class="text-muted mb-0 small"><%= t('customer.ticket.empty', 'Belum ada riwayat keluhan.') %></p>
                     <% } %>
               </div>
 
               <div class="form-section" id="settings-section">
-                <h6><i class="bi bi-wifi"></i>Ganti Nama WiFi (SSID)</h6>
-                <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i>SSID saat ini: <strong>
+                <h6><i class="bi bi-wifi"></i><%= t('customer.wifi.change_ssid', 'Ganti Nama WiFi (SSID)') %></h6>
+                <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i><%= t('customer.wifi.current_ssid', 'SSID saat ini') %>: <strong>
                     <%= customer.ssid %>
                   </strong> &nbsp;(5GHz: <strong>
                     <%= customer.ssid %>-5G
@@ -615,27 +613,27 @@
                 <form method="POST" action="/customer/change-ssid" class="row g-2 align-items-center">
                   <div class="col-12 col-md-8 mb-2 mb-md-0">
                     <input type="text" class="form-control" name="ssid"
-                      value="<%= customer.ssid !== '-' ? customer.ssid : '' %>" placeholder="Nama WiFi baru" required
+                      value="<%= customer.ssid !== '-' ? customer.ssid : '' %>" placeholder="<%= t('customer.wifi.new_ssid_placeholder', 'Nama WiFi baru') %>" required
                       maxlength="32">
                   </div>
                   <div class="col-12 col-md-4">
                     <button class="btn btn-action btn-ssid w-100" type="submit">
-                      <i class="bi bi-check-lg me-1"></i>Ganti SSID
+                      <i class="bi bi-check-lg me-1"></i><%= t('customer.wifi.change_ssid_btn', 'Ganti SSID') %>
                     </button>
                   </div>
                 </form>
               </div>
 
               <div class="form-section">
-                <h6><i class="bi bi-shield-lock"></i>Ganti Password WiFi</h6>
+                <h6><i class="bi bi-shield-lock"></i><%= t('customer.wifi.change_password', 'Ganti Password WiFi') %></h6>
                 <form method="POST" action="/customer/change-password" class="row g-2 align-items-center">
                   <div class="col-12 col-md-8 mb-2 mb-md-0">
-                    <input type="password" class="form-control" name="password" placeholder="Password baru" required
+                    <input type="password" class="form-control" name="password" placeholder="<%= t('customer.wifi.new_password_placeholder', 'Password baru') %>" required
                       maxlength="32" minlength="8" autocomplete="new-password">
                   </div>
                   <div class="col-12 col-md-4">
                     <button class="btn btn-action btn-password w-100" type="submit">
-                      <i class="bi bi-check-lg me-1"></i>Ganti Password
+                      <i class="bi bi-check-lg me-1"></i><%= t('customer.wifi.change_password_btn', 'Ganti Password') %>
                     </button>
                   </div>
                 </form>
@@ -643,32 +641,32 @@
 
               <!-- Tombol Reboot dengan konfirmasi popup -->
               <div class="form-section text-center">
-                <button id="rebootBtn" class="btn btn-danger btn-action" style="min-width:180px;">
-                  <i class="bi bi-arrow-repeat me-1"></i>Reboot Perangkat
+                <button id="rebootBtn" class="btn btn-danger btn-action" style="min-width:180px;" data-confirm="<%= t('customer.reboot.confirm', 'Yakin ingin reboot perangkat Anda?') %>">
+                  <i class="bi bi-arrow-repeat me-1"></i><%= t('customer.reboot.device', 'Reboot Perangkat') %>
                 </button>
               </div>
               <form id="rebootForm" method="POST" action="/customer/reboot" style="display:none;"></form>
               <script>
                 document.getElementById('rebootBtn').addEventListener('click', function (e) {
                   e.preventDefault();
-                  if (confirm('Yakin ingin reboot perangkat Anda?')) {
+                  if (confirm(this.dataset.confirm || 'Are you sure?')) {
                     document.getElementById('rebootForm').submit();
                   }
                 });
               </script>
 
               <div class="table-container">
-                <h6><i class="bi bi-devices"></i>Perangkat Terhubung</h6>
+                <h6><i class="bi bi-devices"></i><%= t('customer.devices.title', 'Perangkat Terhubung') %></h6>
                 <% if (connectedUsers && connectedUsers.length> 0) { %>
                   <div class="table-responsive">
                     <table class="table table-hover">
                       <thead>
                         <tr>
-                          <th>Hostname</th>
-                          <th>IP</th>
-                          <th>MAC</th>
-                          <th>Interface</th>
-                          <th>Status</th>
+                          <th><%= t('customer.devices.hostname', 'Hostname') %></th>
+                          <th><%= t('customer.devices.ip', 'IP') %></th>
+                          <th><%= t('customer.devices.mac', 'MAC') %></th>
+                          <th><%= t('customer.devices.interface', 'Interface') %></th>
+                          <th><%= t('customer.devices.status', 'Status') %></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -688,9 +686,9 @@
                             </td>
                             <td>
                               <% if (user.status==='Online' ) { %>
-                                <span class="badge bg-success">Online</span>
+                                <span class="badge bg-success"><%= t('customer.devices.online', 'Online') %></span>
                                 <% } else { %>
-                                  <span class="badge bg-secondary">Offline</span>
+                                  <span class="badge bg-secondary"><%= t('customer.devices.offline', 'Offline') %></span>
                                   <% } %>
                             </td>
                           </tr>
@@ -701,24 +699,24 @@
                   <% } else { %>
                     <div class="alert alert-warning mb-0">
                       <i class="bi bi-exclamation-triangle me-2"></i>
-                      Tidak ada perangkat yang sedang terhubung.
+                      <%= t('customer.devices.empty', 'Tidak ada perangkat yang sedang terhubung.') %>
                     </div>
                     <% } %>
               </div>
 
               <div class="alert alert-info">
                 <i class="bi bi-info-circle me-2"></i>
-                Jika mengalami kendala, silakan hubungi admin melalui WhatsApp.
+                <%= t('customer.help.contact_admin', 'Jika mengalami kendala, silakan hubungi admin melalui WhatsApp.') %>
               </div>
     </div>
   </div>
 
   <footer class="footer">
     <div class="d-flex justify-content-center flex-wrap gap-3 mb-3">
-      <a href="/customer/about" class="text-decoration-none text-muted small">Tentang Kami</a>
-      <a href="/customer/tos" class="text-decoration-none text-muted small">Ketentuan Layanan</a>
-      <a href="/customer/privacy" class="text-decoration-none text-muted small">Kebijakan Privasi</a>
-      <a href="/customer/contact" class="text-decoration-none text-muted small">Kontak</a>
+      <a href="/customer/about" class="text-decoration-none text-muted small"><%= t('customer.footer.about', 'Tentang Kami') %></a>
+      <a href="/customer/tos" class="text-decoration-none text-muted small"><%= t('customer.footer.tos', 'Ketentuan Layanan') %></a>
+      <a href="/customer/privacy" class="text-decoration-none text-muted small"><%= t('customer.footer.privacy', 'Kebijakan Privasi') %></a>
+      <a href="/customer/contact" class="text-decoration-none text-muted small"><%= t('customer.footer.contact', 'Kontak') %></a>
     </div>
     <div class="small opacity-75">
       &copy; <%= new Date().getFullYear() %>
@@ -732,12 +730,11 @@
       <div class="modal-content"
         style="background: #ffffff; border: none; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
         <div class="modal-header border-0 pb-0" style="padding: 25px 25px 10px;">
-          <h5 class="modal-title fw-bold" style="color: #2c3e50;"><i class="bi bi-wallet2 me-2 text-primary"></i>Pilih
-            Pembayaran</h5>
+          <h5 class="modal-title fw-bold" style="color: #2c3e50;"><i class="bi bi-wallet2 me-2 text-primary"></i><%= t('customer.payment.choose_title', 'Pilih Pembayaran') %></h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body" style="padding: 10px 25px 30px;">
-          <p class="text-muted small mb-4">Silakan pilih metode pembayaran untuk tagihan sebesar <strong
+          <p class="text-muted small mb-4"><%= t('customer.payment.choose_desc', 'Silakan pilih metode pembayaran untuk tagihan sebesar') %> <strong
               id="pay_amount_text" class="text-primary"></strong></p>
 
           <div class="payment-methods-grid">
@@ -820,9 +817,9 @@
                       </div>
                     </div>
 
-                    <!-- All-in-one Fallback -->
-                    <div class="pay-method-item mt-2"
-                      onclick="submitPayment('<%= settings.default_gateway === 'midtrans' ? 'snap' : (settings.default_gateway === 'xendit' ? 'xendit' : 'duitku') %>')"
+                    <% const fallbackMethod = settings.default_gateway === 'midtrans' ? 'snap' : (settings.default_gateway === 'xendit' ? 'xendit' : 'duitku'); %>
+                    <div class="pay-method-item mt-2" data-method="<%= fallbackMethod %>"
+                      onclick="submitPayment(this.dataset.method)"
                       style="background: #f0f7ff; border-color: #667eea;">
                       <div class="p-icon" style="background: #667eea; color: white;"><i
                           class="bi bi-credit-card-2-back"></i></div>

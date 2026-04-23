@@ -1,6 +1,6 @@
 <!-- views/tech/partials/header.ejs -->
 <!DOCTYPE html>
-<html lang="id">
+<html lang="<%= lang || 'id' %>">
 
 <head>
   <meta charset="UTF-8">
@@ -167,8 +167,10 @@
       <%= title %>
     </h1>
     <div style="display:flex;gap:10px;align-items:center">
-      <a href="/tech/customers/new" class="top-nav-btn" title="Tambah Pelanggan"><i class="bi bi-person-plus-fill"></i></a>
-      <a href="/tech/logout" class="top-nav-btn" onclick="return confirm('Apakah Anda yakin ingin logout?')"><i class="bi bi-box-arrow-right"></i></a>
+      <a href="/lang/id" class="top-nav-btn" title="Bahasa Indonesia" style="font-size:12px;font-weight:700">ID</a>
+      <a href="/lang/en" class="top-nav-btn" title="English" style="font-size:12px;font-weight:700">EN</a>
+      <a href="/tech/customers/new" class="top-nav-btn" title="<%= t('tech.new_customer', 'Tambah Pelanggan') %>"><i class="bi bi-person-plus-fill"></i></a>
+      <a href="/tech/logout" class="top-nav-btn" onclick="return confirm('<%= t('tech.logout_confirm', 'Apakah Anda yakin ingin logout?') %>')"><i class="bi bi-box-arrow-right"></i></a>
     </div>
   </div>
 

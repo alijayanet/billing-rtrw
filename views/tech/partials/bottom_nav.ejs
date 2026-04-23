@@ -3,23 +3,23 @@
   <nav class="bottom-nav">
     <a href="/tech" class="nav-item <%= activePage === 'dashboard' ? 'active' : '' %>">
       <i class="bi bi-briefcase-fill"></i>
-      <span>Tugas Saya</span>
+      <span><%= t('tech.nav.my_tasks', 'Tugas Saya') %></span>
     </a>
     <a href="/tech/pool" class="nav-item <%= activePage === 'pool' ? 'active' : '' %>">
       <i class="bi bi-inbox-fill"></i>
-      <span>Tiket Baru</span>
+      <span><%= t('tech.nav.new_tickets', 'Tiket Baru') %></span>
     </a>
     <a href="/tech/map" class="nav-item <%= activePage === 'map' ? 'active' : '' %>">
       <i class="bi bi-map-fill"></i>
-      <span>Peta</span>
+      <span><%= t('tech.nav.map', 'Peta') %></span>
     </a>
     <a href="/tech/monitoring" class="nav-item <%= activePage === 'monitoring' ? 'active' : '' %>">
       <i class="bi bi-display-fill"></i>
-      <span>Monitor</span>
+      <span><%= t('tech.nav.monitor', 'Monitor') %></span>
     </a>
     <a href="/tech/history" class="nav-item <%= activePage === 'history' ? 'active' : '' %>">
       <i class="bi bi-clock-history"></i>
-      <span>Riwayat</span>
+      <span><%= t('tech.nav.history', 'Riwayat') %></span>
     </a>
   </nav>
 
