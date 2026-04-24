@@ -1230,8 +1230,6 @@ router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
   const backupDb = path.join(backupRoot, 'database');
   const settingsPath = path.join(repoRoot, 'settings.json');
   const dbDir = path.join(repoRoot, 'database');
-  let stashCreated = false;
-  let pulled = false;
 
   try {
     const inside = runCmd('git', ['rev-parse', '--is-inside-work-tree'], repoRoot);
@@ -1262,25 +1260,35 @@ router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
     const resetDb = runCmd('git', ['checkout', '--', 'database'], repoRoot);
     pushCmd('git checkout -- database', resetDb);
 
-    const status = runCmd('git', ['status', '--porcelain'], repoRoot);
-    pushCmd('git status --porcelain', status);
-    const hasLocalChanges = Boolean(String(status.stdout || '').trim());
-    if (hasLocalChanges) {
-      const stash = runCmd('git', ['stash', 'push', '-u', '-m', `auto-update ${new Date().toISOString()}`], repoRoot);
-      pushCmd('git stash push -u -m "auto-update ..."', stash);
-      if (!stash.ok) throw new Error('Gagal membuat stash (menyimpan perubahan lokal).');
-      stashCreated = true;
+    const resetHard = runCmd('git', ['reset', '--hard', `origin/${branch}`], repoRoot);
+    pushCmd(`git reset --hard origin/${branch}`, resetHard);
+    if (!resetHard.ok) throw new Error('Gagal reset ke origin/' + branch);
+
+    if (remoteVersion && remoteVersion !== '-') {
+      try {
+        fs.writeFileSync(versionPath, remoteVersion + os.EOL, 'utf8');
+        log.push(`$ write version.txt = ${remoteVersion}`);
+      } catch (e) {
+        log.push(`$ write version.txt failed: ${String(e?.message || e)}`);
+      }
     }
 
-    const pull = runCmd('git', ['pull', '--ff-only', 'origin', branch], repoRoot);
-    pushCmd(`git pull --ff-only origin ${branch}`, pull);
-    if (!pull.ok) throw new Error('Gagal git pull. Pastikan tidak ada perubahan lokal yang belum disimpan.');
-    pulled = true;
-
-    if (stashCreated) {
-      const drop = runCmd('git', ['stash', 'drop'], repoRoot);
-      pushCmd('git stash drop', drop);
-    }
+    const authFolder = String(getSetting('whatsapp_auth_folder', 'auth_info_baileys') || 'auth_info_baileys');
+    const clean = runCmd(
+      'git',
+      [
+        'clean',
+        '-fd',
+        '-e', 'settings.json',
+        '-e', 'database',
+        '-e', 'node_modules',
+        '-e', 'package-lock.json',
+        '-e', authFolder,
+        '-e', 'data'
+      ],
+      repoRoot
+    );
+    pushCmd(`git clean -fd -e settings.json -e database -e node_modules -e package-lock.json -e ${authFolder} -e data`, clean);
 
     if (fs.existsSync(backupSettings)) fs.copyFileSync(backupSettings, settingsPath);
     if (fs.existsSync(backupDb)) {
@@ -1296,10 +1304,6 @@ router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
     req.session._msg = { type: 'success', text: `Update selesai. Versi: ${localBefore} → ${localAfter}. Silakan restart aplikasi.` };
     req.session._updateLog = log.join('\n');
   } catch (e) {
-    if (stashCreated && !pulled) {
-      const pop = runCmd('git', ['stash', 'pop'], repoRoot);
-      pushCmd('git stash pop', pop);
-    }
     req.session._msg = { type: 'error', text: 'Gagal update: ' + (e?.message || e) };
     req.session._updateLog = log.join('\n');
   } finally {
