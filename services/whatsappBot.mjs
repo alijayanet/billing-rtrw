@@ -215,8 +215,16 @@ function formatActiveMikrotik(pppoe, hotspot) {
   return waWrap('🌐 *MIKROTIK ACTIVE*', p + h);
 }
 
+function getWhatsappAdminNumbers() {
+  const primary = getSetting('whatsapp_admin_numbers', []);
+  if (Array.isArray(primary) && primary.length > 0) return primary;
+  const legacy = getSetting('admins', []);
+  if (Array.isArray(legacy) && legacy.length > 0) return legacy;
+  return [];
+}
+
 function loadWhatsappAdminSet() {
-  const list = ['087820851413'];
+  const list = getWhatsappAdminNumbers();
   const set = new Set();
   for (const n of list) {
     const s = String(n).trim();
@@ -468,7 +476,7 @@ let qrShownSinceStart = false;
 let notifiedAdminForQr = false;
 
 function loadWhatsappAdminSendList() {
-  const list = ['087820851413'];
+  const list = getWhatsappAdminNumbers();
   const out = [];
   const seen = new Set();
   for (const n of list) {

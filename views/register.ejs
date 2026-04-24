@@ -13,8 +13,12 @@
   <link rel="stylesheet" href="/css/style.css">
   <style>
     body {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(1200px 600px at 10% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(15, 23, 42, 0) 60%),
+        radial-gradient(900px 450px at 100% 0%, rgba(59, 130, 246, 0.18) 0%, rgba(15, 23, 42, 0) 55%),
+        #0f172a;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .register-container {
@@ -26,27 +30,29 @@
     }
 
     .register-card {
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(30, 41, 59, 0.92);
       backdrop-filter: blur(10px);
-      border: none;
+      border: 1px solid #334155;
       border-radius: 20px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
       overflow: hidden;
       max-width: 500px;
       width: 100%;
     }
 
     .register-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.28) 0%, rgba(59, 130, 246, 0.2) 100%);
+      color: #f8fafc;
       padding: 30px 20px;
       text-align: center;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
     }
 
     .logo-container {
       width: 80px;
       height: 80px;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(15, 23, 42, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.18);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -66,14 +72,16 @@
 
     .form-label {
       font-weight: 600;
-      color: #495057;
+      color: rgba(226, 232, 240, 0.95);
       font-size: 14px;
       margin-bottom: 5px;
     }
 
     .form-control,
     .form-select {
-      border: 2px solid #e9ecef;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid #334155;
+      color: #e2e8f0;
       border-radius: 12px;
       padding: 12px 15px;
       font-size: 15px;
@@ -81,14 +89,25 @@
       margin-bottom: 15px;
     }
 
+    .form-control::placeholder {
+      color: rgba(148, 163, 184, 0.85);
+    }
+
     .form-control:focus,
     .form-select:focus {
-      border-color: #667eea;
-      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+      background: rgba(15, 23, 42, 0.75);
+      border-color: rgba(99, 102, 241, 0.85);
+      box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+      color: #e2e8f0;
+    }
+
+    .form-select option {
+      background: #0f172a;
+      color: #e2e8f0;
     }
 
     .btn-register {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
       border: none;
       border-radius: 12px;
       padding: 15px;
@@ -101,29 +120,62 @@
 
     .btn-register:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 14px 28px rgba(99, 102, 241, 0.25);
       color: white;
     }
 
     .footer-text {
-      color: #6c757d;
+      color: rgba(148, 163, 184, 0.9);
       font-size: 13px;
       margin-top: 20px;
       text-align: center;
     }
 
     .footer-text a {
-      color: #667eea;
+      color: #6366f1;
       text-decoration: none;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     .package-price {
       font-weight: 600;
-      color: #2ed573;
+      color: #10b981;
     }
 
     #picker-map { height: 320px; width: 100%; border-radius: 12px; }
+
+    .text-muted {
+      color: rgba(148, 163, 184, 0.9) !important;
+    }
+
+    .btn-outline-secondary,
+    .btn-outline-info,
+    .btn-outline-success {
+      border-color: rgba(148, 163, 184, 0.35);
+      color: #e2e8f0;
+    }
+
+    .btn-outline-secondary:hover,
+    .btn-outline-info:hover,
+    .btn-outline-success:hover {
+      background: rgba(148, 163, 184, 0.12);
+      border-color: rgba(148, 163, 184, 0.55);
+      color: #f8fafc;
+    }
+
+    .alert {
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    .alert-danger {
+      background: rgba(239, 68, 68, 0.16);
+      color: #fee2e2;
+    }
+
+    .alert-success {
+      background: rgba(16, 185, 129, 0.16);
+      color: #d1fae5;
+    }
 
     @media (max-width: 576px) {
       .register-container {
@@ -253,10 +305,10 @@
 
   <div class="modal fade" id="mapPickerModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content" style="border-radius: 16px; overflow:hidden;">
-        <div class="modal-header">
+      <div class="modal-content" style="border-radius: 16px; overflow:hidden; background:#1e293b; border: 1px solid #334155;">
+        <div class="modal-header border-0" style="border-bottom: 1px solid rgba(148, 163, 184, 0.18);">
           <h6 class="modal-title"><i class="bi bi-geo-alt-fill me-2"></i>Pilih Lokasi Pemasangan</h6>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div id="picker-map"></div>
@@ -264,8 +316,8 @@
             Geser pin atau klik peta untuk menentukan titik lokasi.
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" style="border-radius: 12px;" data-bs-dismiss="modal">Selesai</button>
+        <div class="modal-footer border-0" style="border-top: 1px solid rgba(148, 163, 184, 0.18);">
+          <button type="button" class="btn btn-outline-secondary" style="border-radius: 12px;" data-bs-dismiss="modal">Selesai</button>
         </div>
       </div>
     </div>

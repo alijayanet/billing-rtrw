@@ -11,28 +11,32 @@
   <link rel="stylesheet" href="/css/style.css">
   <style>
     body {
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(1200px 600px at 10% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(15, 23, 42, 0) 60%),
+        radial-gradient(900px 450px at 100% 0%, rgba(59, 130, 246, 0.18) 0%, rgba(15, 23, 42, 0) 55%),
+        #0f172a;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       min-height: 100vh;
       padding-bottom: 80px; /* Space for bottom nav */
+      -webkit-tap-highlight-color: transparent;
     }
 
     .navbar {
-      background: rgba(255, 255, 255, 0.95) !important;
+      background: rgba(30, 41, 59, 0.9) !important;
       backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      border-bottom: 1px solid #334155;
     }
 
     .navbar-brand {
       font-weight: 600;
-      color: #2c3e50 !important;
+      color: #f8fafc !important;
     }
 
     .navbar-brand img {
       height: 40px;
       max-width: 80px;
       border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
     }
 
     .status-badge {
@@ -60,21 +64,24 @@
     .card {
       border: none;
       border-radius: 16px;
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+      background: rgba(30, 41, 59, 0.92);
+      border: 1px solid #334155;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.35);
       transition: all 0.3s ease;
       overflow: hidden;
     }
 
     .card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.45);
     }
 
     .card-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(59, 130, 246, 0.18) 100%);
+      color: #f8fafc;
       border: none;
       padding: 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
     }
 
     .stats-grid {
@@ -85,17 +92,18 @@
     }
 
     .stat-card {
-      background: white;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.14);
       border-radius: 12px;
       padding: 20px 15px;
       text-align: center;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
       transition: all 0.3s ease;
     }
 
     .stat-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
     }
 
     .stat-icon {
@@ -148,7 +156,7 @@
 
     .stat-label {
       font-size: 12px;
-      color: #6c757d;
+      color: #94a3b8;
       margin-bottom: 5px;
       font-weight: 500;
     }
@@ -156,19 +164,22 @@
     .stat-value {
       font-size: 14px;
       font-weight: 600;
-      color: #2c3e50;
+      color: #e2e8f0;
       margin: 0;
+      word-break: break-word;
     }
 
     .form-section {
-      background: white;
+      background: rgba(30, 41, 59, 0.92);
+      border: 1px solid #334155;
       border-radius: 16px;
       padding: 25px;
       margin-bottom: 20px;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.28);
     }
 
     .form-section h6 {
-      color: #2c3e50;
+      color: #f8fafc;
       font-weight: 600;
       margin-bottom: 15px;
       display: flex;
@@ -177,20 +188,40 @@
 
     .form-section h6 i {
       margin-right: 8px;
-      color: #667eea;
+      color: #6366f1;
     }
 
     .form-control {
-      border: 2px solid #e9ecef;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid #334155;
+      color: #e2e8f0;
       border-radius: 10px;
       padding: 12px 16px;
       font-size: 14px;
       transition: all 0.3s ease;
     }
 
+    .form-control::placeholder {
+      color: rgba(148, 163, 184, 0.85);
+    }
+
     .form-control:focus {
-      border-color: #667eea;
-      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+      border-color: rgba(99, 102, 241, 0.85);
+      box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+      background: rgba(15, 23, 42, 0.75);
+      color: #e2e8f0;
+    }
+
+    .form-select {
+      background-color: rgba(15, 23, 42, 0.6);
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      border-radius: 10px;
+    }
+
+    .form-select:focus {
+      border-color: rgba(99, 102, 241, 0.85);
+      box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
     }
 
     .btn-action {
@@ -206,7 +237,7 @@
     }
 
     .btn-ssid {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
       color: white;
     }
 
@@ -216,23 +247,29 @@
     }
 
     .table-container {
-      background: white;
+      background: rgba(30, 41, 59, 0.92);
+      border: 1px solid #334155;
       border-radius: 16px;
       padding: 25px;
       margin-bottom: 20px;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.28);
     }
 
     .table {
       margin-bottom: 0;
+      color: #e2e8f0;
     }
 
     .table th {
       border: none;
-      background: #f8f9fa;
-      color: #495057;
+      background: rgba(148, 163, 184, 0.12);
+      color: #94a3b8;
       font-weight: 600;
       font-size: 13px;
       padding: 12px 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
     }
 
     .table td {
@@ -243,11 +280,11 @@
     }
 
     .table tbody tr {
-      border-bottom: 1px solid #f1f3f4;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.9);
     }
 
     .table tbody tr:hover {
-      background: #f8f9fa;
+      background: rgba(15, 23, 42, 0.55);
     }
 
     .alert {
@@ -257,35 +294,92 @@
     }
 
     .alert-success {
-      background: rgba(40, 167, 69, 0.1);
-      color: #155724;
+      background: rgba(16, 185, 129, 0.16);
+      color: #d1fae5;
       border-left: 4px solid #28a745;
     }
 
     .alert-danger {
-      background: rgba(220, 53, 69, 0.1);
-      color: #721c24;
+      background: rgba(239, 68, 68, 0.16);
+      color: #fee2e2;
       border-left: 4px solid #dc3545;
     }
 
     .alert-warning {
-      background: rgba(255, 193, 7, 0.1);
-      color: #856404;
+      background: rgba(245, 158, 11, 0.16);
+      color: #ffedd5;
       border-left: 4px solid #ffc107;
     }
 
     .alert-info {
-      background: rgba(102, 126, 234, 0.1);
-      color: #2c3e50;
-      border-left: 4px solid #667eea;
+      background: rgba(99, 102, 241, 0.16);
+      color: #e0e7ff;
+      border-left: 4px solid #6366f1;
     }
 
     .footer {
       text-align: center;
-      color: #6c757d;
+      color: #94a3b8;
       font-size: 12px;
       margin-top: 30px;
       padding: 20px 0;
+    }
+
+    .customer-accordion {
+      --bs-accordion-bg: transparent;
+      --bs-accordion-border-color: transparent;
+      --bs-accordion-btn-bg: rgba(30, 41, 59, 0.92);
+      --bs-accordion-btn-color: #f8fafc;
+      --bs-accordion-active-bg: rgba(30, 41, 59, 0.92);
+      --bs-accordion-active-color: #f8fafc;
+      --bs-accordion-btn-focus-border-color: rgba(99, 102, 241, 0.85);
+      --bs-accordion-btn-focus-box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+      --bs-accordion-btn-icon: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23cbd5e1'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E\");
+      --bs-accordion-btn-active-icon: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23cbd5e1'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E\");
+    }
+
+    .customer-accordion .accordion-item {
+      background: rgba(30, 41, 59, 0.92);
+      border: 1px solid #334155;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.28);
+      margin-bottom: 14px;
+    }
+
+    .customer-accordion .accordion-button {
+      font-weight: 700;
+      padding: 16px 18px;
+    }
+
+    .customer-accordion .accordion-button::after {
+      filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.35));
+    }
+
+    .customer-accordion .accordion-body {
+      padding: 16px 18px 18px;
+    }
+
+    .section-block {
+      background: rgba(15, 23, 42, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+    }
+
+    .section-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .text-muted {
+      color: rgba(148, 163, 184, 0.9) !important;
+    }
+
+    .badge.bg-secondary {
+      background-color: rgba(148, 163, 184, 0.24) !important;
+      color: #e2e8f0;
     }
 
     @media (max-width: 768px) {
@@ -338,6 +432,14 @@
         padding: 8px 4px;
       }
     }
+
+    #home-section,
+    #billing-section,
+    #ticket-section,
+    #settings-section,
+    #devices-section {
+      scroll-margin-top: 90px;
+    }
   </style>
 </head>
 
@@ -389,7 +491,7 @@
               </script>
 
               <div class="card mb-4" id="home-section">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
                   <h5 class="mb-0">
                     <i class="bi bi-person-circle me-2"></i>
                     <%= t('customer.dashboard.hello', 'Halo') %>, <span class="fw-bold">
@@ -493,215 +595,282 @@
                 </div>
               </div>
 
-              <!-- Tagihan Section -->
-              <div class="form-section" id="billing-section">
-                <h6><i class="bi bi-receipt"></i> <%= t('customer.billing.title', 'Status Tagihan & Riwayat') %></h6>
-                <% if (invoices && invoices.length> 0) { %>
-                  <% const monthNames = (lang === 'en') ? ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] : ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']; %>
-                  <div class="table-responsive">
-                    <table class="table table-hover">
-                      <thead>
-                        <tr>
-                          <th><%= t('customer.billing.period', 'Periode') %></th>
-                          <th><%= t('customer.billing.service_package', 'Layanan / Paket') %></th>
-                          <th><%= t('customer.billing.amount', 'Jumlah') %></th>
-                          <th><%= t('customer.billing.status', 'Status') %></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <% invoices.forEach(function(inv) { %>
-                          <tr>
-                            <td><strong>
-                                <%= monthNames[inv.period_month] %>
-                                  <%= inv.period_year %>
-                              </strong></td>
-                            <td>
-                              <%= inv.package_name || t('customer.billing.internet_service', 'Layanan Internet') %>
-                            </td>
-                            <td>Rp <%= inv.amount.toLocaleString('id-ID') %>
-                            </td>
-                            <td>
-                              <% if (inv.status==='paid' ) { %>
-                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i><%= t('customer.billing.paid', 'LUNAS') %></span>
-                                <div class="text-muted small" style="font-size:10px"><%= t('customer.billing.paid_at', 'Dibayar') %>: <%= new
-                                    Date(inv.paid_at).toLocaleDateString('id-ID') %>
-                                </div>
-                                <% } else { %>
-                                  <div class="d-flex align-items-center gap-2">
-                                    <button class="btn btn-primary fw-bold p-2"
-                                      style="font-size:11px; line-height: 1.2; border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; min-width: 85px; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);"
-                                      onclick="openPaymentModal('<%= inv.id %>', '<%= inv.amount %>')">
-                                      <i class="bi bi-wallet2 d-block mb-1" style="font-size: 16px;"></i>
-                                      <%= t('customer.billing.pay_online', 'BAYAR ONLINE') %>
-                                    </button>
-                                    <span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i><%= t('customer.billing.unpaid', 'BELUM BAYAR') %></span>
+              <div class="accordion customer-accordion" id="customerAccordion">
+                <div class="accordion-item" id="billing-section">
+                  <h2 class="accordion-header" id="headingBilling">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                      data-bs-target="#collapseBilling" aria-expanded="false" aria-controls="collapseBilling">
+                      <i class="bi bi-receipt me-2"></i>
+                      <span><%= t('customer.billing.title', 'Status Tagihan & Riwayat') %></span>
+                    </button>
+                  </h2>
+                  <div id="collapseBilling" class="accordion-collapse collapse" aria-labelledby="headingBilling"
+                    data-bs-parent="#customerAccordion">
+                    <div class="accordion-body">
+                      <div class="section-block">
+                        <% if (invoices && invoices.length> 0) { %>
+                          <% const monthNames = (lang === 'en') ? ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] : ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']; %>
+                          <% const unpaidInvoices = invoices.filter(i => i.status !== 'paid'); %>
+                          <div class="table-responsive">
+                            <table class="table table-hover">
+                              <thead>
+                                <tr>
+                                  <th><%= t('customer.billing.period', 'Periode') %></th>
+                                  <th><%= t('customer.billing.service_package', 'Layanan / Paket') %></th>
+                                  <th><%= t('customer.billing.amount', 'Jumlah') %></th>
+                                  <th><%= t('customer.billing.status', 'Status') %></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <% invoices.forEach(function(inv) { %>
+                                  <tr>
+                                    <td><strong>
+                                        <%= monthNames[inv.period_month] %>
+                                          <%= inv.period_year %>
+                                      </strong></td>
+                                    <td>
+                                      <%= inv.package_name || t('customer.billing.internet_service', 'Layanan Internet') %>
+                                    </td>
+                                    <td>Rp <%= inv.amount.toLocaleString('id-ID') %>
+                                    </td>
+                                    <td>
+                                      <% if (inv.status==='paid' ) { %>
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i><%= t('customer.billing.paid', 'LUNAS') %></span>
+                                        <div class="text-muted small" style="font-size:10px"><%= t('customer.billing.paid_at', 'Dibayar') %>: <%= new Date(inv.paid_at).toLocaleDateString('id-ID') %>
+                                        </div>
+                                        <% } else { %>
+                                          <span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i><%= t('customer.billing.unpaid', 'BELUM BAYAR') %></span>
+                                          <% } %>
+                                    </td>
+                                  </tr>
+                                  <% }) %>
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <% if (unpaidInvoices && unpaidInvoices.length > 0) { %>
+                            <div class="mt-3">
+                              <div class="fw-bold mb-2"><i class="bi bi-wallet2 me-2" style="color:#6366f1"></i><%= t('customer.billing.pay_online', 'BAYAR ONLINE') %></div>
+                              <div class="row g-2">
+                                <% unpaidInvoices.forEach(function(uinv) { %>
+                                  <div class="col-12 col-md-6">
+                                    <div class="p-3" style="background: rgba(15, 23, 42, 0.45); border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 14px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);">
+                                      <div class="d-flex justify-content-between align-items-start gap-2">
+                                        <div class="flex-grow-1">
+                                          <div class="fw-bold"><%= monthNames[uinv.period_month] %> <%= uinv.period_year %></div>
+                                          <div class="text-muted small"><%= uinv.package_name || t('customer.billing.internet_service', 'Layanan Internet') %></div>
+                                        </div>
+                                        <div class="text-end">
+                                          <div class="fw-bold">Rp <%= uinv.amount.toLocaleString('id-ID') %></div>
+                                          <span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i><%= t('customer.billing.unpaid', 'BELUM BAYAR') %></span>
+                                        </div>
+                                      </div>
+                                      <button type="button" class="btn btn-action btn-ssid w-100 mt-3"
+                                        onclick="openPaymentModal('<%= uinv.id %>', '<%= uinv.amount %>')">
+                                        <i class="bi bi-wallet2 me-2"></i><%= t('customer.billing.pay_online', 'BAYAR ONLINE') %>
+                                      </button>
+                                    </div>
                                   </div>
-                                  <% } %>
-                            </td>
-                          </tr>
-                          <% }) %>
-                      </tbody>
-                    </table>
-                  </div>
-                  <% } else { %>
-                    <p class="text-muted mb-0"><%= t('customer.billing.empty', 'Tidak ada data tagihan.') %></p>
-                    <% } %>
-              </div>
-
-              <!-- Keluhan Section -->
-              <div class="form-section" id="ticket-section">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                  <h6 class="mb-0"><i class="bi bi-headset"></i> <%= t('customer.ticket.title', 'Tiket Bantuan & Keluhan') %></h6>
-                  <button class="btn btn-sm btn-action btn-ssid py-1 px-3"
-                    onclick="new bootstrap.Modal(document.getElementById('ticketModal')).show()">
-                    <i class="bi bi-plus-lg me-1"></i> <%= t('customer.ticket.report_1', 'LAPORKAN') %> <br> <%= t('customer.ticket.report_2', 'MASALAH') %>
-                  </button>
-                </div>
-                <% if (tickets && tickets.length> 0) { %>
-                  <div class="table-responsive">
-                    <table class="table table-hover">
-                      <thead>
-                        <tr>
-                          <th><%= t('customer.ticket.time', 'Waktu') %></th>
-                          <th><%= t('customer.ticket.issue', 'Kendala') %></th>
-                          <th><%= t('customer.ticket.status', 'Status') %></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <% tickets.forEach(function(t) { %>
-                          <tr>
-                            <td class="small">
-                              <%= new Date(t.created_at).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'})
-                                %>
-                            </td>
-                            <td>
-                              <strong>
-                                <%= t.subject %>
-                              </strong>
-                              <div class="text-muted small text-truncate" style="max-width: 200px;">
-                                <%= t.message %>
+                                  <% }) %>
                               </div>
-                            </td>
-                            <td>
-                              <% if (t.status==='open' ) { %>
-                                <span class="badge bg-danger"><i
-                                    class="bi bi-exclamation-circle me-1"></i><%= t('customer.ticket.waiting', 'Menunggu') %></span>
-                                <% } else if (t.status==='in_progress' ) { %>
-                                  <span class="badge bg-warning text-dark"><i
-                                      class="bi bi-tools me-1"></i><%= t('customer.ticket.in_progress', 'Dikerjakan') %></span>
-                                  <% } else { %>
-                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i><%= t('customer.ticket.resolved', 'Selesai') %></span>
-                                    <% } %>
-                            </td>
-                          </tr>
-                          <% }) %>
-                      </tbody>
-                    </table>
-                  </div>
-                  <% } else { %>
-                    <p class="text-muted mb-0 small"><%= t('customer.ticket.empty', 'Belum ada riwayat keluhan.') %></p>
-                    <% } %>
-              </div>
-
-              <div class="form-section" id="settings-section">
-                <h6><i class="bi bi-wifi"></i><%= t('customer.wifi.change_ssid', 'Ganti Nama WiFi (SSID)') %></h6>
-                <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i><%= t('customer.wifi.current_ssid', 'SSID saat ini') %>: <strong>
-                    <%= customer.ssid %>
-                  </strong> &nbsp;(5GHz: <strong>
-                    <%= customer.ssid %>-5G
-                  </strong>)</p>
-                <form method="POST" action="/customer/change-ssid" class="row g-2 align-items-center">
-                  <div class="col-12 col-md-8 mb-2 mb-md-0">
-                    <input type="text" class="form-control" name="ssid"
-                      value="<%= customer.ssid !== '-' ? customer.ssid : '' %>" placeholder="<%= t('customer.wifi.new_ssid_placeholder', 'Nama WiFi baru') %>" required
-                      maxlength="32">
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <button class="btn btn-action btn-ssid w-100" type="submit">
-                      <i class="bi bi-check-lg me-1"></i><%= t('customer.wifi.change_ssid_btn', 'Ganti SSID') %>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              <div class="form-section">
-                <h6><i class="bi bi-shield-lock"></i><%= t('customer.wifi.change_password', 'Ganti Password WiFi') %></h6>
-                <form method="POST" action="/customer/change-password" class="row g-2 align-items-center">
-                  <div class="col-12 col-md-8 mb-2 mb-md-0">
-                    <input type="password" class="form-control" name="password" placeholder="<%= t('customer.wifi.new_password_placeholder', 'Password baru') %>" required
-                      maxlength="32" minlength="8" autocomplete="new-password">
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <button class="btn btn-action btn-password w-100" type="submit">
-                      <i class="bi bi-check-lg me-1"></i><%= t('customer.wifi.change_password_btn', 'Ganti Password') %>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              <!-- Tombol Reboot dengan konfirmasi popup -->
-              <div class="form-section text-center">
-                <button id="rebootBtn" class="btn btn-danger btn-action" style="min-width:180px;" data-confirm="<%= t('customer.reboot.confirm', 'Yakin ingin reboot perangkat Anda?') %>">
-                  <i class="bi bi-arrow-repeat me-1"></i><%= t('customer.reboot.device', 'Reboot Perangkat') %>
-                </button>
-              </div>
-              <form id="rebootForm" method="POST" action="/customer/reboot" style="display:none;"></form>
-              <script>
-                document.getElementById('rebootBtn').addEventListener('click', function (e) {
-                  e.preventDefault();
-                  if (confirm(this.dataset.confirm || 'Are you sure?')) {
-                    document.getElementById('rebootForm').submit();
-                  }
-                });
-              </script>
-
-              <div class="table-container">
-                <h6><i class="bi bi-devices"></i><%= t('customer.devices.title', 'Perangkat Terhubung') %></h6>
-                <% if (connectedUsers && connectedUsers.length> 0) { %>
-                  <div class="table-responsive">
-                    <table class="table table-hover">
-                      <thead>
-                        <tr>
-                          <th><%= t('customer.devices.hostname', 'Hostname') %></th>
-                          <th><%= t('customer.devices.ip', 'IP') %></th>
-                          <th><%= t('customer.devices.mac', 'MAC') %></th>
-                          <th><%= t('customer.devices.interface', 'Interface') %></th>
-                          <th><%= t('customer.devices.status', 'Status') %></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <% connectedUsers.forEach(function(user) { %>
-                          <tr>
-                            <td>
-                              <%= user.hostname %>
-                            </td>
-                            <td>
-                              <%= user.ip %>
-                            </td>
-                            <td>
-                              <%= user.mac %>
-                            </td>
-                            <td>
-                              <%= user.iface %>
-                            </td>
-                            <td>
-                              <% if (user.status==='Online' ) { %>
-                                <span class="badge bg-success"><%= t('customer.devices.online', 'Online') %></span>
-                                <% } else { %>
-                                  <span class="badge bg-secondary"><%= t('customer.devices.offline', 'Offline') %></span>
-                                  <% } %>
-                            </td>
-                          </tr>
-                          <% }) %>
-                      </tbody>
-                    </table>
-                  </div>
-                  <% } else { %>
-                    <div class="alert alert-warning mb-0">
-                      <i class="bi bi-exclamation-triangle me-2"></i>
-                      <%= t('customer.devices.empty', 'Tidak ada perangkat yang sedang terhubung.') %>
+                            </div>
+                            <% } %>
+                          <% } else { %>
+                            <p class="text-muted mb-0"><%= t('customer.billing.empty', 'Tidak ada data tagihan.') %></p>
+                            <% } %>
+                      </div>
                     </div>
-                    <% } %>
+                  </div>
+                </div>
+
+                <div class="accordion-item" id="ticket-section">
+                  <h2 class="accordion-header" id="headingTicket">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                      data-bs-target="#collapseTicket" aria-expanded="false" aria-controls="collapseTicket">
+                      <i class="bi bi-headset me-2"></i>
+                      <span><%= t('customer.ticket.title', 'Tiket Bantuan & Keluhan') %></span>
+                    </button>
+                  </h2>
+                  <div id="collapseTicket" class="accordion-collapse collapse" aria-labelledby="headingTicket"
+                    data-bs-parent="#customerAccordion">
+                    <div class="accordion-body">
+                      <div class="section-block">
+                        <% if (tickets && tickets.length> 0) { %>
+                          <div class="table-responsive">
+                            <table class="table table-hover">
+                              <thead>
+                                <tr>
+                                  <th><%= t('customer.ticket.time', 'Waktu') %></th>
+                                  <th><%= t('customer.ticket.issue', 'Kendala') %></th>
+                                  <th><%= t('customer.ticket.status', 'Status') %></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <% tickets.forEach(function(ticket) { %>
+                                  <tr>
+                                    <td class="small">
+                                      <%= new Date(ticket.created_at).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'}) %>
+                                    </td>
+                                    <td>
+                                      <strong>
+                                        <%= ticket.subject %>
+                                      </strong>
+                                      <div class="text-muted small text-truncate" style="max-width: 200px;">
+                                        <%= ticket.message %>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <% if (ticket.status==='open' ) { %>
+                                        <span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i><%= t('customer.ticket.waiting', 'Menunggu') %></span>
+                                        <% } else if (ticket.status==='in_progress' ) { %>
+                                          <span class="badge bg-warning text-dark"><i class="bi bi-tools me-1"></i><%= t('customer.ticket.in_progress', 'Dikerjakan') %></span>
+                                          <% } else { %>
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i><%= t('customer.ticket.resolved', 'Selesai') %></span>
+                                            <% } %>
+                                    </td>
+                                  </tr>
+                                  <% }) %>
+                              </tbody>
+                            </table>
+                          </div>
+                          <% } else { %>
+                            <p class="text-muted mb-0 small"><%= t('customer.ticket.empty', 'Belum ada riwayat keluhan.') %></p>
+                            <% } %>
+                      </div>
+                      <div class="section-block">
+                        <button type="button" class="btn btn-action btn-ssid w-100"
+                          onclick="new bootstrap.Modal(document.getElementById('ticketModal')).show()">
+                          <i class="bi bi-plus-lg me-2"></i><%= t('customer.ticket.report_1', 'LAPORKAN') %> <%= t('customer.ticket.report_2', 'MASALAH') %>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="accordion-item" id="settings-section">
+                  <h2 class="accordion-header" id="headingSettings">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                      data-bs-target="#collapseSettings" aria-expanded="false" aria-controls="collapseSettings">
+                      <i class="bi bi-gear-fill me-2"></i>
+                      <span><%= t('customer.nav.wifi', 'WiFi') %></span>
+                    </button>
+                  </h2>
+                  <div id="collapseSettings" class="accordion-collapse collapse" aria-labelledby="headingSettings"
+                    data-bs-parent="#customerAccordion">
+                    <div class="accordion-body">
+                      <div class="section-block">
+                        <h6 class="mb-2"><i class="bi bi-wifi"></i><%= t('customer.wifi.change_ssid', 'Ganti Nama WiFi (SSID)') %></h6>
+                        <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i><%= t('customer.wifi.current_ssid', 'SSID saat ini') %>: <strong>
+                            <%= customer.ssid %>
+                          </strong> &nbsp;(5GHz: <strong>
+                            <%= customer.ssid %>-5G
+                          </strong>)</p>
+                        <form method="POST" action="/customer/change-ssid" class="row g-2 align-items-center">
+                          <div class="col-12 col-md-8 mb-2 mb-md-0">
+                            <input type="text" class="form-control" name="ssid"
+                              value="<%= customer.ssid !== '-' ? customer.ssid : '' %>" placeholder="<%= t('customer.wifi.new_ssid_placeholder', 'Nama WiFi baru') %>" required maxlength="32">
+                          </div>
+                          <div class="col-12 col-md-4">
+                            <button class="btn btn-action btn-ssid w-100" type="submit">
+                              <i class="bi bi-check-lg me-1"></i><%= t('customer.wifi.change_ssid_btn', 'Ganti SSID') %>
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+
+                      <div class="section-block">
+                        <h6 class="mb-2"><i class="bi bi-shield-lock"></i><%= t('customer.wifi.change_password', 'Ganti Password WiFi') %></h6>
+                        <form method="POST" action="/customer/change-password" class="row g-2 align-items-center">
+                          <div class="col-12 col-md-8 mb-2 mb-md-0">
+                            <input type="password" class="form-control" name="password" placeholder="<%= t('customer.wifi.new_password_placeholder', 'Password baru') %>" required maxlength="32" minlength="8" autocomplete="new-password">
+                          </div>
+                          <div class="col-12 col-md-4">
+                            <button class="btn btn-action btn-password w-100" type="submit">
+                              <i class="bi bi-check-lg me-1"></i><%= t('customer.wifi.change_password_btn', 'Ganti Password') %>
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+
+                      <div class="section-block text-center">
+                        <button id="rebootBtn" class="btn btn-danger btn-action" style="min-width:180px;" data-confirm="<%= t('customer.reboot.confirm', 'Yakin ingin reboot perangkat Anda?') %>">
+                          <i class="bi bi-arrow-repeat me-1"></i><%= t('customer.reboot.device', 'Reboot Perangkat') %>
+                        </button>
+                      </div>
+                      <form id="rebootForm" method="POST" action="/customer/reboot" style="display:none;"></form>
+                      <script>
+                        document.getElementById('rebootBtn').addEventListener('click', function (e) {
+                          e.preventDefault();
+                          if (confirm(this.dataset.confirm || 'Are you sure?')) {
+                            document.getElementById('rebootForm').submit();
+                          }
+                        });
+                      </script>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="accordion-item" id="devices-section">
+                  <h2 class="accordion-header" id="headingDevices">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                      data-bs-target="#collapseDevices" aria-expanded="false" aria-controls="collapseDevices">
+                      <i class="bi bi-devices me-2"></i>
+                      <span><%= t('customer.devices.title', 'Perangkat Terhubung') %></span>
+                    </button>
+                  </h2>
+                  <div id="collapseDevices" class="accordion-collapse collapse" aria-labelledby="headingDevices"
+                    data-bs-parent="#customerAccordion">
+                    <div class="accordion-body">
+                      <div class="section-block">
+                        <% if (connectedUsers && connectedUsers.length> 0) { %>
+                          <div class="table-responsive">
+                            <table class="table table-hover">
+                              <thead>
+                                <tr>
+                                  <th><%= t('customer.devices.hostname', 'Hostname') %></th>
+                                  <th><%= t('customer.devices.ip', 'IP') %></th>
+                                  <th><%= t('customer.devices.mac', 'MAC') %></th>
+                                  <th><%= t('customer.devices.interface', 'Interface') %></th>
+                                  <th><%= t('customer.devices.status', 'Status') %></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <% connectedUsers.forEach(function(user) { %>
+                                  <tr>
+                                    <td>
+                                      <%= user.hostname %>
+                                    </td>
+                                    <td>
+                                      <%= user.ip %>
+                                    </td>
+                                    <td>
+                                      <%= user.mac %>
+                                    </td>
+                                    <td>
+                                      <%= user.iface %>
+                                    </td>
+                                    <td>
+                                      <% if (user.status==='Online' ) { %>
+                                        <span class="badge bg-success"><%= t('customer.devices.online', 'Online') %></span>
+                                        <% } else { %>
+                                          <span class="badge bg-secondary"><%= t('customer.devices.offline', 'Offline') %></span>
+                                          <% } %>
+                                    </td>
+                                  </tr>
+                                  <% }) %>
+                              </tbody>
+                            </table>
+                          </div>
+                          <% } else { %>
+                            <div class="alert alert-warning mb-0">
+                              <i class="bi bi-exclamation-triangle me-2"></i>
+                              <%= t('customer.devices.empty', 'Tidak ada perangkat yang sedang terhubung.') %>
+                            </div>
+                            <% } %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="alert alert-info">
@@ -728,14 +897,14 @@
   <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content"
-        style="background: #ffffff; border: none; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
+        style="background: #1e293b; border: 1px solid #334155; border-radius: 20px; box-shadow: 0 22px 70px rgba(0,0,0,0.55);">
         <div class="modal-header border-0 pb-0" style="padding: 25px 25px 10px;">
-          <h5 class="modal-title fw-bold" style="color: #2c3e50;"><i class="bi bi-wallet2 me-2 text-primary"></i><%= t('customer.payment.choose_title', 'Pilih Pembayaran') %></h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title fw-bold" style="color: #f8fafc;"><i class="bi bi-wallet2 me-2" style="color:#6366f1"></i><%= t('customer.payment.choose_title', 'Pilih Pembayaran') %></h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body" style="padding: 10px 25px 30px;">
           <p class="text-muted small mb-4"><%= t('customer.payment.choose_desc', 'Silakan pilih metode pembayaran untuk tagihan sebesar') %> <strong
-              id="pay_amount_text" class="text-primary"></strong></p>
+              id="pay_amount_text" style="color:#60a5fa"></strong></p>
 
           <div class="payment-methods-grid">
             <% if (paymentChannels && paymentChannels.length> 0) { %>
@@ -820,8 +989,8 @@
                     <% const fallbackMethod = settings.default_gateway === 'midtrans' ? 'snap' : (settings.default_gateway === 'xendit' ? 'xendit' : 'duitku'); %>
                     <div class="pay-method-item mt-2" data-method="<%= fallbackMethod %>"
                       onclick="submitPayment(this.dataset.method)"
-                      style="background: #f0f7ff; border-color: #667eea;">
-                      <div class="p-icon" style="background: #667eea; color: white;"><i
+                      style="background: rgba(99, 102, 241, 0.14); border-color: rgba(99, 102, 241, 0.65);">
+                      <div class="p-icon" style="background: rgba(99, 102, 241, 0.95); color: white;"><i
                           class="bi bi-credit-card-2-back"></i></div>
                       <div class="p-info">
                         <span class="p-name">Metode Lainnya</span>
@@ -847,31 +1016,31 @@
       align-items: center;
       gap: 15px;
       padding: 15px;
-      background: #f8f9fa;
-      border: 2px solid #e9ecef;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.16);
       border-radius: 14px;
       cursor: pointer;
       transition: all 0.3s ease;
     }
 
     .pay-method-item:hover {
-      background: #ffffff;
-      border-color: #667eea;
+      background: rgba(15, 23, 42, 0.75);
+      border-color: rgba(99, 102, 241, 0.7);
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
     }
 
     .p-icon {
       width: 45px;
       height: 45px;
-      background: white;
+      background: rgba(30, 41, 59, 0.9);
       border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 22px;
-      color: #667eea;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      color: #6366f1;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
     }
 
     .p-info {
@@ -882,12 +1051,12 @@
     .p-name {
       font-size: 15px;
       font-weight: 600;
-      color: #2c3e50;
+      color: #f8fafc;
     }
 
     .p-sub {
       font-size: 12px;
-      color: #6c757d;
+      color: rgba(148, 163, 184, 0.9);
     }
   </style>
 
@@ -911,6 +1080,29 @@
       window.location.href = `/customer/payment/create/${currentInvId}?method=${method}`;
     }
 
+    function openCustomerSectionByHash() {
+      const hash = window.location.hash || '';
+      const map = {
+        '#billing-section': 'collapseBilling',
+        '#ticket-section': 'collapseTicket',
+        '#settings-section': 'collapseSettings',
+        '#devices-section': 'collapseDevices'
+      };
+      const targetId = map[hash];
+      if (!targetId) return;
+      const el = document.getElementById(targetId);
+      if (!el) return;
+      const c = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+      c.show();
+    }
+
+    window.addEventListener('hashchange', () => {
+      setTimeout(openCustomerSectionByHash, 0);
+    });
+    window.addEventListener('load', () => {
+      setTimeout(openCustomerSectionByHash, 0);
+    });
+
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('pay_success')) {
       // logic to show success if needed
@@ -920,11 +1112,11 @@
   <div class="modal fade" id="ticketModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content"
-        style="background: #ffffff; border: none; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
+        style="background: #1e293b; border: 1px solid #334155; border-radius: 20px; box-shadow: 0 22px 70px rgba(0,0,0,0.55);">
         <div class="modal-header border-0 pb-0" style="padding: 25px 25px 10px;">
-          <h5 class="modal-title fw-bold" style="color: #2c3e50;"><i class="bi bi-headset me-2 text-primary"></i>Buat
+          <h5 class="modal-title fw-bold" style="color: #f8fafc;"><i class="bi bi-headset me-2" style="color:#6366f1"></i>Buat
             Tiket Keluhan</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form method="POST" action="/customer/tickets/create">
           <div class="modal-body" style="padding: 10px 25px 20px;">
@@ -951,7 +1143,7 @@
             <button type="button" class="btn btn-light" data-bs-dismiss="modal"
               style="border-radius:10px;">Batal</button>
             <button type="submit" class="btn btn-primary"
-              style="border-radius:10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none;">Kirim
+              style="border-radius:10px; background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%); border:none;">Kirim
               Keluhan</button>
           </div>
         </form>

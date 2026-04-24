@@ -10,37 +10,45 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
     :root {
-      --primary: #667eea;
-      --secondary: #764ba2;
-      --text-main: #2d3748;
-      --text-muted: #718096;
+      --primary: #6366f1;
+      --secondary: #3b82f6;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --bg: #0f172a;
+      --panel: rgba(30, 41, 59, 0.92);
+      --panel2: rgba(15, 23, 42, 0.55);
+      --border: #334155;
     }
 
     body {
-      background: linear-gradient(135deg, #f6f8ff 0%, #f1f4ff 100%);
+      background: radial-gradient(1200px 600px at 10% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(15, 23, 42, 0) 60%),
+        radial-gradient(900px 450px at 100% 0%, rgba(59, 130, 246, 0.18) 0%, rgba(15, 23, 42, 0) 55%),
+        var(--bg);
       color: var(--text-main);
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       line-height: 1.7;
       min-height: 100vh;
       padding-bottom: 80px;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .hero-section {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.28) 0%, rgba(59, 130, 246, 0.2) 100%);
       padding: 60px 0;
-      color: white;
+      color: #f8fafc;
       margin-bottom: -40px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
     }
 
     .content-card {
       max-width: 900px;
       margin: 0 auto 50px;
-      background: rgba(255, 255, 255, 0.9);
+      background: var(--panel);
       backdrop-filter: blur(10px);
       padding: 50px;
       border-radius: 24px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border);
     }
 
     h1 {
@@ -70,12 +78,12 @@
     }
 
     .stat-card {
-      background: white;
+      background: var(--panel2);
       border-radius: 16px;
       padding: 20px;
       text-align: center;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.02);
-      border: 1px solid #edf2f7;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(148, 163, 184, 0.14);
       height: 100%;
     }
 
@@ -87,9 +95,9 @@
     }
 
     .btn-back {
-      background: white;
-      color: var(--primary);
-      border: 2px solid var(--primary);
+      background: transparent;
+      color: #f8fafc;
+      border: 1px solid rgba(99, 102, 241, 0.65);
       border-radius: 12px;
       padding: 10px 25px;
       font-weight: 600;
@@ -97,9 +105,17 @@
     }
 
     .btn-back:hover {
-      background: var(--primary);
-      color: white;
+      background: rgba(99, 102, 241, 0.14);
+      border-color: rgba(99, 102, 241, 0.85);
+      color: #f8fafc;
       transform: translateY(-2px);
+    }
+
+    @media (max-width: 768px) {
+      .content-card {
+        padding: 30px;
+        margin: 0 15px 30px;
+      }
     }
   </style>
 </head>
