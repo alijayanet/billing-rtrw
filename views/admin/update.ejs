@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="<%= lang || 'id' %>">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title><%= title %> | <%= company %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<%- include('partials/sidebar', { activePage: activePage || 'update', company }) %>
+<div class="mw">
+  <div class="topbar">
+    <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-cloud-arrow-down"></i> Update GitHub</div>
+    <div class="tb-right">
+      <span class="adm-badge"><i class="bi bi-person-fill"></i> Admin</span>
+      <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i> <%= t('common.logout', 'Logout') %></a>
+    </div>
+  </div>
+  <div class="page">
+    <% if (msg) { %>
+      <div class="alert alert-<%= msg.type==='success'?'s':'d' %>">
+        <i class="bi bi-<%= msg.type==='success'?'check-circle':'exclamation-circle' %>"></i> <%= msg.text %>
+      </div>
+    <% } %>
+
+    <div class="card mb16">
+      <div class="card-hd"><h6><i class="bi bi-git"></i> Status Versi</h6></div>
+      <div class="card-bd">
+        <% if (info && info.error) { %>
+          <div class="alert alert-d"><i class="bi bi-exclamation-circle"></i> <%= info.error %></div>
+        <% } %>
+        <div class="form-row" style="align-items:flex-start">
+          <div class="fg">
+            <label class="fl">Versi Server (version.txt)</label>
+            <div class="fc" style="display:flex;align-items:center;gap:8px">
+              <i class="bi bi-hdd-network"></i>
+              <span style="font-weight:800"><%= info?.localVersion || '-' %></span>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">Versi GitHub (origin/<%= info?.branch || '-' %>)</label>
+            <div class="fc" style="display:flex;align-items:center;gap:8px">
+              <i class="bi bi-github"></i>
+              <span style="font-weight:800"><%= info?.remoteVersion || '-' %></span>
+              <% if (info?.needsUpdate) { %>
+                <span class="badge badge-d" style="margin-left:8px"><i class="bi bi-arrow-up-circle"></i> Ada update</span>
+              <% } else { %>
+                <span class="badge badge-s" style="margin-left:8px"><i class="bi bi-check2-circle"></i> Terbaru</span>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <form method="GET" action="/admin/update">
+            <button type="submit" class="btn btn-g"><i class="bi bi-arrow-repeat"></i> Cek Versi</button>
+          </form>
+          <form method="POST" action="/admin/update/run" onsubmit="return confirmUpdate()">
+            <button type="submit" class="btn btn-s" <%= (info && info.error) ? 'disabled' : '' %>><i class="bi bi-cloud-arrow-down"></i> Update Sekarang</button>
+          </form>
+        </div>
+
+        <div style="margin-top:12px;color:var(--muted);font-size:12px;line-height:1.5">
+          File yang tidak ditimpa saat update: <b>settings.json</b> dan folder <b>database</b>. Setelah update selesai, restart aplikasi agar versi baru aktif.
+        </div>
+      </div>
+    </div>
+
+    <% if (log) { %>
+      <div class="card mb16">
+        <div class="card-hd"><h6><i class="bi bi-terminal"></i> Log Update</h6></div>
+        <div class="card-bd">
+          <pre style="white-space:pre-wrap;word-break:break-word;margin:0;background:rgba(0,0,0,0.08);padding:12px;border-radius:12px"><%= log %></pre>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  function confirmUpdate() {
+    return confirm('Jalankan update dari GitHub sekarang? Pastikan koneksi internet aman dan aplikasi akan direstart setelah selesai.');
+  }
+</script>
+</body>
+</html>
+

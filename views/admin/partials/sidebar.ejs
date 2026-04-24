@@ -77,6 +77,9 @@
 
         <div class="sb-section"><%= t('admin.section.system', 'SISTEM') %></div>
         <% if (typeof session !=='undefined' && session.isAdmin) { %>
+          <a href="/admin/update" class="sb-item <%= activePage==='update' ? 'active' : '' %>">
+            <i class="bi bi-cloud-arrow-down"></i><span>Update GitHub</span>
+          </a>
           <a href="/admin/settings" class="sb-item <%= activePage==='settings' ? 'active' : '' %>">
             <i class="bi bi-gear"></i><span><%= t('admin.nav.settings', 'Pengaturan') %></span>
           </a>

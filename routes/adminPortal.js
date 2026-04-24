@@ -16,6 +16,8 @@ const oltSvc = require('../services/oltService');
 const odpSvc = require('../services/odpService');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { spawnSync } = require('child_process');
 const XLSX = require('xlsx');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
@@ -47,6 +49,81 @@ function flashMsg(req) {
   const m = req.session._msg;
   delete req.session._msg;
   return m || null;
+}
+
+function popUpdateLog(req) {
+  const l = req.session._updateLog;
+  delete req.session._updateLog;
+  return l || '';
+}
+
+function readTextFileSafe(filePath) {
+  try {
+    return String(fs.readFileSync(filePath, 'utf8')).trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+function runCmd(cmd, args, cwd) {
+  try {
+    const r = spawnSync(cmd, args, { cwd, encoding: 'utf8' });
+    return { ok: r.status === 0, code: r.status, stdout: r.stdout || '', stderr: r.stderr || '' };
+  } catch (e) {
+    return { ok: false, code: -1, stdout: '', stderr: String(e?.message || e) };
+  }
+}
+
+function copyDirSync(srcDir, destDir) {
+  fs.mkdirSync(destDir, { recursive: true });
+  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+  for (const ent of entries) {
+    const src = path.join(srcDir, ent.name);
+    const dst = path.join(destDir, ent.name);
+    if (ent.isDirectory()) copyDirSync(src, dst);
+    else if (ent.isFile()) fs.copyFileSync(src, dst);
+  }
+}
+
+function getGitDefaultBranch(repoRoot) {
+  const r = runCmd('git', ['symbolic-ref', 'refs/remotes/origin/HEAD'], repoRoot);
+  if (r.ok) {
+    const ref = String(r.stdout || '').trim();
+    const m = ref.match(/refs\/remotes\/origin\/(.+)$/);
+    if (m && m[1]) return m[1].trim();
+  }
+  return 'main';
+}
+
+function getUpdateInfo(repoRoot) {
+  const localVersion = readTextFileSafe(path.join(repoRoot, 'version.txt')) || '-';
+  const info = { localVersion, remoteVersion: '-', branch: '-', needsUpdate: false, error: '' };
+
+  const inside = runCmd('git', ['rev-parse', '--is-inside-work-tree'], repoRoot);
+  if (!inside.ok) {
+    info.error = 'Folder ini belum menjadi git repository.';
+    return info;
+  }
+
+  const branch = getGitDefaultBranch(repoRoot);
+  info.branch = branch;
+
+  const fetch = runCmd('git', ['fetch', '--prune'], repoRoot);
+  if (!fetch.ok) {
+    info.error = 'Gagal git fetch: ' + (fetch.stderr || fetch.stdout || '').trim();
+    return info;
+  }
+
+  const remote = runCmd('git', ['show', `origin/${branch}:version.txt`], repoRoot);
+  if (!remote.ok) {
+    info.error = `Tidak bisa membaca version.txt dari GitHub (origin/${branch}).`;
+    return info;
+  }
+
+  const remoteVersion = String(remote.stdout || '').trim() || '-';
+  info.remoteVersion = remoteVersion;
+  info.needsUpdate = Boolean(remoteVersion && remoteVersion !== '-' && remoteVersion !== localVersion);
+  return info;
 }
 
 function parseMikhmonOnLogin(script) {
@@ -1121,6 +1198,95 @@ router.get('/settings', requireAdminSession, (req, res) => {
     title: 'Pengaturan Sistem', company: company(), activePage: 'settings',
     settings: getSettings(), msg: flashMsg(req)
   });
+});
+
+router.get('/update', requireAdminSession, restrictToAdmin, (req, res) => {
+  const repoRoot = path.resolve(__dirname, '..');
+  const info = getUpdateInfo(repoRoot);
+  res.render('admin/update', {
+    title: 'Update Aplikasi',
+    company: company(),
+    activePage: 'update',
+    msg: flashMsg(req),
+    info,
+    log: popUpdateLog(req)
+  });
+});
+
+router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
+  const repoRoot = path.resolve(__dirname, '..');
+  const log = [];
+  const pushCmd = (label, r) => {
+    log.push(`$ ${label}`.trim());
+    if (r.stdout) log.push(String(r.stdout).trimEnd());
+    if (r.stderr) log.push(String(r.stderr).trimEnd());
+  };
+
+  const versionPath = path.join(repoRoot, 'version.txt');
+  const localBefore = readTextFileSafe(versionPath) || '-';
+  const branch = getGitDefaultBranch(repoRoot);
+  const backupRoot = path.join(os.tmpdir(), `billing-update-backup-${Date.now()}`);
+  const backupSettings = path.join(backupRoot, 'settings.json');
+  const backupDb = path.join(backupRoot, 'database');
+  const settingsPath = path.join(repoRoot, 'settings.json');
+  const dbDir = path.join(repoRoot, 'database');
+
+  try {
+    const inside = runCmd('git', ['rev-parse', '--is-inside-work-tree'], repoRoot);
+    pushCmd('git rev-parse --is-inside-work-tree', inside);
+    if (!inside.ok) throw new Error('Folder ini belum menjadi git repository.');
+
+    const fetch = runCmd('git', ['fetch', '--prune'], repoRoot);
+    pushCmd('git fetch --prune', fetch);
+    if (!fetch.ok) throw new Error('Gagal git fetch.');
+
+    const remote = runCmd('git', ['show', `origin/${branch}:version.txt`], repoRoot);
+    pushCmd(`git show origin/${branch}:version.txt`, remote);
+    if (!remote.ok) throw new Error('Tidak bisa membaca version.txt dari GitHub.');
+    const remoteVersion = String(remote.stdout || '').trim() || '-';
+
+    if (remoteVersion !== '-' && remoteVersion === localBefore) {
+      req.session._msg = { type: 'success', text: 'Versi sudah terbaru: ' + localBefore };
+      req.session._updateLog = log.join('\n');
+      return res.redirect('/admin/update');
+    }
+
+    fs.mkdirSync(backupRoot, { recursive: true });
+    if (fs.existsSync(settingsPath)) fs.copyFileSync(settingsPath, backupSettings);
+    if (fs.existsSync(dbDir)) copyDirSync(dbDir, backupDb);
+
+    const resetSettings = runCmd('git', ['checkout', '--', 'settings.json'], repoRoot);
+    pushCmd('git checkout -- settings.json', resetSettings);
+    const resetDb = runCmd('git', ['checkout', '--', 'database'], repoRoot);
+    pushCmd('git checkout -- database', resetDb);
+
+    const pull = runCmd('git', ['pull', '--ff-only', 'origin', branch], repoRoot);
+    pushCmd(`git pull --ff-only origin ${branch}`, pull);
+    if (!pull.ok) throw new Error('Gagal git pull. Pastikan tidak ada perubahan lokal yang belum disimpan.');
+
+    if (fs.existsSync(backupSettings)) fs.copyFileSync(backupSettings, settingsPath);
+    if (fs.existsSync(backupDb)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+      copyDirSync(backupDb, dbDir);
+    }
+
+    const npm = runCmd('npm', ['install'], repoRoot);
+    pushCmd('npm install', npm);
+    if (!npm.ok) throw new Error('Update berhasil, tetapi npm install gagal.');
+
+    const localAfter = readTextFileSafe(versionPath) || '-';
+    req.session._msg = { type: 'success', text: `Update selesai. Versi: ${localBefore} → ${localAfter}. Silakan restart aplikasi.` };
+    req.session._updateLog = log.join('\n');
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal update: ' + (e?.message || e) };
+    req.session._updateLog = log.join('\n');
+  } finally {
+    try {
+      if (fs.existsSync(backupRoot)) fs.rmSync(backupRoot, { recursive: true, force: true });
+    } catch (e) {}
+  }
+
+  return res.redirect('/admin/update');
 });
 
 router.post('/api/telegram/sync', requireAdminSession, async (req, res) => {

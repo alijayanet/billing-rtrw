@@ -28,6 +28,9 @@
   "devDependencies": {
     "nodemon": "^3.1.14"
   },
+  "overrides": {
+    "protobufjs": "^7.5.5"
+  },
   "engines": {
     "node": ">=20.0.0"
   },
