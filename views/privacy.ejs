@@ -7,6 +7,13 @@
   <title><%= t('customer.pages.privacy.meta_title', 'Kebijakan Privasi') %> | <%= company %></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/img/logo.png">
+  <link rel="icon" href="/img/logo.png">
   <style>
     :root {
       --primary: #6366f1;
@@ -157,6 +164,13 @@
     &copy; <%= new Date().getFullYear() %>
       <%= company %> • <%= t('customer.pages.privacy.footer_tagline', 'Keamanan Data Anda adalah Komitmen Kami') %>
   </div>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/customer/' }).catch(() => {});
+      });
+    }
+  </script>
   <%- include('partials/customer_bottom_nav', { activeNav: 'none' }) %>
 </body>
 </html>

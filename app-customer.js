@@ -110,6 +110,10 @@ app.get('/login', (req, res) => {
 // Tambahkan view engine dan static
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.get('/manifest.webmanifest', (req, res) => {
+  res.type('application/manifest+json');
+  res.sendFile(path.join(__dirname, 'public', 'manifest.webmanifest'));
+});
 app.use(express.static(path.join(__dirname, 'public')));
 // Mount customer portal
 const customerPortal = require('./routes/customerPortal');
