@@ -133,6 +133,66 @@
       border: 1px solid rgba(148, 163, 184, 0.15);
     }
 
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .btn-ghost {
+      border-radius: 12px;
+      padding: 14px 12px;
+      font-size: 15px;
+      font-weight: 700;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      background: rgba(15, 23, 42, 0.35);
+      color: #e2e8f0;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-ghost:hover {
+      transform: translateY(-1px);
+      border-color: rgba(99, 102, 241, 0.65);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25);
+      color: #e2e8f0;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .info-box {
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.28);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+
+    .info-title {
+      font-weight: 800;
+      font-size: 13px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-text {
+      color: rgba(148, 163, 184, 0.95);
+      font-size: 12px;
+      line-height: 1.4;
+      margin: 0;
+    }
+
     @media (max-width: 576px) {
       .login-container {
         padding: 10px;
@@ -144,6 +204,10 @@
 
       .form-container {
         padding: 25px 20px;
+      }
+
+      .quick-actions {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -170,14 +234,26 @@
               <i class="bi bi-person-badge me-2"></i><%= t('customer.id_tag', 'ID/Tag Pelanggan') %>
             </label>
           </div>
+          <div class="text-center mb-3 small" style="color: rgba(148, 163, 184, 0.95);">
+            <i class="bi bi-info-circle me-1"></i>
+            Masukkan ID pelanggan / Tag ONU / Username PPPoE / Nomor HP yang terdaftar
+          </div>
           <% if (settings.login_otp_enabled) { %>
-            <div class="text-center mb-3 text-muted small">
+            <div class="text-center mb-3 small" style="color: rgba(148, 163, 184, 0.95);">
               <i class="bi bi-whatsapp text-success me-1"></i> <%= t('customer.otp_sent_via_wa', 'Kode OTP akan dikirim via WhatsApp') %>
             </div>
-            <% } %>
-              <button type="submit" class="btn btn-primary btn-login w-100">
-                <i class="bi bi-box-arrow-in-right me-2"></i><%= t('customer.sign_in', 'Masuk') %>
-              </button>
+          <% } %>
+          <button type="submit" class="btn btn-primary btn-login w-100">
+            <i class="bi bi-box-arrow-in-right me-2"></i><%= t('customer.sign_in', 'Masuk') %>
+          </button>
+          <div class="quick-actions">
+            <a href="/customer/check-billing" class="btn-ghost">
+              <i class="bi bi-receipt"></i>Cek Tagihan
+            </a>
+            <a href="/customer/voucher" class="btn-ghost">
+              <i class="bi bi-ticket-perforated"></i>Voucher Online
+            </a>
+          </div>
         </form>
         <% if (error) { %>
           <div class="alert alert-danger mt-3 text-center">
@@ -185,14 +261,30 @@
             <%= error==='Nomor HP tidak valid atau belum terdaftar.' ? 'ID/Tag tidak valid atau belum terdaftar.' :
               error %>
           </div>
-          <% } %>
-            <div class="text-center footer-text mt-4">
-              <p class="mb-2"><%= t('customer.not_subscribed', 'Belum berlangganan?') %> <a href="/customer/register"
-                  style="color: #6366f1; text-decoration: none; font-weight: 700;"><%= t('customer.register_new', 'Daftar Pemasangan Baru') %></a></p>
-              
-              &copy; <%= new Date().getFullYear() %>
-                <%= settings.company_header %>
+        <% } %>
+
+        <div class="info-grid">
+          <div class="info-box">
+            <div class="info-title"><i class="bi bi-lightning-charge"></i> Akses Cepat</div>
+            <p class="info-text">Cek tagihan dan beli voucher bisa dilakukan tanpa login.</p>
+          </div>
+          <div class="info-box">
+            <div class="info-title"><i class="bi bi-clock"></i> Jam Operasional</div>
+            <p class="info-text"><%= settings.operational_hours || 'Setiap Hari' %></p>
+          </div>
+          <% if (settings.company_phone) { %>
+            <div class="info-box">
+              <div class="info-title"><i class="bi bi-headset"></i> Bantuan</div>
+              <p class="info-text">Admin: <a href="https://wa.me/<%= String(settings.company_phone).replace(/\\D/g,'') %>" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none;font-weight:700"><%= settings.company_phone %></a></p>
             </div>
+          <% } %>
+        </div>
+
+        <div class="text-center footer-text mt-4">
+          <p class="mb-2"><%= t('customer.not_subscribed', 'Belum berlangganan?') %> <a href="/customer/register"
+              style="color: #6366f1; text-decoration: none; font-weight: 700;"><%= t('customer.register_new', 'Daftar Pemasangan Baru') %></a></p>
+          &copy; <%= new Date().getFullYear() %> <%= settings.company_header %>
+        </div>
       </div>
     </div>
   </div>

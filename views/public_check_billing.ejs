@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="<%= lang || 'id' %>">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cek Tagihan | <%= settings.company_header || 'Portal ISP' %></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="/img/logo.png">
+  <style>
+    body{
+      background: radial-gradient(1200px 600px at 10% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(15, 23, 42, 0) 60%),
+        radial-gradient(900px 450px at 100% 0%, rgba(59, 130, 246, 0.18) 0%, rgba(15, 23, 42, 0) 55%),
+        #0f172a;
+      color:#e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
+    .cardx{background: rgba(30, 41, 59, 0.92);backdrop-filter: blur(10px);border: 1px solid #334155;border-radius: 20px;box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);overflow:hidden;max-width: 720px;width:100%}
+    .head{background: linear-gradient(135deg, rgba(99, 102, 241, 0.28) 0%, rgba(59, 130, 246, 0.2) 100%);padding:22px 20px;border-bottom:1px solid rgba(148,163,184,.18)}
+    .body{padding:22px 20px}
+    .form-control,.form-select{background: rgba(15, 23, 42, 0.6);border: 1px solid #334155;color:#e2e8f0;border-radius: 12px}
+    .form-control:focus,.form-select:focus{background: rgba(15, 23, 42, 0.75);border-color: rgba(99, 102, 241, 0.85);box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);color:#e2e8f0}
+    .muted{color: rgba(148, 163, 184, 0.9)}
+    .tbl{width:100%;border-collapse:separate;border-spacing:0}
+    .tbl th,.tbl td{padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);vertical-align:middle}
+    .tbl thead th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:rgba(148,163,184,.95)}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid rgba(148,163,184,.18)}
+    .pill-u{background: rgba(248, 81, 73, .12);color:#fca5a5;border-color: rgba(248, 81, 73, .28)}
+    .pill-p{background: rgba(63, 185, 80, .12);color:#86efac;border-color: rgba(63, 185, 80, .28)}
+    .btnx{border-radius:12px;font-weight:700}
+    .btn-primary{background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);border:none}
+    a{color:#a5b4fc}
+    @media (max-width: 576px){.wrap{padding:10px}.cardx{border-radius:15px}.body{padding:18px 14px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="cardx">
+      <div class="head">
+        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+          <div>
+            <div class="fw-bold" style="font-size:18px">Cek Tagihan</div>
+            <div class="muted small"><%= settings.company_header || 'Portal ISP' %></div>
+          </div>
+          <a class="btn btn-outline-light btn-sm btnx" href="/customer/login">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Login
+          </a>
+        </div>
+      </div>
+      <div class="body">
+        <form method="GET" action="/customer/check-billing" class="mb-3">
+          <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-8">
+              <input class="form-control" name="q" value="<%= query || '' %>" placeholder="Masukkan nama / username / nomor / ID pelanggan" required>
+            </div>
+            <div class="col-12 col-md-4 d-grid">
+              <button class="btn btn-primary btnx" type="submit">
+                <i class="bi bi-search me-1"></i> Cek
+              </button>
+            </div>
+          </div>
+          <div class="muted small mt-2">
+            Bisa pakai: Nama pelanggan, Nomor WhatsApp, PPPoE Username, GenieACS Tag, atau ID pelanggan.
+          </div>
+        </form>
+
+        <% if (error) { %>
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i><%= error %>
+          </div>
+        <% } %>
+        <% if (info) { %>
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i><%= info %>
+          </div>
+        <% } %>
+
+        <% if (query && !customer && (!matches || matches.length === 0)) { %>
+          <div class="alert alert-warning">
+            <i class="bi bi-info-circle me-2"></i>Pelanggan tidak ditemukan. Pastikan input sudah benar.
+          </div>
+        <% } %>
+
+        <% if (!customer && matches && matches.length > 0) { %>
+          <div class="mb-2 fw-bold">Hasil Pencarian</div>
+          <div class="muted small mb-2">Pilih pelanggan untuk melihat detail tagihan</div>
+          <div class="table-responsive">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Pelanggan</th>
+                  <th class="text-end">Belum Bayar</th>
+                  <th class="text-end">Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% matches.forEach(m => { %>
+                  <tr>
+                    <td>
+                      <div class="fw-semibold"><%= m.customer_name %></div>
+                      <div class="muted small">
+                        ID: <%= m.customer_id %><% if (m.customer_phone) { %> • WA: <%= m.customer_phone %><% } %>
+                      </div>
+                    </td>
+                    <td class="text-end fw-semibold"><%= Number(m.unpaid_count || 0) %></td>
+                    <td class="text-end fw-semibold">Rp <%= Number(m.total_amount || 0).toLocaleString('id-ID') %></td>
+                    <td class="text-end">
+                      <a class="btn btn-outline-light btn-sm btnx" href="/customer/check-billing?q=<%= encodeURIComponent(String(m.customer_id)) %>">
+                        Lihat
+                      </a>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+
+        <% if (customer) { %>
+          <div class="mb-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div>
+                <div class="fw-bold"><%= customer.name %></div>
+                <div class="muted small">
+                  ID: <%= customer.id %>
+                  <% if (customer.phone) { %> • WA: <%= customer.phone %><% } %>
+                  <% if (customer.package_name) { %> • Paket: <%= customer.package_name %><% } %>
+                </div>
+              </div>
+              <div>
+                <% const unpaidCount = unpaidInvoices ? unpaidInvoices.length : 0; %>
+                <% if (unpaidCount > 0) { %>
+                  <span class="pill pill-u"><i class="bi bi-exclamation-circle"></i> <%= unpaidCount %> Belum Bayar</span>
+                <% } else { %>
+                  <span class="pill pill-p"><i class="bi bi-check-circle"></i> Lunas</span>
+                <% } %>
+              </div>
+            </div>
+          </div>
+
+          <% const monthNames = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; %>
+
+          <% if (!unpaidInvoices || unpaidInvoices.length === 0) { %>
+            <div class="alert alert-success">
+              <i class="bi bi-check-circle me-2"></i>Semua tagihan sudah lunas.
+            </div>
+          <% } else { %>
+            <div class="mb-2 fw-bold">Tagihan Belum Dibayar</div>
+            <div class="table-responsive">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Periode</th>
+                    <th class="text-end">Nominal</th>
+                    <th style="width: 360px">Bayar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% unpaidInvoices.forEach(inv => { %>
+                    <tr>
+                      <td>
+                        <div class="fw-semibold"><%= monthNames[Number(inv.period_month)] %> <%= inv.period_year %></div>
+                        <div class="muted small">INV-<%= inv.id %></div>
+                      </td>
+                      <td class="text-end fw-semibold">Rp <%= Number(inv.amount || 0).toLocaleString('id-ID') %></td>
+                      <td>
+                        <form method="POST" action="/customer/public/payment/create/<%= inv.id %>" class="d-grid gap-2">
+                          <input type="hidden" name="token" value="<%= (invoiceTokens && invoiceTokens[String(inv.id)]) ? invoiceTokens[String(inv.id)] : '' %>">
+                          <% if (paymentChannels && paymentChannels.length > 0) { %>
+                            <select class="form-select" name="method" required>
+                              <% paymentChannels.forEach(ch => { %>
+                                <option value="<%= ch.code %>" <%= String(ch.code || '').toUpperCase() === 'QRIS' ? 'selected' : '' %>><%= ch.name %></option>
+                              <% }) %>
+                            </select>
+                          <% } else { %>
+                            <input type="hidden" name="method" value="QRIS">
+                            <div class="muted small">Metode: QRIS</div>
+                          <% } %>
+
+                          <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="tos_<%= inv.id %>" name="tos" required>
+                            <label class="form-check-label muted" for="tos_<%= inv.id %>">
+                              Saya setuju dengan <a href="/customer/tos" target="_blank" rel="noopener">Syarat & Ketentuan (TOS)</a>
+                            </label>
+                          </div>
+
+                          <button class="btn btn-primary btnx" type="submit">
+                            <i class="bi bi-credit-card me-1"></i> Bayar
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+
+          <% const paidInvoices = (invoices || []).filter(i => i.status === 'paid'); %>
+          <% if (paidInvoices.length > 0) { %>
+            <div class="mt-4">
+              <div class="mb-2 fw-bold">Riwayat (Lunas)</div>
+              <div class="muted small">Menampilkan <%= Math.min(paidInvoices.length, 10) %> data terbaru</div>
+              <div class="table-responsive mt-2">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>Periode</th>
+                      <th class="text-end">Nominal</th>
+                      <th>Tanggal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% paidInvoices.slice(0, 10).forEach(inv => { %>
+                      <tr>
+                        <td>
+                          <div class="fw-semibold"><%= monthNames[Number(inv.period_month)] %> <%= inv.period_year %></div>
+                          <div class="muted small">INV-<%= inv.id %></div>
+                        </td>
+                        <td class="text-end">Rp <%= Number(inv.amount || 0).toLocaleString('id-ID') %></td>
+                        <td class="muted small"><%= inv.paid_at ? new Date(inv.paid_at).toLocaleString('id-ID') : '-' %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <% } %>
+        <% } %>
+
+        <div class="muted small mt-4">
+          &copy; <%= new Date().getFullYear() %> <%= settings.company_header || '' %>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

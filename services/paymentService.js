@@ -32,7 +32,7 @@ function normalizePhone(phone) {
 /**
  * Tripay: Membuat Transaksi
  */
-async function createTripayTransaction(invoice, customer, method = 'QRIS', appUrl = '') {
+async function createTripayTransaction(invoice, customer, method = 'QRIS', appUrl = '', opts = {}) {
   const settings = getSettingsWithCache();
   const apiKey = settings.tripay_api_key;
   const privateKey = settings.tripay_private_key;
@@ -43,8 +43,9 @@ async function createTripayTransaction(invoice, customer, method = 'QRIS', appUr
     ? 'https://tripay.co.id/api/transaction/create' 
     : 'https://tripay.co.id/api-sandbox/transaction/create';
 
-  const merchantRef = `INV-${invoice.id}-${Date.now()}`;
-  const amount = invoice.amount;
+  const prefix = String(opts.orderPrefix || 'INV').toUpperCase();
+  const merchantRef = `${prefix}-${invoice.id}-${Date.now()}`;
+  const amount = Number(invoice.amount || 0);
 
   const signature = crypto.createHmac('sha256', privateKey)
     .update(merchantCode + merchantRef + amount)
@@ -53,6 +54,14 @@ async function createTripayTransaction(invoice, customer, method = 'QRIS', appUr
   const finalAppUrl = appUrl || settings.app_url || '';
   const phone = normalizePhone(customer.phone || '0');
   const email = customer.email || getFallbackEmail(phone);
+  const itemName =
+    String(opts.itemName || invoice.item_name || '').trim() ||
+    (invoice.period_month && invoice.period_year
+      ? `Tagihan Internet Periode ${invoice.period_month}/${invoice.period_year}`
+      : `Pembayaran #${invoice.id}`);
+  const sku = String(opts.sku || invoice.sku || `ITEM-${invoice.id}`).trim() || `ITEM-${invoice.id}`;
+  const callbackPath = String(opts.callbackPath || '/customer/payment/callback');
+  const returnPath = String(opts.returnPath || '/customer/dashboard');
 
   const payload = {
     method: method,
@@ -63,15 +72,15 @@ async function createTripayTransaction(invoice, customer, method = 'QRIS', appUr
     customer_phone: phone,
     order_items: [
       {
-        sku: 'INTERNET-' + invoice.id,
-        name: `Tagihan Internet Periode ${invoice.period_month}/${invoice.period_year}`,
+        sku: sku,
+        name: itemName,
         price: amount,
         quantity: 1
       }
     ],
     signature: signature,
-    callback_url: finalAppUrl ? `${finalAppUrl}/customer/payment/callback` : undefined,
-    return_url: finalAppUrl ? `${finalAppUrl}/customer/dashboard` : undefined
+    callback_url: finalAppUrl ? `${finalAppUrl}${callbackPath}` : undefined,
+    return_url: finalAppUrl ? `${finalAppUrl}${returnPath}` : undefined
   };
 
   try {
@@ -99,7 +108,7 @@ async function createTripayTransaction(invoice, customer, method = 'QRIS', appUr
 /**
  * Midtrans: Membuat Transaksi (Snap)
  */
-async function createMidtransTransaction(invoice, customer, method = 'snap', appUrl = '') {
+async function createMidtransTransaction(invoice, customer, method = 'snap', appUrl = '', opts = {}) {
   const settings = getSettingsWithCache();
   const serverKey = settings.midtrans_server_key;
   const isLive = settings.midtrans_mode === 'live' || settings.midtrans_mode === 'production';
@@ -112,10 +121,18 @@ async function createMidtransTransaction(invoice, customer, method = 'snap', app
     ? 'https://app.midtrans.com/snap/v1/transactions'
     : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
 
-  const orderId = `INV-${invoice.id}-${Date.now()}`;
+  const prefix = String(opts.orderPrefix || 'INV').toUpperCase();
+  const orderId = `${prefix}-${invoice.id}-${Date.now()}`;
   const finalAppUrl = appUrl || settings.app_url || '';
   const phone = normalizePhone(customer.phone || '0');
   const email = customer.email || getFallbackEmail(phone);
+  const itemName =
+    String(opts.itemName || invoice.item_name || '').trim() ||
+    (invoice.period_month && invoice.period_year
+      ? `Tagihan Internet ${invoice.period_month}/${invoice.period_year}`
+      : `Pembayaran #${invoice.id}`);
+  const sku = String(opts.sku || invoice.sku || `ITEM-${invoice.id}`).trim() || `ITEM-${invoice.id}`;
+  const returnPath = String(opts.returnPath || '/customer/dashboard');
   
   const payload = {
     transaction_details: {
@@ -128,10 +145,10 @@ async function createMidtransTransaction(invoice, customer, method = 'snap', app
       phone: phone
     },
     item_details: [{
-      id: 'INV-' + invoice.id,
+      id: sku,
       price: invoice.amount,
       quantity: 1,
-      name: `Tagihan Internet ${invoice.period_month}/${invoice.period_year}`
+      name: itemName
     }]
   };
 
@@ -152,9 +169,9 @@ async function createMidtransTransaction(invoice, customer, method = 'snap', app
 
   if (finalAppUrl) {
     payload.callbacks = {
-      finish: `${finalAppUrl}/customer/dashboard`,
-      error: `${finalAppUrl}/customer/dashboard`,
-      pending: `${finalAppUrl}/customer/dashboard`
+      finish: `${finalAppUrl}${returnPath}`,
+      error: `${finalAppUrl}${returnPath}`,
+      pending: `${finalAppUrl}${returnPath}`
     };
   }
 
@@ -186,7 +203,7 @@ async function createMidtransTransaction(invoice, customer, method = 'snap', app
 /**
  * Xendit: Membuat Invoice (Checkout Link)
  */
-async function createXenditTransaction(invoice, customer, method = 'xendit', appUrl = '') {
+async function createXenditTransaction(invoice, customer, method = 'xendit', appUrl = '', opts = {}) {
   const settings = getSettingsWithCache();
   const apiKey = settings.xendit_api_key;
   
@@ -194,26 +211,38 @@ async function createXenditTransaction(invoice, customer, method = 'xendit', app
     throw new Error('Xendit API Key belum diatur di pengaturan.');
   }
 
-  const orderId = `INV-${invoice.id}-${Date.now()}`;
+  const prefix = String(opts.orderPrefix || 'INV').toUpperCase();
+  const orderId = `${prefix}-${invoice.id}-${Date.now()}`;
   const finalAppUrl = appUrl || settings.app_url || '';
   const phone = normalizePhone(customer.phone || '0');
   const email = customer.email || getFallbackEmail(phone);
+  const itemName =
+    String(opts.itemName || invoice.item_name || '').trim() ||
+    (invoice.period_month && invoice.period_year
+      ? `Internet ${invoice.period_month}/${invoice.period_year}`
+      : `Pembayaran #${invoice.id}`);
+  const description =
+    String(opts.description || invoice.description || '').trim() ||
+    (invoice.period_month && invoice.period_year
+      ? `Tagihan Internet Periode ${invoice.period_month}/${invoice.period_year}`
+      : itemName);
+  const returnPath = String(opts.returnPath || '/customer/dashboard');
 
   const payload = {
     external_id: orderId,
     amount: invoice.amount,
-    description: `Tagihan Internet Periode ${invoice.period_month}/${invoice.period_year}`,
+    description: description,
     invoice_duration: 86400, // 24 jam
     customer: {
       given_names: customer.name,
       email: email,
       mobile_number: phone
     },
-    success_redirect_url: `${finalAppUrl}/customer/dashboard`,
-    failure_redirect_url: `${finalAppUrl}/customer/dashboard`,
+    success_redirect_url: `${finalAppUrl}${returnPath}`,
+    failure_redirect_url: `${finalAppUrl}${returnPath}`,
     currency: 'IDR',
     items: [{
-      name: `Internet ${invoice.period_month}/${invoice.period_year}`,
+      name: itemName,
       quantity: 1,
       price: invoice.amount
     }]
@@ -261,7 +290,7 @@ async function createXenditTransaction(invoice, customer, method = 'xendit', app
 /**
  * Duitku: Membuat Transaksi (Checkout Link via Inquiry)
  */
-async function createDuitkuTransaction(invoice, customer, method = 'duitku', appUrl = '') {
+async function createDuitkuTransaction(invoice, customer, method = 'duitku', appUrl = '', opts = {}) {
   const settings = getSettingsWithCache();
   const merchantCode = settings.duitku_merchant_code;
   const apiKey = settings.duitku_api_key;
@@ -275,9 +304,17 @@ async function createDuitkuTransaction(invoice, customer, method = 'duitku', app
     ? 'https://passport.duitku.com/webapi/api/merchant/v2/inquiry'
     : 'https://passport-sandbox.duitku.com/webapi/api/merchant/v2/inquiry';
 
-  const orderId = `INV-${invoice.id}-${Date.now()}`;
-  const amount = invoice.amount;
+  const prefix = String(opts.orderPrefix || 'INV').toUpperCase();
+  const orderId = `${prefix}-${invoice.id}-${Date.now()}`;
+  const amount = Number(invoice.amount || 0);
   const finalAppUrl = appUrl || settings.app_url || '';
+  const productDetails =
+    String(opts.itemName || invoice.item_name || '').trim() ||
+    (invoice.period_month && invoice.period_year
+      ? `Tagihan Internet ${invoice.period_month}/${invoice.period_year}`
+      : `Pembayaran #${invoice.id}`);
+  const callbackPath = String(opts.callbackPath || '/customer/payment/callback');
+  const returnPath = String(opts.returnPath || '/customer/dashboard');
 
   // Signature: md5(merchantCode + merchantOrderId + paymentAmount + apiKey)
   const signature = crypto.createHash('md5')
@@ -288,12 +325,12 @@ async function createDuitkuTransaction(invoice, customer, method = 'duitku', app
     merchantCode,
     paymentAmount: amount,
     merchantOrderId: orderId,
-    productDetails: `Tagihan Internet ${invoice.period_month}/${invoice.period_year}`,
+    productDetails: productDetails,
     email: customer.email || getFallbackEmail(customer.phone),
     phoneNumber: normalizePhone(customer.phone),
     customerVaName: customer.name,
-    callbackUrl: `${finalAppUrl}/customer/payment/callback`,
-    returnUrl: `${finalAppUrl}/customer/dashboard`,
+    callbackUrl: `${finalAppUrl}${callbackPath}`,
+    returnUrl: `${finalAppUrl}${returnPath}`,
     signature,
     expiryPeriod: 1440 // 24 jam
   };

@@ -162,6 +162,32 @@ db.exec(`
     UNIQUE(router_id, code)
   );
 
+  CREATE TABLE IF NOT EXISTS public_voucher_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    router_id INTEGER REFERENCES routers(id) ON DELETE SET NULL,
+    profile_name TEXT NOT NULL,
+    validity TEXT DEFAULT '',
+    price INTEGER NOT NULL DEFAULT 0,
+    buyer_phone TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    paid_at DATETIME,
+    fulfilled_at DATETIME,
+    voucher_code TEXT DEFAULT '',
+    voucher_password TEXT DEFAULT '',
+    voucher_comment TEXT DEFAULT '',
+    wa_sent INTEGER NOT NULL DEFAULT 0,
+    wa_sent_at DATETIME,
+    wa_error TEXT DEFAULT '',
+    payment_gateway TEXT DEFAULT '',
+    payment_order_id TEXT DEFAULT '',
+    payment_link TEXT DEFAULT '',
+    payment_reference TEXT DEFAULT '',
+    payment_payload TEXT,
+    payment_expires_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS agents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
@@ -210,6 +236,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_voucher_batches_router ON voucher_batches(router_id);
   CREATE INDEX IF NOT EXISTS idx_vouchers_batch ON vouchers(batch_id);
   CREATE INDEX IF NOT EXISTS idx_vouchers_code ON vouchers(code);
+  CREATE INDEX IF NOT EXISTS idx_public_voucher_orders_status ON public_voucher_orders(status);
+  CREATE INDEX IF NOT EXISTS idx_public_voucher_orders_created ON public_voucher_orders(created_at);
 
   CREATE INDEX IF NOT EXISTS idx_agents_username ON agents(username);
   CREATE INDEX IF NOT EXISTS idx_agent_prices_agent ON agent_hotspot_prices(agent_id);
