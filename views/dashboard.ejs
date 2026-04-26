@@ -161,6 +161,65 @@
       background: linear-gradient(135deg, #dc3545, #c82333);
     }
 
+    .stat-icon.download {
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    }
+
+    .stat-icon.upload {
+      background: linear-gradient(135deg, #22c55e, #a3e635);
+    }
+
+    .traffic-gauge {
+      position: relative;
+      width: 100%;
+      max-width: 220px;
+      margin: 0 auto;
+    }
+
+    .traffic-gauge canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .traffic-gauge-center {
+      position: absolute;
+      left: 50%;
+      top: 62%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .traffic-gauge-value {
+      font-size: 16px;
+      font-weight: 800;
+      color: #e2e8f0;
+      line-height: 1.05;
+      white-space: nowrap;
+    }
+
+    .traffic-gauge-unit {
+      font-size: 11px;
+      color: rgba(148, 163, 184, 0.95);
+      margin-top: 2px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .traffic-gauge-scale {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: rgba(148, 163, 184, 0.9);
+      margin-top: 4px;
+      user-select: none;
+    }
+
     .stat-label {
       font-size: 12px;
       color: #94a3b8;
@@ -530,32 +589,42 @@
                     </div>
 
                     <div class="stat-card">
-                      <div class="stat-icon wifi">
-                        <i class="bi bi-wifi"></i>
+                      <div class="stat-icon person">
+                        <i class="bi bi-person"></i>
                       </div>
-                      <div class="stat-label"><%= t('customer.dashboard.current_ssid', 'SSID Saat Ini') %></div>
+                      <div class="stat-label"><%= t('customer.dashboard.pppoe_username', 'PPPoE Username') %></div>
                       <div class="stat-value">
-                        <%= customer.ssid %>
+                        <%= customer.pppoeUsername %>
                       </div>
                     </div>
 
                     <div class="stat-card">
-                      <div class="stat-icon cpu">
-                        <i class="bi bi-cpu"></i>
-                      </div>
-                      <div class="stat-label"><%= t('customer.dashboard.software_version', 'Versi Software') %></div>
-                      <div class="stat-value">
-                        <%= customer.softwareVersion %>
+                      <div class="stat-label">Trafik Download</div>
+                      <div class="traffic-gauge">
+                        <canvas id="pppoe_rx_gauge" width="240" height="150" data-max="<%= typeof trafficMaxDownMbps !== 'undefined' ? trafficMaxDownMbps : 10 %>"></canvas>
+                        <div class="traffic-gauge-center">
+                          <div class="traffic-gauge-value" id="pppoe_rx_value">-</div>
+                          <div class="traffic-gauge-unit" id="pppoe_rx_unit">&nbsp;</div>
+                        </div>
+                        <div class="traffic-gauge-scale">
+                          <span>0</span>
+                          <span id="pppoe_rx_max"><%= typeof trafficMaxDownMbps !== 'undefined' ? trafficMaxDownMbps : 10 %> Mbps</span>
+                        </div>
                       </div>
                     </div>
 
                     <div class="stat-card">
-                      <div class="stat-icon clock">
-                        <i class="bi bi-clock-history"></i>
-                      </div>
-                      <div class="stat-label"><%= t('customer.dashboard.last_inform', 'Last Inform') %></div>
-                      <div class="stat-value">
-                        <%= customer.lastInform %>
+                      <div class="stat-label">Trafik Upload</div>
+                      <div class="traffic-gauge">
+                        <canvas id="pppoe_tx_gauge" width="240" height="150" data-max="<%= typeof trafficMaxUpMbps !== 'undefined' ? trafficMaxUpMbps : 10 %>"></canvas>
+                        <div class="traffic-gauge-center">
+                          <div class="traffic-gauge-value" id="pppoe_tx_value">-</div>
+                          <div class="traffic-gauge-unit" id="pppoe_tx_unit">&nbsp;</div>
+                        </div>
+                        <div class="traffic-gauge-scale">
+                          <span>0</span>
+                          <span id="pppoe_tx_max"><%= typeof trafficMaxUpMbps !== 'undefined' ? trafficMaxUpMbps : 10 %> Mbps</span>
+                        </div>
                       </div>
                     </div>
 
@@ -566,26 +635,6 @@
                       <div class="stat-label"><%= t('customer.dashboard.rx_power', 'RX Power') %></div>
                       <div class="stat-value">
                         <%= customer.rxPower %>
-                      </div>
-                    </div>
-
-                    <div class="stat-card">
-                      <div class="stat-icon globe">
-                        <i class="bi bi-globe"></i>
-                      </div>
-                      <div class="stat-label"><%= t('customer.dashboard.pppoe_ip', 'PPPoE IP') %></div>
-                      <div class="stat-value">
-                        <%= customer.pppoeIP %>
-                      </div>
-                    </div>
-
-                    <div class="stat-card">
-                      <div class="stat-icon person">
-                        <i class="bi bi-person"></i>
-                      </div>
-                      <div class="stat-label"><%= t('customer.dashboard.pppoe_username', 'PPPoE Username') %></div>
-                      <div class="stat-value">
-                        <%= customer.pppoeUsername %>
                       </div>
                     </div>
 
@@ -1119,6 +1168,177 @@
     document.addEventListener('DOMContentLoaded', () => {
       const modalEl = document.getElementById('paymentModal');
       if (modalEl) pModal = new bootstrap.Modal(modalEl);
+    });
+
+    function setTrafficText(el, text) {
+      if (!el) return;
+      el.innerText = text;
+    }
+
+    function niceMaxMbps(x) {
+      const n = Number(x || 0);
+      if (!Number.isFinite(n) || n <= 0) return 1;
+      const exp = Math.floor(Math.log10(n));
+      const base = n / Math.pow(10, exp);
+      const steps = [1, 2, 5, 10];
+      let chosen = steps[steps.length - 1];
+      for (const s of steps) {
+        if (base <= s) { chosen = s; break; }
+      }
+      return chosen * Math.pow(10, exp);
+    }
+
+    function formatRate(mbps) {
+      const n = Number(mbps || 0);
+      if (!Number.isFinite(n) || n <= 0) return { valueText: '0', unitText: 'Kbps' };
+      if (n >= 1) return { valueText: n.toFixed(2), unitText: 'Mbps' };
+      const kbps = n * 1000;
+      return { valueText: String(Math.round(kbps)), unitText: 'Kbps' };
+    }
+
+    function drawSemiGauge(canvas, ratio, colorA, colorB) {
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h * 0.92;
+      const radius = Math.min(w * 0.42, h * 0.72);
+      const start = Math.PI;
+      const end = Math.PI * 2;
+      const line = Math.max(10, Math.round(Math.min(w, h) * 0.07));
+
+      const clamped = Math.max(0, Math.min(1, Number(ratio) || 0));
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.lineCap = 'round';
+      ctx.lineWidth = line;
+
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+      ctx.arc(cx, cy, radius, start, end);
+      ctx.stroke();
+
+      if (clamped > 0) {
+        const grad = ctx.createLinearGradient(cx - radius, cy, cx + radius, cy);
+        grad.addColorStop(0, colorA);
+        grad.addColorStop(1, colorB);
+        ctx.beginPath();
+        ctx.strokeStyle = grad;
+        const a = start + (end - start) * clamped;
+        ctx.arc(cx, cy, radius, start, a);
+        ctx.stroke();
+
+        const px = cx + radius * Math.cos(a);
+        const py = cy + radius * Math.sin(a);
+        ctx.beginPath();
+        ctx.fillStyle = '#0b1220';
+        ctx.arc(px, py, line * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.fillStyle = colorB;
+        ctx.arc(px, py, line * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    const trafficGaugeState = {
+      rx: { maxMbps: 10, current: 0, target: 0, canvasId: 'pppoe_rx_gauge', maxId: 'pppoe_rx_max', valueId: 'pppoe_rx_value', unitId: 'pppoe_rx_unit', c1: '#3b82f6', c2: '#06b6d4' },
+      tx: { maxMbps: 10, current: 0, target: 0, canvasId: 'pppoe_tx_gauge', maxId: 'pppoe_tx_max', valueId: 'pppoe_tx_value', unitId: 'pppoe_tx_unit', c1: '#22c55e', c2: '#a3e635' }
+    };
+
+    function setGauge(kind, mbps, labelOverride) {
+      const st = trafficGaugeState[kind];
+      if (!st) return;
+      if (typeof labelOverride === 'string' && labelOverride) {
+        const vEl = document.getElementById(st.valueId);
+        const uEl = document.getElementById(st.unitId);
+        setTrafficText(vEl, labelOverride);
+        setTrafficText(uEl, '');
+        st.target = 0;
+        return;
+      }
+      const n = Number(mbps || 0);
+      const safe = Number.isFinite(n) ? Math.max(0, n) : 0;
+      st.target = safe;
+      const maxEl = document.getElementById(st.maxId);
+      if (maxEl) maxEl.innerText = `${st.maxMbps} Mbps`;
+      const { valueText, unitText } = formatRate(safe);
+      setTrafficText(document.getElementById(st.valueId), valueText);
+      setTrafficText(document.getElementById(st.unitId), unitText);
+    }
+
+    function renderGauges() {
+      const gamma = 0.55;
+      for (const kind of ['rx', 'tx']) {
+        const st = trafficGaugeState[kind];
+        const d = st.target - st.current;
+        st.current = st.current + d * 0.22;
+        if (Math.abs(d) < 0.001) st.current = st.target;
+        const linear = st.maxMbps > 0 ? (st.current / st.maxMbps) : 0;
+        const clamped = Math.max(0, Math.min(1, linear));
+        const ratio = clamped > 0 ? Math.pow(clamped, gamma) : 0;
+        const canvas = document.getElementById(st.canvasId);
+        drawSemiGauge(canvas, ratio, st.c1, st.c2);
+      }
+      requestAnimationFrame(renderGauges);
+    }
+
+    async function refreshPppoeTraffic() {
+      const rxCanvas = document.getElementById('pppoe_rx_gauge');
+      const txCanvas = document.getElementById('pppoe_tx_gauge');
+      if (!rxCanvas || !txCanvas) return;
+      try {
+        const r = await fetch('/customer/api/pppoe-traffic', { cache: 'no-store' });
+        const data = await r.json();
+        if (!data || !data.ok) {
+          const err = data && data.error ? String(data.error) : '';
+          const shortErr = err ? (err.length > 28 ? err.slice(0, 28) + '…' : err) : '';
+          setGauge('rx', 0, shortErr ? 'Error' : '-');
+          setGauge('tx', 0, shortErr ? 'Error' : '-');
+          return;
+        }
+        if (data.available === false) {
+          setGauge('rx', 0, 'N/A');
+          setGauge('tx', 0, 'N/A');
+          return;
+        }
+        if (!data.online) {
+          setGauge('rx', 0, 'Offline');
+          setGauge('tx', 0, 'Offline');
+          return;
+        }
+        if (data.warmup) {
+          setGauge('rx', 0, 'Mengukur');
+          setGauge('tx', 0, 'Mengukur');
+          return;
+        }
+        const rx = Number(data.rxMbps || 0);
+        const tx = Number(data.txMbps || 0);
+        setGauge('rx', tx);
+        setGauge('tx', rx);
+      } catch {
+        setGauge('rx', 0, '-');
+        setGauge('tx', 0, '-');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const rxCanvas = document.getElementById('pppoe_rx_gauge');
+      const txCanvas = document.getElementById('pppoe_tx_gauge');
+      const rxMaxEl = document.getElementById('pppoe_rx_max');
+      const txMaxEl = document.getElementById('pppoe_tx_max');
+      const rxMax = Number(rxCanvas && rxCanvas.dataset ? rxCanvas.dataset.max : 10);
+      const txMax = Number(txCanvas && txCanvas.dataset ? txCanvas.dataset.max : 10);
+      trafficGaugeState.rx.maxMbps = Number.isFinite(rxMax) && rxMax > 0 ? rxMax : 10;
+      trafficGaugeState.tx.maxMbps = Number.isFinite(txMax) && txMax > 0 ? txMax : 10;
+      if (rxMaxEl) rxMaxEl.innerText = `${trafficGaugeState.rx.maxMbps} Mbps`;
+      if (txMaxEl) txMaxEl.innerText = `${trafficGaugeState.tx.maxMbps} Mbps`;
+
+      requestAnimationFrame(renderGauges);
+      refreshPppoeTraffic();
+      setInterval(refreshPppoeTraffic, 3000);
     });
 
     function openPaymentModal(invId, amount) {

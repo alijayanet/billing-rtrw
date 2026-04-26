@@ -81,6 +81,41 @@ function isEnabledFlag(v) {
   return v === true || v === 'true' || v === 1 || v === '1';
 }
 
+const pppoeTrafficSamples = new Map();
+
+function prunePppoeTrafficSamples(now) {
+  const maxAgeMs = 3 * 60 * 1000;
+  for (const [k, v] of pppoeTrafficSamples.entries()) {
+    if (!v || !v.t || now - v.t > maxAgeMs) pppoeTrafficSamples.delete(k);
+  }
+}
+
+function numField(obj, keys) {
+  for (const k of keys) {
+    const v = obj && (obj[k] ?? obj[String(k)]);
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return 0;
+}
+
+function strField(obj, keys) {
+  for (const k of keys) {
+    const v = obj && (obj[k] ?? obj[String(k)]);
+    const s = String(v || '').trim();
+    if (s) return s;
+  }
+  return '';
+}
+
+async function invokeRouterOsMenuCommand(menu, command, args) {
+  if (!menu) return null;
+  if (typeof menu.call === 'function') return await menu.call(command, args);
+  if (typeof menu.command === 'function') return await menu.command(command, args);
+  if (typeof menu.run === 'function') return await menu.run(command, args);
+  return null;
+}
+
 // Route: Syarat & Ketentuan (TOS)
 router.get('/tos', (req, res) => {
   const settings = getSettingsWithCache();
@@ -625,10 +660,27 @@ router.get('/dashboard', async (req, res) => {
     tickets = ticketSvc.getTicketsByCustomerId(profile.id);
   }
 
+  if (profile && profile.router_id) {
+    req.session.router_id = Number(profile.router_id);
+  }
+  const pppoeFromProfile = profile && String(profile.pppoe_username || '').trim();
+  const pppoeFromDevice = deviceData && String(deviceData.pppoeUsername || '').trim();
+  if (pppoeFromProfile) req.session.pppoe_username = pppoeFromProfile;
+  else if (pppoeFromDevice) req.session.pppoe_username = pppoeFromDevice;
+
   const settings = getSettingsWithCache();
   let paymentChannels = [];
   if (settings.default_gateway === 'tripay' && settings.tripay_enabled) {
     paymentChannels = await paymentSvc.getTripayChannels();
+  }
+
+  let trafficMaxDownMbps = 10;
+  let trafficMaxUpMbps = 10;
+  if (profile) {
+    const downKbps = Number(profile.speed_down || 0);
+    const upKbps = Number(profile.speed_up || 0);
+    if (Number.isFinite(downKbps) && downKbps > 0) trafficMaxDownMbps = Math.max(1, Math.round(downKbps / 1000));
+    if (Number.isFinite(upKbps) && upKbps > 0) trafficMaxUpMbps = Math.max(1, Math.round(upKbps / 1000));
   }
 
   res.render('dashboard', {
@@ -638,10 +690,177 @@ router.get('/dashboard', async (req, res) => {
     tickets: tickets || [],
     settings,
     paymentChannels,
+    trafficMaxDownMbps,
+    trafficMaxUpMbps,
     connectedUsers: deviceData ? deviceData.connectedUsers : [],
     isLoggedIn: true,
     notif: msgNotif || (deviceData ? null : dashboardNotif('Data perangkat tidak ditemukan di sistem ONU.', 'warning'))
   });
+});
+
+router.get('/api/pppoe-traffic', async (req, res) => {
+  const loginId = req.session && req.session.phone;
+  if (!loginId) return res.status(401).json({ ok: false, error: 'unauthorized' });
+
+  let routerId = req.session && req.session.router_id ? Number(req.session.router_id) : null;
+  let username = String((req.session && req.session.pppoe_username) || '').trim();
+
+  if (!username || !routerId) {
+    const cleanLogin = String(loginId).replace(/\D/g, '');
+    const profile = customerSvc.getAllCustomers().find(c => {
+      const cleanDb = String(c.phone || '').replace(/\D/g, '');
+      return cleanDb === cleanLogin || c.phone === loginId || c.genieacs_tag === loginId || c.pppoe_username === loginId;
+    }) || null;
+
+    if (!routerId && profile && profile.router_id) {
+      routerId = Number(profile.router_id);
+      req.session.router_id = routerId;
+    }
+    if (!username) {
+      const pppoeFromProfile = profile && String(profile.pppoe_username || '').trim();
+      if (pppoeFromProfile) {
+        username = pppoeFromProfile;
+        req.session.pppoe_username = username;
+      } else if (/[a-zA-Z]/.test(String(loginId))) {
+        username = String(loginId).trim();
+      }
+    }
+  }
+
+  if (!username) return res.json({ ok: true, available: false, online: false });
+
+  const now = Date.now();
+  prunePppoeTrafficSamples(now);
+
+  let conn = null;
+  try {
+    conn = await mikrotikService.getConnection(routerId);
+    const sessions = await conn.client.menu('/ppp/active').where('name', username).get();
+    if (!sessions || sessions.length === 0) {
+      return res.json({ ok: true, online: false, username, rxMbps: 0, txMbps: 0 });
+    }
+
+    const s = sessions[0];
+    let iface = strField(s, ['interface', 'interface-name', 'interfaceName', 'ifname', 'if-name', 'pppInterface']) || null;
+    const baseSessionId = strField(s, ['.id', 'id', 'sessionId', 'session-id']) || `${username}`;
+    const bytesIn = numField(s, ['bytesIn', 'bytes-in', 'bytes_in']);
+    const bytesOut = numField(s, ['bytesOut', 'bytes-out', 'bytes_out']);
+    const uptime = strField(s, ['uptime']) || null;
+
+    if (!iface) {
+      try {
+        const pppoeSrvMenu = conn.client.menu('/interface/pppoe-server');
+        let pppoeRows = [];
+        try {
+          pppoeRows = await pppoeSrvMenu.where('user', username).get();
+        } catch {
+          pppoeRows = await pppoeSrvMenu.get();
+        }
+        const hit = (Array.isArray(pppoeRows) ? pppoeRows : []).find(r => String(r.user || r['user'] || '').trim() === username);
+        const ifaceName = strField(hit, ['name']);
+        if (ifaceName) iface = ifaceName;
+      } catch {}
+    }
+
+    const sessionId = `${baseSessionId}${iface ? `|${iface}` : ''}`;
+
+    const key = `${routerId || 'default'}:${username}`;
+    const prev = pppoeTrafficSamples.get(key);
+    let rxBytes = bytesIn;
+    let txBytes = bytesOut;
+    let source = 'ppp-active';
+
+    if (iface) {
+      const ifMenu = conn.client.menu('/interface');
+      if (ifMenu) {
+        try {
+          const mtRaw = await invokeRouterOsMenuCommand(ifMenu, 'monitor-traffic', { interface: iface, once: '' });
+          const mt = Array.isArray(mtRaw) ? mtRaw[0] : mtRaw;
+          const rxBps = numField(mt, ['rxBitsPerSecond', 'rx-bits-per-second', 'rx-bits-per-second']);
+          const txBps = numField(mt, ['txBitsPerSecond', 'tx-bits-per-second', 'tx-bits-per-second']);
+          if (rxBps || txBps) {
+            return res.json({
+              ok: true,
+              online: true,
+              username,
+              iface,
+              source: 'monitor-traffic',
+              uptime,
+              rxMbps: (Number(rxBps) || 0) / 1e6,
+              txMbps: (Number(txBps) || 0) / 1e6
+            });
+          }
+        } catch {}
+      }
+    }
+
+    if (iface) {
+      try {
+        const ifRows = await conn.client.menu('/interface').where('name', iface).get();
+        if (ifRows && ifRows.length > 0) {
+          const row = ifRows[0];
+          const ifRx = numField(row, ['rxByte', 'rx-byte', 'rx-bytes', 'rxBytes']);
+          const ifTx = numField(row, ['txByte', 'tx-byte', 'tx-bytes', 'txBytes']);
+          if (ifRx || ifTx) {
+            rxBytes = ifRx;
+            txBytes = ifTx;
+            source = 'interface';
+          }
+        }
+      } catch {}
+    }
+
+    pppoeTrafficSamples.set(key, { t: now, sessionId, rxBytes, txBytes, source });
+
+    if (!prev || prev.sessionId !== sessionId || !prev.t) {
+      return res.json({
+        ok: true,
+        online: true,
+        warmup: true,
+        username,
+        iface,
+        source,
+        uptime,
+        rxMbps: 0,
+        txMbps: 0
+      });
+    }
+
+    const dtMs = Math.max(1, now - prev.t);
+    const dIn = rxBytes - numField(prev, ['rxBytes']);
+    const dOut = txBytes - numField(prev, ['txBytes']);
+    if (dIn < 0 || dOut < 0) {
+      return res.json({
+        ok: true,
+        online: true,
+        warmup: true,
+        username,
+        iface,
+        source,
+        uptime,
+        rxMbps: 0,
+        txMbps: 0
+      });
+    }
+
+    const rxMbps = (dIn * 8) / (dtMs / 1000) / 1e6;
+    const txMbps = (dOut * 8) / (dtMs / 1000) / 1e6;
+
+    return res.json({
+      ok: true,
+      online: true,
+      username,
+      iface,
+      source,
+      uptime,
+      rxMbps: Number.isFinite(rxMbps) ? rxMbps : 0,
+      txMbps: Number.isFinite(txMbps) ? txMbps : 0
+    });
+  } catch (e) {
+    return res.json({ ok: false, error: e.message || 'failed' });
+  } finally {
+    if (conn && conn.api) conn.api.close();
+  }
 });
 
 router.post('/change-ssid', async (req, res) => {

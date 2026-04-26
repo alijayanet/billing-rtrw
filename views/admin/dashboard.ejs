@@ -63,12 +63,6 @@
   </div>
 
   <div class="page">
-    <!-- INFO BAR: Portal Link -->
-    <div class="alert alert-i" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:10px 15px">
-      <span><i class="bi bi-link-45deg"></i> <strong><%= t('admin.dashboard.portal_link', 'Link Portal Pelanggan') %>:</strong> <code id="portal-link-url">...</code></span>
-      <button class="btn btn-g btn-sm" onclick="copyPortalLink()"><i class="bi bi-copy"></i> <%= t('common.copy_link', 'Salin Link') %></button>
-    </div>
-
     <!-- TAB NAVIGATION -->
     <div class="tab-bar">
       <button class="tab-btn active" id="tab-dash" onclick="showTab('dashboard')">
@@ -382,7 +376,6 @@ const I18N = {
   passwordSent: "<%= t('admin.dashboard.password_sent', 'Perubahan Password telah dikirim ke perangkat.') %>",
   passwordFailed: "<%= t('admin.dashboard.password_failed', 'Gagal mengubah password.') %>",
   connectionError: "<%= t('admin.dashboard.connection_error', 'Terjadi kesalahan koneksi.') %>",
-  copyLinkOk: "<%= t('admin.dashboard.portal_link_copied', 'Link Portal berhasil disalin!') %>",
   connectedDevicesTitlePrefix: "<%= t('admin.dashboard.connected_devices', 'Perangkat Terhubung') %>",
   noConnectedDevices: "<%= t('admin.dashboard.no_connected_devices', 'Tidak ada perangkat terhubung') %>",
   detailLoadFailed: "<%= t('admin.dashboard.detail_load_failed', 'Gagal memuat detail') %>",
@@ -715,15 +708,6 @@ function showToast(msg, type = 's') {
 function refreshAll() {
   loadStats();
   loadDevices();
-}
-
-// ── INIT ───────────────────────────────────────────────────────
-const portalUrl = window.location.origin + '/customer/login';
-document.getElementById('portal-link-url').textContent = portalUrl;
-
-function copyPortalLink() {
-  navigator.clipboard.writeText(portalUrl);
-  showToast(I18N.copyLinkOk, 's');
 }
 
 loadStats();
