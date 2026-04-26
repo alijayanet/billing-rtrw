@@ -81,6 +81,72 @@ function isEnabledFlag(v) {
   return v === true || v === 'true' || v === 1 || v === '1';
 }
 
+function resolvePaymentExpiresAt(gateway, result) {
+  const g = String(gateway || '').toLowerCase();
+  const p = result && result.payload ? result.payload : null;
+
+  const tryDate = (v) => {
+    const t = new Date(v);
+    const ms = t.getTime();
+    if (!Number.isFinite(ms) || ms <= 0) return null;
+    return t.toISOString();
+  };
+
+  const tryUnix = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    const ms = n > 1e12 ? n : n * 1000;
+    const d = new Date(ms);
+    const out = d.getTime();
+    if (!Number.isFinite(out) || out <= 0) return null;
+    return d.toISOString();
+  };
+
+  if (p && g === 'tripay') {
+    return (
+      tryUnix(p.expired_time ?? p.expiredTime) ||
+      tryDate(p.expired_at ?? p.expiredAt) ||
+      tryDate(p.expiry_date ?? p.expiryDate) ||
+      null
+    );
+  }
+
+  if (p && g === 'xendit') {
+    return (
+      tryDate(p.expiry_date ?? p.expiryDate) ||
+      tryDate(p.expiration_date ?? p.expirationDate) ||
+      null
+    );
+  }
+
+  if (p && g === 'duitku') {
+    return (
+      tryDate(p.expiry_date ?? p.expiryDate) ||
+      tryUnix(p.expired_time ?? p.expiredTime) ||
+      null
+    );
+  }
+
+  if (p && g === 'midtrans') {
+    return (
+      tryDate(p.expiry_time ?? p.expiryTime) ||
+      tryDate(p.expired_at ?? p.expiredAt) ||
+      null
+    );
+  }
+
+  return null;
+}
+
+function gatewayDefaultExpiresAtIso(gateway, nowMs = Date.now()) {
+  const g = String(gateway || '').toLowerCase();
+  const base = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+
+  if (g === 'xendit') return new Date(base + 86400 * 1000).toISOString();
+  if (g === 'duitku') return new Date(base + 1440 * 60 * 1000).toISOString();
+  return null;
+}
+
 const pppoeTrafficSamples = new Map();
 
 function prunePppoeTrafficSamples(now) {
@@ -420,7 +486,7 @@ router.post('/public/voucher/create-payment', async (req, res) => {
       result.link || '',
       result.reference || '',
       result.payload ? JSON.stringify(result.payload) : null,
-      new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      resolvePaymentExpiresAt(gateway, result) || gatewayDefaultExpiresAtIso(gateway),
       orderId
     );
 
@@ -1016,9 +1082,33 @@ router.post('/public/payment/create/:invoiceId', async (req, res) => {
       return redirectBack(payload.lookup, '', 'Tagihan ini sudah lunas.');
     }
 
-    if (inv.payment_link && inv.payment_expires_at) {
-      const expiresAt = new Date(inv.payment_expires_at).getTime();
-      if (expiresAt > Date.now()) {
+    const force = String(req.query.force || '').toLowerCase() === '1' || String(req.query.force || '').toLowerCase() === 'true';
+    if (!force && inv.payment_link) {
+      let expiresAtMs = inv.payment_expires_at ? new Date(inv.payment_expires_at).getTime() : 0;
+      let payloadExpiresAt = null;
+      if (inv.payment_payload) {
+        try {
+          const parsedPayload = typeof inv.payment_payload === 'string' ? JSON.parse(inv.payment_payload) : inv.payment_payload;
+          payloadExpiresAt = resolvePaymentExpiresAt(inv.payment_gateway, { payload: parsedPayload });
+          const ms = payloadExpiresAt ? new Date(payloadExpiresAt).getTime() : 0;
+          if (Number.isFinite(ms) && ms > 0) expiresAtMs = ms;
+        } catch {}
+      }
+
+      if (payloadExpiresAt && payloadExpiresAt !== inv.payment_expires_at) {
+        try {
+          billingSvc.updatePaymentInfo(inv.id, {
+            gateway: inv.payment_gateway,
+            order_id: inv.payment_order_id,
+            link: inv.payment_link,
+            reference: inv.payment_reference,
+            payload: inv.payment_payload,
+            expires_at: payloadExpiresAt
+          });
+        } catch {}
+      }
+
+      if (Number.isFinite(expiresAtMs) && expiresAtMs > Date.now()) {
         logger.info(`[Payment] Reusing existing link for INV-${inv.id} (public)`);
         return res.redirect(inv.payment_link);
       }
@@ -1055,13 +1145,16 @@ router.post('/public/payment/create/:invoiceId', async (req, res) => {
     }
 
     if (result.success) {
+      const resolvedExpiresAt =
+        resolvePaymentExpiresAt(gateway, result) ||
+        gatewayDefaultExpiresAtIso(gateway);
       billingSvc.updatePaymentInfo(inv.id, {
         gateway: gateway,
         order_id: result.order_id,
         link: result.link,
         reference: result.reference,
         payload: result.payload,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        expires_at: resolvedExpiresAt
       });
 
       logger.info(`[Payment] New link created for INV-${inv.id} via ${gateway} (public)`);
@@ -1146,10 +1239,33 @@ router.get('/payment/create/:invoiceId', async (req, res) => {
     if (!inv) throw new Error('Tagihan tidak ditemukan');
     if (inv.status === 'paid') throw new Error('Tagihan ini sudah lunas.');
 
-    // Cek apakah sudah ada link pembayaran yang aktif (belum expire)
-    if (inv.payment_link && inv.payment_expires_at) {
-      const expiresAt = new Date(inv.payment_expires_at).getTime();
-      if (expiresAt > Date.now()) {
+    const force = String(req.query.force || '').toLowerCase() === '1' || String(req.query.force || '').toLowerCase() === 'true';
+    if (!force && inv.payment_link) {
+      let expiresAtMs = inv.payment_expires_at ? new Date(inv.payment_expires_at).getTime() : 0;
+      let payloadExpiresAt = null;
+      if (inv.payment_payload) {
+        try {
+          const parsedPayload = typeof inv.payment_payload === 'string' ? JSON.parse(inv.payment_payload) : inv.payment_payload;
+          payloadExpiresAt = resolvePaymentExpiresAt(inv.payment_gateway, { payload: parsedPayload });
+          const ms = payloadExpiresAt ? new Date(payloadExpiresAt).getTime() : 0;
+          if (Number.isFinite(ms) && ms > 0) expiresAtMs = ms;
+        } catch {}
+      }
+
+      if (payloadExpiresAt && payloadExpiresAt !== inv.payment_expires_at) {
+        try {
+          billingSvc.updatePaymentInfo(inv.id, {
+            gateway: inv.payment_gateway,
+            order_id: inv.payment_order_id,
+            link: inv.payment_link,
+            reference: inv.payment_reference,
+            payload: inv.payment_payload,
+            expires_at: payloadExpiresAt
+          });
+        } catch {}
+      }
+
+      if (Number.isFinite(expiresAtMs) && expiresAtMs > Date.now()) {
         logger.info(`[Payment] Reusing existing link for INV-${inv.id}`);
         return res.redirect(inv.payment_link);
       }
@@ -1177,6 +1293,9 @@ router.get('/payment/create/:invoiceId', async (req, res) => {
     }
     
     if (result.success) {
+      const resolvedExpiresAt =
+        resolvePaymentExpiresAt(gateway, result) ||
+        gatewayDefaultExpiresAtIso(gateway);
       // Simpan info pembayaran ke database
       billingSvc.updatePaymentInfo(inv.id, {
         gateway: gateway,
@@ -1184,7 +1303,7 @@ router.get('/payment/create/:invoiceId', async (req, res) => {
         link: result.link,
         reference: result.reference,
         payload: result.payload,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // Default 24 jam
+        expires_at: resolvedExpiresAt
       });
 
       logger.info(`[Payment] New link created for INV-${inv.id} via ${gateway}`);
