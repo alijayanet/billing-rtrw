@@ -1022,22 +1022,74 @@
                 %>
                 <div class="pay-method-item" onclick="submitPayment('<%= channel.code %>')">
                   <div class="p-icon">
-                    <% if (channel.group==='Virtual Account' ) { %>
-                      <i class="bi bi-bank"></i>
-                      <% } else if (channel.group==='E-Wallet' ) { %>
-                        <i class="bi bi-wallet2"></i>
-                        <% } else if (channel.group==='Convenience Store' ) { %>
-                          <i class="bi bi-shop"></i>
-                          <% } else { %>
-                            <i class="bi bi-qr-code-scan"></i>
-                            <% } %>
+                    <%
+                      const code = String(channel.code || '').toUpperCase();
+                      const iconUrl = channel.icon_url || channel.iconUrl || '';
+                      const brandMap = {
+                        DANA: { label: 'DANA', cls: 'pb-dana' },
+                        OVO: { label: 'OVO', cls: 'pb-ovo' },
+                        SHOPEEPAY: { label: 'SP', cls: 'pb-shopeepay' },
+                        LINKAJA: { label: 'LA', cls: 'pb-linkaja' },
+                        GOPAY: { label: 'GoPay', cls: 'pb-gopay' }
+                      };
+                      let brand = null;
+                      for (const k of Object.keys(brandMap)) {
+                        if (code.includes(k)) { brand = brandMap[k]; break; }
+                      }
+                      const bankMap = {
+                        BCAVA: 'BCA',
+                        BNIVA: 'BNI',
+                        BRIVA: 'BRI',
+                        MANDIRIVA: 'Mandiri',
+                        PERMATAVA: 'Permata',
+                        CIMBVA: 'CIMB',
+                        DANAMONVA: 'Danamon'
+                      };
+                      if (!brand && bankMap[code]) brand = { label: bankMap[code], cls: 'pb-bank' };
+                      const nameMap = {
+                        BCAVA: 'BCA VA',
+                        BNIVA: 'BNI VA',
+                        BRIVA: 'BRI VA',
+                        MANDIRIVA: 'Mandiri VA',
+                        PERMATAVA: 'Permata VA',
+                        CIMBVA: 'CIMB VA',
+                        DANAMONVA: 'Danamon VA',
+                        QRIS: 'QRIS'
+                      };
+                      let shortName = nameMap[code] || String(channel.name || '').trim();
+                      shortName = shortName
+                        .replace(/virtual account/ig, 'VA')
+                        .replace(/^bank\s+/ig, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                      if (code !== 'QRIS' && code.includes('QRIS') && brand) shortName = `QRIS ${brand.label}`;
+                      const group = String(channel.group || '');
+                      const groupIcon =
+                        group === 'Virtual Account' ? 'bi-bank2' :
+                        group === 'E-Wallet' ? 'bi-wallet2' :
+                        group === 'Convenience Store' ? 'bi-shop' :
+                        'bi-qr-code-scan';
+                      const shortGroup =
+                        group === 'Virtual Account' ? 'VA' :
+                        group === 'E-Wallet' ? 'E-Wallet' :
+                        group === 'Convenience Store' ? 'CS' :
+                        group === 'QRIS' ? 'QRIS' :
+                        group;
+                    %>
+                    <% if (iconUrl) { %>
+                      <img class="p-logo" src="<%= iconUrl %>" alt="<%= channel.name %>" loading="lazy" referrerpolicy="no-referrer">
+                    <% } else if (brand) { %>
+                      <span class="p-badge <%= brand.cls %>"><%= brand.label %></span>
+                    <% } else { %>
+                      <i class="bi <%= groupIcon %>"></i>
+                    <% } %>
                   </div>
                   <div class="p-info">
                     <span class="p-name">
-                      <%= channel.name %>
+                      <%= shortName %>
                     </span>
                     <span class="p-sub">
-                      <%= channel.group %>
+                      <%= shortGroup %>
                     </span>
                   </div>
                 </div>
@@ -1049,8 +1101,13 @@
                     <div class="pay-method-item" onclick="submitPayment('QRIS')">
                       <div class="p-icon"><i class="bi bi-qr-code-scan"></i></div>
                       <div class="p-info">
-                        <span class="p-name">QRIS / E-Wallet</span>
-                        <span class="p-sub">DANA, OVO, ShopeePay, LinkAja</span>
+                        <span class="p-name">QRIS</span>
+                        <span class="p-sub">
+                          <span class="p-chip">DANA</span>
+                          <span class="p-chip">OVO</span>
+                          <span class="p-chip">ShopeePay</span>
+                          <span class="p-chip">LinkAja</span>
+                        </span>
                       </div>
                     </div>
 
@@ -1058,32 +1115,32 @@
                     <div class="pay-method-item" onclick="submitPayment('MANDIRIVA')">
                       <div class="p-icon"><i class="bi bi-bank"></i></div>
                       <div class="p-info">
-                        <span class="p-name">Mandiri Virtual Account</span>
-                        <span class="p-sub">Transfer via Bank Mandiri</span>
+                        <span class="p-name">Mandiri VA</span>
+                        <span class="p-sub">VA</span>
                       </div>
                     </div>
 
                     <div class="pay-method-item" onclick="submitPayment('BRIVA')">
                       <div class="p-icon"><i class="bi bi-bank"></i></div>
                       <div class="p-info">
-                        <span class="p-name">BRI Virtual Account</span>
-                        <span class="p-sub">Transfer via Bank BRI (BRIVA)</span>
+                        <span class="p-name">BRI VA</span>
+                        <span class="p-sub">VA</span>
                       </div>
                     </div>
 
                     <div class="pay-method-item" onclick="submitPayment('BNIVA')">
                       <div class="p-icon"><i class="bi bi-bank"></i></div>
                       <div class="p-info">
-                        <span class="p-name">BNI Virtual Account</span>
-                        <span class="p-sub">Transfer via Bank BNI</span>
+                        <span class="p-name">BNI VA</span>
+                        <span class="p-sub">VA</span>
                       </div>
                     </div>
 
                     <div class="pay-method-item" onclick="submitPayment('BCAVA')">
                       <div class="p-icon"><i class="bi bi-bank"></i></div>
                       <div class="p-info">
-                        <span class="p-name">BCA Virtual Account</span>
-                        <span class="p-sub">Transfer via Bank BCA</span>
+                        <span class="p-name">BCA VA</span>
+                        <span class="p-sub">VA</span>
                       </div>
                     </div>
 
@@ -1107,9 +1164,13 @@
 
   <style>
     .payment-methods-grid {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
+    }
+    
+    @media (max-width: 390px) {
+      .payment-methods-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     .pay-method-item {
@@ -1122,6 +1183,7 @@
       border-radius: 14px;
       cursor: pointer;
       transition: all 0.3s ease;
+      min-width: 0;
     }
 
     .pay-method-item:hover {
@@ -1142,11 +1204,40 @@
       font-size: 22px;
       color: #6366f1;
       box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
     }
+
+    .p-logo {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    .p-badge {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+    
+    .pb-dana { background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(14,165,233,0.95)); color: #0b1220; }
+    .pb-ovo { background: linear-gradient(135deg, rgba(168,85,247,0.95), rgba(99,102,241,0.95)); color: #0b1220; }
+    .pb-shopeepay { background: linear-gradient(135deg, rgba(249,115,22,0.95), rgba(244,63,94,0.95)); color: #0b1220; }
+    .pb-linkaja { background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(244,63,94,0.95)); color: #0b1220; }
+    .pb-gopay { background: linear-gradient(135deg, rgba(34,197,94,0.95), rgba(16,185,129,0.95)); color: #0b1220; }
+    .pb-bank { background: linear-gradient(135deg, rgba(15,23,42,0.82), rgba(30,41,59,0.92)); color: #e2e8f0; }
 
     .p-info {
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
 
     .p-name {
@@ -1158,6 +1249,35 @@
     .p-sub {
       font-size: 12px;
       color: rgba(148, 163, 184, 0.9);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    @media (max-width: 576px) {
+      .pay-method-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px;
+      }
+      .p-sub { display: none; }
+      .p-name { font-size: 13px; }
+      .p-icon { width: 42px; height: 42px; font-size: 20px; }
+    }
+
+    .p-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.35);
+      color: rgba(226, 232, 240, 0.92);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.4;
+      white-space: nowrap;
     }
   </style>
 

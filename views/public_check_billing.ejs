@@ -33,6 +33,32 @@
     .btnx{border-radius:12px;font-weight:700}
     .btn-primary{background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);border:none}
     a{color:#a5b4fc}
+    .payment-methods-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    @media (max-width: 390px){.payment-methods-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .pay-scroll{max-height: 220px; overflow:auto; padding-right: 4px}
+    .pm-radio{position:absolute;opacity:0;pointer-events:none}
+    .pay-method-item{display:flex;align-items:center;gap:12px;padding:12px 12px;background: rgba(15, 23, 42, 0.55);border: 1px solid rgba(148, 163, 184, 0.16);border-radius: 14px;cursor:pointer;transition: all .2s ease}
+    .pay-method-item:hover{background: rgba(15, 23, 42, 0.75);border-color: rgba(99, 102, 241, 0.7);transform: translateY(-1px);box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35)}
+    .pm-radio:checked + .pay-method-item{background: rgba(99, 102, 241, 0.12);border-color: rgba(99, 102, 241, 0.85);box-shadow: 0 18px 34px rgba(99, 102, 241, 0.12)}
+    .p-icon{width:42px;height:42px;background: rgba(30, 41, 59, 0.9);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#6366f1;box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);overflow:hidden;flex:0 0 auto}
+    .p-logo{width:100%;height:100%;object-fit:contain;padding:7px;background: rgba(255, 255, 255, 0.95)}
+    .p-badge{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:.2px;text-transform:uppercase}
+    .pb-dana{background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(14,165,233,0.95));color:#0b1220}
+    .pb-ovo{background: linear-gradient(135deg, rgba(168,85,247,0.95), rgba(99,102,241,0.95));color:#0b1220}
+    .pb-shopeepay{background: linear-gradient(135deg, rgba(249,115,22,0.95), rgba(244,63,94,0.95));color:#0b1220}
+    .pb-linkaja{background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(244,63,94,0.95));color:#0b1220}
+    .pb-gopay{background: linear-gradient(135deg, rgba(34,197,94,0.95), rgba(16,185,129,0.95));color:#0b1220}
+    .pb-bank{background: linear-gradient(135deg, rgba(15,23,42,0.82), rgba(30,41,59,0.92));color:#e2e8f0}
+    .p-info{display:flex;flex-direction:column;min-width:0}
+    .p-name{font-size:14px;font-weight:700;color:#f8fafc}
+    .p-sub{font-size:12px;color: rgba(148, 163, 184, 0.9);display:flex;flex-wrap:wrap;gap:6px}
+    .p-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;border:1px solid rgba(148, 163, 184, 0.22);background: rgba(15, 23, 42, 0.35);color: rgba(226, 232, 240, 0.92);font-size:11px;font-weight:700;line-height:1.4;white-space:nowrap}
+    @media (max-width: 576px){
+      .pay-method-item{flex-direction:column;align-items:flex-start;gap:10px;padding:12px}
+      .p-sub{display:none}
+      .p-name{font-size:13px}
+      .p-icon{width:42px;height:42px;font-size:20px}
+    }
     @media (max-width: 576px){.wrap{padding:10px}.cardx{border-radius:15px}.body{padding:18px 14px}}
   </style>
 </head>
@@ -156,48 +182,157 @@
                   <tr>
                     <th>Periode</th>
                     <th class="text-end">Nominal</th>
-                    <th style="width: 360px">Bayar</th>
+                    <th class="text-end" style="width: 80px">Pilih</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <% unpaidInvoices.forEach(inv => { %>
+                  <% unpaidInvoices.forEach((inv, idx) => { %>
                     <tr>
                       <td>
                         <div class="fw-semibold"><%= monthNames[Number(inv.period_month)] %> <%= inv.period_year %></div>
                         <div class="muted small">INV-<%= inv.id %></div>
                       </td>
                       <td class="text-end fw-semibold">Rp <%= Number(inv.amount || 0).toLocaleString('id-ID') %></td>
-                      <td>
-                        <form method="POST" action="/customer/public/payment/create/<%= inv.id %>" class="d-grid gap-2">
-                          <input type="hidden" name="token" value="<%= (invoiceTokens && invoiceTokens[String(inv.id)]) ? invoiceTokens[String(inv.id)] : '' %>">
-                          <% if (paymentChannels && paymentChannels.length > 0) { %>
-                            <select class="form-select" name="method" required>
-                              <% paymentChannels.forEach(ch => { %>
-                                <option value="<%= ch.code %>" <%= String(ch.code || '').toUpperCase() === 'QRIS' ? 'selected' : '' %>><%= ch.name %></option>
-                              <% }) %>
-                            </select>
-                          <% } else { %>
-                            <input type="hidden" name="method" value="QRIS">
-                            <div class="muted small">Metode: QRIS</div>
-                          <% } %>
-
-                          <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="1" id="tos_<%= inv.id %>" name="tos" required>
-                            <label class="form-check-label muted" for="tos_<%= inv.id %>">
-                              Saya setuju dengan <a href="/customer/tos" target="_blank" rel="noopener">Syarat & Ketentuan (TOS)</a>
-                            </label>
-                          </div>
-
-                          <button class="btn btn-primary btnx" type="submit">
-                            <i class="bi bi-credit-card me-1"></i> Bayar
-                          </button>
-                        </form>
+                      <td class="text-end">
+                        <input
+                          class="form-check-input inv-radio"
+                          type="radio"
+                          name="inv_select"
+                          value="<%= inv.id %>"
+                          data-inv-id="<%= inv.id %>"
+                          data-amount="<%= Number(inv.amount || 0) %>"
+                          data-token="<%= (invoiceTokens && invoiceTokens[String(inv.id)]) ? invoiceTokens[String(inv.id)] : '' %>"
+                          <%= idx === 0 ? 'checked' : '' %>
+                          <%= idx === 0 ? 'required' : '' %>
+                        >
                       </td>
                     </tr>
                   <% }) %>
                 </tbody>
               </table>
             </div>
+
+            <div class="mt-3" style="border-top:1px solid rgba(148,163,184,.18); padding-top: 14px">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <div class="fw-bold">Pembayaran</div>
+                <div class="muted small">
+                  <span id="pay_inv_text"></span>
+                  <span id="pay_amount_text"></span>
+                </div>
+              </div>
+
+              <form id="payForm" method="POST" action="/customer/public/payment/create/0" class="d-grid gap-2">
+                <input type="hidden" name="token" id="pay_token" value="">
+
+                <% if (paymentChannels && paymentChannels.length > 0) { %>
+                  <div class="payment-methods-grid pay-scroll">
+                    <%
+                      const sortedChannels = [...paymentChannels].sort((a, b) => {
+                        const priority = { 'E-Wallet': 1, 'QRIS': 2, 'Virtual Account': 3, 'Convenience Store': 4 };
+                        const prioA = priority[a.group] || 99;
+                        const prioB = priority[b.group] || 99;
+                        return prioA - prioB;
+                      });
+                      const activeChannels = sortedChannels.filter(c => c.active);
+                      activeChannels.forEach((channel, idx) => {
+                        const code = String(channel.code || '').toUpperCase();
+                        const iconUrl = channel.icon_url || channel.iconUrl || '';
+                        const brandMap = {
+                          DANA: { label: 'DANA', cls: 'pb-dana' },
+                          OVO: { label: 'OVO', cls: 'pb-ovo' },
+                          SHOPEEPAY: { label: 'SP', cls: 'pb-shopeepay' },
+                          LINKAJA: { label: 'LA', cls: 'pb-linkaja' },
+                          GOPAY: { label: 'GoPay', cls: 'pb-gopay' }
+                        };
+                        let brand = null;
+                        for (const k of Object.keys(brandMap)) { if (code.includes(k)) { brand = brandMap[k]; break; } }
+                        const bankMap = { BCAVA: 'BCA', BNIVA: 'BNI', BRIVA: 'BRI', MANDIRIVA: 'Mandiri', PERMATAVA: 'Permata', CIMBVA: 'CIMB', DANAMONVA: 'Danamon' };
+                        if (!brand && bankMap[code]) brand = { label: bankMap[code], cls: 'pb-bank' };
+                        const nameMap = { BCAVA: 'BCA VA', BNIVA: 'BNI VA', BRIVA: 'BRI VA', MANDIRIVA: 'Mandiri VA', PERMATAVA: 'Permata VA', CIMBVA: 'CIMB VA', DANAMONVA: 'Danamon VA', QRIS: 'QRIS' };
+                        let shortName = nameMap[code] || String(channel.name || '').trim();
+                        shortName = shortName.replace(/virtual account/ig, 'VA').replace(/^bank\s+/ig, '').replace(/\s+/g, ' ').trim();
+                        if (code !== 'QRIS' && code.includes('QRIS') && brand) shortName = `QRIS ${brand.label}`;
+                        const group = String(channel.group || '');
+                        const groupIcon = group === 'Virtual Account' ? 'bi-bank2' : group === 'E-Wallet' ? 'bi-wallet2' : group === 'Convenience Store' ? 'bi-shop' : 'bi-qr-code-scan';
+                        const shortGroup = group === 'Virtual Account' ? 'VA' : group === 'E-Wallet' ? 'E-Wallet' : group === 'Convenience Store' ? 'CS' : group === 'QRIS' ? 'QRIS' : group;
+                        const radioId = `pm_${idx}_${code}`;
+                    %>
+                      <input class="pm-radio" type="radio" id="<%= radioId %>" name="method" value="<%= channel.code %>" <%= (code === 'QRIS' || idx === 0) ? 'checked' : '' %> <%= idx === 0 ? 'required' : '' %>>
+                      <label class="pay-method-item" for="<%= radioId %>">
+                        <div class="p-icon">
+                          <% if (iconUrl) { %>
+                            <img class="p-logo" src="<%= iconUrl %>" alt="<%= channel.name %>" loading="lazy" referrerpolicy="no-referrer">
+                          <% } else if (brand) { %>
+                            <span class="p-badge <%= brand.cls %>"><%= brand.label %></span>
+                          <% } else { %>
+                            <i class="bi <%= groupIcon %>"></i>
+                          <% } %>
+                        </div>
+                        <div class="p-info">
+                          <span class="p-name"><%= shortName %></span>
+                          <span class="p-sub"><%= shortGroup %></span>
+                        </div>
+                      </label>
+                    <% }) %>
+                  </div>
+                <% } else { %>
+                  <input type="hidden" name="method" value="QRIS">
+                  <div class="payment-methods-grid">
+                    <div class="pay-method-item" style="cursor: default">
+                      <div class="p-icon"><i class="bi bi-qr-code-scan"></i></div>
+                      <div class="p-info">
+                        <span class="p-name">QRIS / E-Wallet</span>
+                        <span class="p-sub">
+                          <span class="p-chip">DANA</span>
+                          <span class="p-chip">OVO</span>
+                          <span class="p-chip">ShopeePay</span>
+                          <span class="p-chip">LinkAja</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                <% } %>
+
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="1" id="tos_pay" name="tos" required>
+                  <label class="form-check-label muted" for="tos_pay">
+                    Saya setuju dengan <a href="/customer/tos" target="_blank" rel="noopener">Syarat & Ketentuan (TOS)</a>
+                  </label>
+                </div>
+
+                <button id="payBtn" class="btn btn-primary btnx" type="submit" disabled>
+                  <i class="bi bi-credit-card me-1"></i> Bayar
+                </button>
+              </form>
+            </div>
+
+            <script>
+              (function () {
+                const radios = Array.from(document.querySelectorAll('.inv-radio'));
+                const payForm = document.getElementById('payForm');
+                const payToken = document.getElementById('pay_token');
+                const payBtn = document.getElementById('payBtn');
+                const invText = document.getElementById('pay_inv_text');
+                const amtText = document.getElementById('pay_amount_text');
+
+                function setSelected(r) {
+                  if (!r || !payForm || !payToken || !payBtn) return;
+                  const invId = String(r.dataset.invId || r.value || '').trim();
+                  const token = String(r.dataset.token || '').trim();
+                  const amount = Number(r.dataset.amount || 0) || 0;
+
+                  payForm.action = `/customer/public/payment/create/${encodeURIComponent(invId)}`;
+                  payToken.value = token;
+                  if (invText) invText.textContent = invId ? `INV-${invId} • ` : '';
+                  if (amtText) amtText.textContent = amount ? `Rp ${amount.toLocaleString('id-ID')}` : '';
+                  payBtn.disabled = !invId || !token;
+                }
+
+                radios.forEach(r => r.addEventListener('change', () => setSelected(r)));
+                const first = radios.find(r => r.checked) || radios[0];
+                if (first) setSelected(first);
+              })();
+            </script>
           <% } %>
 
           <% const paidInvoices = (invoices || []).filter(i => i.status === 'paid'); %>
