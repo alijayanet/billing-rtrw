@@ -14,6 +14,10 @@
     .status-close { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 4px solid #ef4444; }
     #qr-container { background: white; padding: 20px; display: inline-block; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .wa-info { margin-top: 20px; color: var(--muted); }
+    .wa-tabs { display: flex; gap: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .wa-tab { padding: 8px 14px; border-radius: 8px; cursor: pointer; color: var(--muted); transition: all 0.2s; font-weight: 700; text-decoration: none; }
+    .wa-tab:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+    .wa-tab.active { background: var(--primary); color: white; }
   </style>
 </head>
 <body data-connected-label="<%= t('admin.whatsapp.connected', 'Terhubung') %>" data-need-scan-label="<%= t('admin.whatsapp.need_scan', 'Perlu Pemindaian') %>">
@@ -27,11 +31,17 @@
     </div>
   </div>
   <div class="page">
+    <% const waTab = 'status'; %>
     <% if (msg) { %>
     <div class="alert alert-<%= msg.type==='success'?'s':'d' %>">
       <i class="bi bi-<%= msg.type==='success'?'check-circle':'exclamation-circle' %>"></i> <%= msg.text %>
     </div>
     <% } %>
+
+    <div class="wa-tabs">
+      <a href="/admin/whatsapp" class="wa-tab <%= waTab==='status' ? 'active' : '' %>"><i class="bi bi-phone"></i> Status</a>
+      <a href="/admin/whatsapp/broadcast" class="wa-tab <%= waTab==='broadcast' ? 'active' : '' %>"><i class="bi bi-megaphone"></i> Broadcast & Pengingat</a>
+    </div>
 
     <div class="card">
       <div class="wa-status-card">

@@ -5,9 +5,15 @@
   <title><%= t('admin.broadcast.title', 'Broadcast WhatsApp') %> | <%= company %></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    .wa-tabs { display: flex; gap: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .wa-tab { padding: 8px 14px; border-radius: 8px; cursor: pointer; color: var(--muted); transition: all 0.2s; font-weight: 700; text-decoration: none; }
+    .wa-tab:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+    .wa-tab.active { background: var(--primary); color: white; }
+  </style>
 </head>
 <body>
-<%- include('partials/sidebar', { activePage: 'broadcast', company }) %>
+<%- include('partials/sidebar', { activePage: 'whatsapp', company }) %>
 <div class="mw">
   <div class="topbar">
     <div class="tb-title"><button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button><i class="bi bi-megaphone"></i> <%= t('admin.broadcast.title', 'Broadcast WhatsApp') %></div>
@@ -17,12 +23,18 @@
     </div>
   </div>
   <div class="page">
+    <% const waTab = 'broadcast'; %>
 
     <% if (msg) { %>
     <div class="alert alert-<%= msg.type==='success'?'s':'d' %>">
       <i class="bi bi-<%= msg.type==='success'?'check-circle':'exclamation-circle' %>"></i> <%= msg.text %>
     </div>
     <% } %>
+
+    <div class="wa-tabs">
+      <a href="/admin/whatsapp" class="wa-tab <%= waTab==='status' ? 'active' : '' %>"><i class="bi bi-phone"></i> Status</a>
+      <a href="/admin/whatsapp/broadcast" class="wa-tab <%= waTab==='broadcast' ? 'active' : '' %>"><i class="bi bi-megaphone"></i> Broadcast & Pengingat</a>
+    </div>
 
     <div class="card">
       <div class="card-hd" style="display: flex; justify-content: space-between; align-items: center;">

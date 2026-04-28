@@ -1771,7 +1771,7 @@ router.get('/mikrotik', requireAdminSession, (req, res) => {
 router.get('/vouchers', requireAdminSession, (req, res) => {
   const routers = mikrotikService.getAllRouters();
   res.render('admin/vouchers', {
-    title: 'Manajemen Voucher', company: company(), activePage: 'vouchers',
+    title: 'Manajemen Voucher', company: company(), activePage: 'mikrotik',
     routers, msg: flashMsg(req), settings: getSettings()
   });
 });
@@ -2140,7 +2140,7 @@ router.get('/whatsapp', requireAdminSession, async (req, res) => {
 
 router.get('/whatsapp/broadcast', requireAdminSession, (req, res) => {
   res.render('admin/broadcast', {
-    title: 'Broadcast WhatsApp', company: company(), activePage: 'broadcast', msg: flashMsg(req),
+    title: 'Broadcast WhatsApp', company: company(), activePage: 'whatsapp', msg: flashMsg(req),
     broadcastStatus: global.broadcastStatus, getSetting
   });
 });
@@ -2323,7 +2323,7 @@ router.post('/whatsapp/reset', requireAdminSession, (req, res) => {
 // ─── ROUTERS (MULTI-ROUTER) ──────────────────────────────────────────────────
 router.get('/routers', requireAdminSession, (req, res) => {
   res.render('admin/routers', {
-    title: 'Manajemen Router', company: company(), activePage: 'routers',
+    title: 'Manajemen Router', company: company(), activePage: 'mikrotik',
     routers: mikrotikService.getAllRouters(), msg: flashMsg(req)
   });
 });
