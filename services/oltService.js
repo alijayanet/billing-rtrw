@@ -122,6 +122,16 @@ const ONLINE_VALUES = {
   cdata: [1, 3],
 };
 
+const getOnlineValues = (brandKey, profile) => {
+  const base = ONLINE_VALUES[brandKey] || [1, 3];
+  const profileName = String(profile?.name || '').toLowerCase();
+  const nameOid = String(profile?.name_table || '');
+  const isHiosoGpon = (brandKey === 'hioso' || brandKey === 'hsgq')
+    && (profileName.includes('gpon') || nameOid.includes('.25355.3.3.'));
+  if (isHiosoGpon) return [2, 3, 4];
+  return base;
+};
+
 /**
  * OID sistem per brand untuk mengambil metrics hardware.
  * Semua diambil dengan snmp.get (bukan walk).
@@ -1009,8 +1019,8 @@ async function getOltStats(id, full = false) {
 
   const session = snmp.createSession(olt.host, community, {
     port:     olt.snmp_port || 161,
-    timeout:  5000,
-    retries:  1,
+    timeout:  full ? 8000 : 5000,
+    retries:  full ? 2 : 1,
     version:  snmp.Version2c,
   });
 
@@ -1069,7 +1079,7 @@ async function getOltStats(id, full = false) {
         }
 
         const detectedBrandKey = activeProfile.__brandKey || brandKey;
-        const onlineVals = ONLINE_VALUES[detectedBrandKey]  || [1, 3];
+        const onlineVals = getOnlineValues(detectedBrandKey, activeProfile);
 
         await fetchSystemMetrics(session, detectedBrandKey, stats);
 
@@ -1078,8 +1088,8 @@ async function getOltStats(id, full = false) {
           const onlineMap = await slowWalk(session, activeProfile.status_table);
           const totalMap  = await slowWalk(session, activeProfile.name_table);
 
-          stats.onus_online  = Object.values(onlineMap).reduce((s, v) => s + (parseInt(v) || 0), 0);
-          stats.onus_total   = Object.values(totalMap).reduce((s, v) => s + (parseInt(v) || 0), 0);
+          stats.onus_online  = Object.values(onlineMap).reduce((s, v) => s + (bufferToInt(v) || 0), 0);
+          stats.onus_total   = Object.values(totalMap).reduce((s, v) => s + (bufferToInt(v) || 0), 0);
           stats.onus_offline = Math.max(0, stats.onus_total - stats.onus_online);
 
           safeResolve(stats);
@@ -1107,9 +1117,16 @@ async function getOltStats(id, full = false) {
         let weakCount = 0;
 
         for (const idx of allIndices) {
-          const st = statusMap[idx];
-          const isUp = onlineVals.includes(st);
-          const name = nameMap[idx] ? nameMap[idx].toString() : 'ONU-' + idx;
+          const stRaw = getByIdx(statusMap, idx);
+          const stInt = bufferToInt(stRaw);
+          const stStr = stRaw == null ? '' : String(stRaw).trim().toLowerCase();
+          const isUp = stInt != null
+            ? onlineVals.includes(stInt)
+            : (stStr === 'online' || stStr === 'up' || stStr === 'on' || stStr === 'operation');
+
+          const nameRaw = getByIdx(nameMap, idx);
+          const nameStr = nameRaw == null ? '' : String(nameRaw).replace(/\0/g, '').trim();
+          const name = nameStr || ('ONU-' + idx);
           const snVal = getByIdx(snMap, idx);
           const rxVal = getByIdx(rxMap, idx);
           const txVal = getByIdx(txMap, idx);
