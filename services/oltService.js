@@ -847,7 +847,7 @@ const getEntityTemperatureC = async (session) => {
   return candidates[0];
 };
 
-const autoPickUplinkIfIndex = async (session) => {
+const autoPickUplinkCandidates = async (session) => {
   const ifNameMap = await slowWalk(session, '1.3.6.1.2.1.31.1.1.1.1');
   const ifDescrMap = await slowWalk(session, '1.3.6.1.2.1.2.2.1.2');
   const ifOperMap = await slowWalk(session, '1.3.6.1.2.1.2.2.1.8');
@@ -878,15 +878,57 @@ const autoPickUplinkIfIndex = async (session) => {
     if (name.includes('10g')) nameScore += 25;
     if (name.includes('ge')) nameScore += 10;
     if (name.includes('eth')) nameScore += 5;
+    if (name.includes('gpon') || name.includes('epon') || name.includes('pon') || name.includes('onu') || name.includes('llid')) nameScore -= 35;
     if (name.includes('mgmt') || name.includes('loopback') || name.includes('null')) nameScore -= 50;
 
     const operScore = oper === 1 ? 20 : 0;
     const score = nameScore + operScore + Math.min(100, speedScore);
-    candidates.push({ idx, score });
+    candidates.push({ idx, score, name });
   }
 
   candidates.sort((a, b) => b.score - a.score);
+  return candidates;
+};
+
+const autoPickUplinkIfIndex = async (session) => {
+  const candidates = await autoPickUplinkCandidates(session);
   return candidates[0]?.idx || null;
+};
+
+const pickUplinkIfIndexByTraffic = async (session) => {
+  const candidates = await autoPickUplinkCandidates(session);
+  if (candidates.length === 0) return null;
+
+  const top = candidates.slice(0, 6);
+  let best = null;
+
+  for (const c of top) {
+    const first = await readInterfaceOctets(session, c.idx);
+    await new Promise(rv => setTimeout(rv, 250));
+    const second = await readInterfaceOctets(session, c.idx);
+
+    const wrap64 = BigInt(1) << BigInt(64);
+    let sum = BigInt(0);
+    let ok = false;
+
+    if (first.rx != null && second.rx != null) {
+      let d = second.rx - first.rx;
+      if (d < BigInt(0)) d = d + wrap64;
+      if (d > BigInt(0)) ok = true;
+      sum += d;
+    }
+    if (first.tx != null && second.tx != null) {
+      let d = second.tx - first.tx;
+      if (d < BigInt(0)) d = d + wrap64;
+      if (d > BigInt(0)) ok = true;
+      sum += d;
+    }
+
+    if (!ok) continue;
+    if (!best || sum > best.sum) best = { idx: c.idx, sum };
+  }
+
+  return best?.idx || candidates[0].idx;
 };
 
 const readInterfaceOctets = async (session, ifIndex) => {
@@ -926,7 +968,7 @@ const fetchSystemMetrics = async (session, brandKey, stats) => {
     const tempN = bufferToInt(temp);
     const cpuN  = bufferToInt(cpu);
     const ramN  = bufferToInt(ram);
-    if (tempN != null) stats.temp = `${tempN}°C`;
+    if (Number.isFinite(tempN) && tempN >= -20 && tempN <= 120 && tempN !== 0) stats.temp = `${tempN}°C`;
     if (cpuN  != null) stats.cpu  = `${cpuN}%`;
     if (ramN  != null) stats.ram  = `${ramN}%`;
     if (stats.temp === 'N/A') {
@@ -934,7 +976,7 @@ const fetchSystemMetrics = async (session, brandKey, stats) => {
       if (c != null) stats.temp = `${c.toFixed(1)}°C`;
     }
 
-    const ifIndex = await autoPickUplinkIfIndex(session);
+    const ifIndex = await pickUplinkIfIndexByTraffic(session);
     if (ifIndex) {
       const first = await readInterfaceOctets(session, ifIndex);
       await new Promise(rv => setTimeout(rv, 800));
