@@ -1119,12 +1119,19 @@ router.post('/collector-payments/:id/approve', requireAdminSession, express.urle
 
     const customer = customerSvc.getCustomerById(inv.customer_id);
     if (customer && customer.phone) {
+      const pkg = customer.package_id ? customerSvc.getPackageById(customer.package_id) : null;
       await sendPaymentSuccessWA(
         customer.phone,
         customer.name,
         `${inv.period_month}/${inv.period_year}`,
         Number(inv.amount || 0).toLocaleString('id-ID'),
-        collectorLabel
+        collectorLabel,
+        {
+          invoiceId: inv.id,
+          username: customer.pppoe_username || customer.id,
+          packageName: pkg?.name || customer.package_name || '-',
+          paidAt: new Date()
+        }
       );
     }
 
@@ -2262,12 +2269,19 @@ router.post('/customers/:id/billing/pay', requireAdminSession, express.urlencode
 
       if (customer && customer.phone && done > 0) {
         const monthsText = (sum.paidMonths || []).join(', ');
+        const pkg = customer.package_id ? customerSvc.getPackageById(customer.package_id) : null;
         await sendPaymentSuccessWA(
           customer.phone,
           customer.name,
           `${monthsText} / ${sum.year}`,
           Number(total || 0).toLocaleString('id-ID'),
-          paidBy
+          paidBy,
+          {
+            invoiceId: '',
+            username: customer.pppoe_username || customer.id,
+            packageName: pkg?.name || customer.package_name || '-',
+            paidAt: new Date()
+          }
         );
       }
     } else {
@@ -2283,12 +2297,19 @@ router.post('/customers/:id/billing/pay', requireAdminSession, express.urlencode
           const invs = billingSvc.getInvoicesByAny(String(req.params.id)) || [];
           const inv = (Array.isArray(invs) ? invs : []).find(i => Number(i?.period_month) === Number(m) && Number(i?.period_year) === Number(y)) || null;
           const amount = inv ? Number(inv.amount || 0) : 0;
+          const pkg = customer.package_id ? customerSvc.getPackageById(customer.package_id) : null;
           await sendPaymentSuccessWA(
             customer.phone,
             customer.name,
             `${m}/${y}`,
             amount.toLocaleString('id-ID'),
-            paidBy
+            paidBy,
+            {
+              invoiceId: inv ? inv.id : '',
+              username: customer.pppoe_username || customer.id,
+              packageName: pkg?.name || customer.package_name || '-',
+              paidAt: new Date()
+            }
           );
         }
       }
@@ -2628,12 +2649,19 @@ router.post('/billing/pay-bulk', requireAdminSession, express.urlencoded({ exten
           .map(x => `${x.period_month}/${x.period_year}`)
           .slice(0, 10)
           .join(', ') + (paidInvoices.length > 10 ? `, +${paidInvoices.length - 10} lainnya` : '');
+        const pkg = customer.package_id ? customerSvc.getPackageById(customer.package_id) : null;
         await sendPaymentSuccessWA(
           customer.phone,
           customer.name,
           periods,
           Number(total || 0).toLocaleString('id-ID'),
-          paidBy
+          paidBy,
+          {
+            invoiceId: paidInvoices.map(x => x.id).join(', '),
+            username: customer.pppoe_username || customer.id,
+            packageName: pkg?.name || customer.package_name || '-',
+            paidAt: new Date()
+          }
         );
       }
     }
@@ -2681,12 +2709,19 @@ router.post('/billing/:id/pay', requireAdminSession, express.urlencoded({ extend
     // Check if customer is currently suspended and has no more unpaid invoices
     const customer = customerSvc.getCustomerById(inv.customer_id);
     if (!wasPaid && customer && customer.phone) {
+      const pkg = customer.package_id ? customerSvc.getPackageById(customer.package_id) : null;
       await sendPaymentSuccessWA(
         customer.phone,
         customer.name,
         `${inv.period_month}/${inv.period_year}`,
         Number(inv.amount || 0).toLocaleString('id-ID'),
-        paidBy
+        paidBy,
+        {
+          invoiceId: inv.id,
+          username: customer.pppoe_username || customer.id,
+          packageName: pkg?.name || customer.package_name || '-',
+          paidAt: new Date()
+        }
       );
     }
     if (customer && customer.status === 'suspended') {

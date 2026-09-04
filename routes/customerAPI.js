@@ -567,13 +567,28 @@ router.post('/app/admin/pay-invoice', async (req, res) => {
         const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');
         if (whatsappStatus && whatsappStatus.connection === 'open') {
           const settings = getSettingsWithCache();
-          const msg = `✅ *PEMBAYARAN TAGIHAN BERHASIL*\n\n` +
-                      `👤 *Pelanggan:* ${customer.name}\n` +
-                      `📄 *Invoice:* #${inv.id}\n` +
-                      `📅 *Periode:* ${inv.period_month}/${inv.period_year}\n` +
-                      `💰 *Jumlah:* Rp ${Number(inv.amount || 0).toLocaleString('id-ID')}\n` +
-                      `🏛️ *Lokasi:* Kasir / Admin\n\n` +
-                      `Terima kasih! Layanan Anda telah aktif normal.`;
+          const appUrl = (settings.public_base_url || '').replace(/\/$/, '');
+          const portalUrl = appUrl ? `${appUrl}/customer` : '';
+          const template = db.getAppSetting('whatsapp_payment_success_message', '');
+          const whatsappService = require('../services/whatsappService');
+          const pkg = customer?.package_id ? customerSvc.getPackageById(customer.package_id) : null;
+
+          const msg = whatsappService.formatPaymentSuccessMessage({
+            customerName: customer.name,
+            invoiceId: inv.id,
+            customerUsername: customer.pppoe_username || customer.id || '-',
+            packageName: pkg?.name || customer.package_name || '-',
+            periodMonth: inv.period_month,
+            periodYear: inv.period_year,
+            amount: inv.amount,
+            paymentMethod: 'Kasir / Admin',
+            paidAt: new Date(),
+            companyName: settings.company_header || 'ALIJAYA NET',
+            companyPhone: settings.company_phone || '',
+            portalUrl,
+            customTemplate: template
+          });
+
           await sendWA(customer.phone, msg);
         }
       }
@@ -788,13 +803,29 @@ router.post('/app/collector/pay-bill', async (req, res) => {
       if (customer && customer.phone) {
         const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');
         if (whatsappStatus && whatsappStatus.connection === 'open') {
-          const msg = `✅ *PEMBAYARAN TAGIHAN VIA KOLEKTOR BERHASIL*\n\n` +
-                      `👤 *Pelanggan:* ${customer.name}\n` +
-                      `📄 *Invoice:* #${inv.id}\n` +
-                      `📅 *Periode:* ${inv.period_month}/${inv.period_year}\n` +
-                      `💰 *Jumlah:* Rp ${Number(inv.amount || 0).toLocaleString('id-ID')}\n` +
-                      `🛵 *Penerima:* Kolektor Lapangan\n\n` +
-                      `Terima kasih atas pembayaran Anda!`;
+          const settings = getSettingsWithCache();
+          const appUrl = (settings.public_base_url || '').replace(/\/$/, '');
+          const portalUrl = appUrl ? `${appUrl}/customer` : '';
+          const template = db.getAppSetting('whatsapp_payment_success_message', '');
+          const whatsappService = require('../services/whatsappService');
+          const pkg = customer?.package_id ? customerSvc.getPackageById(customer.package_id) : null;
+
+          const msg = whatsappService.formatPaymentSuccessMessage({
+            customerName: customer.name,
+            invoiceId: inv.id,
+            customerUsername: customer.pppoe_username || customer.id || '-',
+            packageName: pkg?.name || customer.package_name || '-',
+            periodMonth: inv.period_month,
+            periodYear: inv.period_year,
+            amount: inv.amount,
+            paymentMethod: 'Kolektor Lapangan',
+            paidAt: new Date(),
+            companyName: settings.company_header || 'ALIJAYA NET',
+            companyPhone: settings.company_phone || '',
+            portalUrl,
+            customTemplate: template
+          });
+
           await sendWA(customer.phone, msg);
         }
       }
@@ -3268,15 +3299,31 @@ router.post('/agent/pay-invoice', requireAgentApiAuth, express.json(), async (re
       const customer = customerSvc.getCustomerById(result.invoice.customer_id);
       const settings = getSettingsWithCache();
       if (settings.whatsapp_enabled && customer && customer.phone) {
-        const { sendWA } = await import('../services/whatsappBot.mjs');
-        const msg = `✅ *PEMBAYARAN TAGIHAN BERHASIL*\n\n` +
-                    `👤 *Pelanggan:* ${customer.name}\n` +
-                    `📄 *Invoice:* #${result.invoice.id}\n` +
-                    `📅 *Periode:* ${result.invoice.period_month}/${result.invoice.period_year}\n` +
-                    `💰 *Jumlah:* Rp ${Number(result.invoice.amount || 0).toLocaleString('id-ID')}\n` +
-                    `🏪 *Lokasi Bayar:* Agen ${req.agent.name}\n\n` +
-                    `Terima kasih telah melakukan pembayaran tepat waktu!`;
-        await sendWA(customer.phone, msg);
+        const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');
+        if (whatsappStatus.connection === 'open') {
+          const appUrl = (settings.public_base_url || '').replace(/\/$/, '');
+          const portalUrl = appUrl ? `${appUrl}/customer` : '';
+          const template = db.getAppSetting('whatsapp_payment_success_message', '');
+          const whatsappService = require('../services/whatsappService');
+
+          const msg = whatsappService.formatPaymentSuccessMessage({
+            customerName: customer.name,
+            invoiceId: result.invoice.id,
+            customerUsername: customer.pppoe_username || customer.id || '-',
+            packageName: customer.package_name || '-',
+            periodMonth: result.invoice.period_month,
+            periodYear: result.invoice.period_year,
+            amount: result.invoice.amount,
+            paymentMethod: `Agen ${req.agent.name}`,
+            paidAt: new Date(),
+            companyName: settings.company_header || 'ALIJAYA NET',
+            companyPhone: settings.company_phone || '',
+            portalUrl,
+            customTemplate: template
+          });
+
+          await sendWA(customer.phone, msg);
+        }
       }
     } catch (_) {}
 
