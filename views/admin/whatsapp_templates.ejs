@@ -86,7 +86,8 @@
         </div>
         <div class="card-bd" style="border-top: 1px solid var(--border); background: var(--bg2); display: flex; flex-wrap:wrap; gap:10px; justify-content: space-between; align-items: center;">
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button type="button" class="btn btn-g btn-sm" onclick="fillSpintaxPreset()"><i class="bi bi-magic"></i> Apply Spintax Anti-Ban Presets</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="fillOfficialReceiptPreset()"><i class="bi bi-receipt-cutoff"></i> Muat Template Struk Resmi Lengkap</button>
+            <button type="button" class="btn btn-g btn-sm" onclick="fillSpintaxPreset()"><i class="bi bi-magic"></i> Muat Template Ringkas (Spintax Anti-Ban)</button>
             <button type="button" class="btn btn-w btn-sm" onclick="showMetaConverter()"><i class="bi bi-meta"></i> 🪄 Konversi Format Meta Cloud API</button>
           </div>
           <button type="submit" class="btn btn-p"><i class="bi bi-save"></i> Simpan Template</button>
@@ -132,6 +133,12 @@
 </div>
 
 <script>
+function fillOfficialReceiptPreset() {
+  if (!confirm('Ganti template dengan Format Struk Pembayaran Resmi Lengkap (mencakup ID Pelanggan, Paket, Jam Bayar, Kop Perusahaan)?')) return;
+  const company = "<%- company %>";
+  document.querySelector('[name="whatsapp_payment_success_message"]').value = `🧾 *BUKTI PEMBAYARAN RESMI (LUNAS)*\n🏢 *{{company}}*\n────────────────────────────\nYth. Pelanggan *{{nama}}*,\n\nTerima kasih, pembayaran tagihan internet Anda telah kami terima dan diverifikasi.\n\n📋 *Rincian Pembayaran:*\n• *No. Invoice:* #INV-{{no_invoice}}\n• *ID Pelanggan:* {{username}}\n• *Paket Layanan:* {{paket}}\n• *Periode:* {{periode}}\n• *Waktu Bayar:* {{waktu}}\n• *Metode Bayar:* {{metode}}\n• *Total Bayar:* *Rp {{total}}*\n• *Status:* *LUNAS ✅*\n\n🌐 *Status Layanan:*\nLayanan internet Anda saat ini dalam status *AKTIF* dan dapat digunakan dengan nyaman.\n\n────────────────────────────\n🔗 *Cek Tagihan / Riwayat:*\n{{link_portal}}\n\n📞 *Bantuan & Layanan Pelanggan:*\nWhatsApp: {{company_phone}}\n\n_Simpan pesan ini sebagai bukti pembayaran yang sah dari {{company}}._`;
+}
+
 function fillSpintaxPreset() {
   if (!confirm('Isi otomatis form template dengan format Anti-Ban (Spintax)? Teks lama di form akan digantikan.')) return;
   const company = "<%- company %>";
@@ -139,7 +146,7 @@ function fillSpintaxPreset() {
 
   document.querySelector('[name="whatsapp_billing_qris_message"]').value = `{Halo|Selamat Pagi|Yth.} Pelanggan {{nama}},\n\n{Berikut|Ini adalah} pengingat tagihan internet Anda:\n📌 *Paket:* {{paket}}\n📌 *Total Tagihan:* Rp {{tagihan}}\n📌 *Periode:* {{rincian}}\n\n{Silakan scan|Mohon scan} QRIS terlampir atau buka link berikut: {{link}}\n\nTerima kasih.`;
 
-  document.querySelector('[name="whatsapp_payment_success_message"]').value = `{Terima kasih|Alhamdulillah}, {{nama}}!\n\nPembayaran tagihan internet periode *{{periode}}* sebesar *Rp {{total}}* melalui {{metode}} telah kami terima.\n\nStatus: *LUNAS*. Layanan internet Anda aktif.\n\nSalam,\nAdmin ` + company;
+  document.querySelector('[name="whatsapp_payment_success_message"]').value = `🧾 *BUKTI PEMBAYARAN RESMI (LUNAS)*\n🏢 *{{company}}*\n────────────────────────────\nYth. Pelanggan *{{nama}}*,\n\nTerima kasih, pembayaran tagihan internet Anda telah kami terima dan diverifikasi.\n\n📋 *Rincian Pembayaran:*\n• *No. Invoice:* #INV-{{no_invoice}}\n• *ID Pelanggan:* {{username}}\n• *Paket Layanan:* {{paket}}\n• *Periode:* {{periode}}\n• *Waktu Bayar:* {{waktu}}\n• *Metode Bayar:* {{metode}}\n• *Total Bayar:* *Rp {{total}}*\n• *Status:* *LUNAS ✅*\n\n🌐 *Status Layanan:*\nLayanan internet Anda saat ini dalam status *AKTIF* dan dapat digunakan dengan nyaman.\n\n────────────────────────────\n🔗 *Cek Tagihan / Riwayat:*\n{{link_portal}}\n\n📞 *Bantuan & Layanan Pelanggan:*\nWhatsApp: {{company_phone}}\n\n_Simpan pesan ini sebagai bukti pembayaran yang sah dari {{company}}._`;
 
   document.querySelector('[name="whatsapp_isolir_message"]').value = `{Halo|Selamat Pagi|Yth.} Pelanggan {{nama}},\n\nLayanan internet Anda (Paket {{paket}}) saat ini {ditangguhkan|terisolir sementara} karena belum melunasi tagihan sebesar *Rp {{tagihan}}*.\n\n{Mohon segera|Silakan} lakukan pembayaran melalui portal pelanggan: {{link}}\n\nTerima kasih.`;
 }
