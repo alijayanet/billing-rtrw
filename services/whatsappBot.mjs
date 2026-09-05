@@ -6,6 +6,7 @@ import qrcode from 'qrcode-terminal';
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys';
 
 const require = createRequire(import.meta.url);
+const QRCodeNode = require('qrcode');
 const { logger } = require('../config/logger.js');
 const { getSetting, getNowLocal, formatDateLocal, getCurrentDateInTimezone } = require('../config/settingsManager.js');
 const db = require('../config/database.js');
@@ -817,6 +818,7 @@ export const whatsappStatus = {
     this._pushName = val;
   },
   qr: null,
+  qrImage: null,
   lastUpdate: getCurrentDateInTimezone()
 };
 
@@ -2057,6 +2059,13 @@ export async function startWhatsAppBot() {
       notifiedAdminForQr = false;
       logger.info(`[WA] QR Code Baru Dihasilkan: ${qr.slice(0, 20)}...`);
       qrcode.generate(qr, { small: true });
+      QRCodeNode.toDataURL(qr, { margin: 2, scale: 6 })
+        .then((url) => {
+          whatsappStatus.qrImage = url;
+        })
+        .catch(() => {
+          whatsappStatus.qrImage = null;
+        });
     }
 
     if (connection) {
@@ -2065,6 +2074,7 @@ export async function startWhatsAppBot() {
 
     if (connection === 'close') {
       whatsappStatus.qr = null;
+      whatsappStatus.qrImage = null;
       whatsappStatus.user = null;
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut;
@@ -2081,6 +2091,7 @@ export async function startWhatsAppBot() {
       }
     } else if (connection === 'open') {
       whatsappStatus.qr = null;
+      whatsappStatus.qrImage = null;
       whatsappStatus.connection = 'open';
       whatsappStatus.user = sock.user;
       logger.info('WhatsApp bot terhubung. Akun Bot JID: ' + (sock.user?.id || 'unknown') + ', Name: ' + (sock.user?.name || 'unknown'));
