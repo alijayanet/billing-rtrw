@@ -290,7 +290,7 @@
         infoSection.style.display = 'block';
         document.getElementById('wa-user').innerText = status.user?.id || status.user?.name || I18N.deviceFallback;
         document.getElementById('wa-time').innerText = new Date(status.lastUpdate).toLocaleTimeString();
-      } else if (status.connection === 'qr' && status.qr) {
+      } else if (status.connection === 'qr' && (status.qr || status.qrImage)) {
         console.log('Generating QR Code Canvas...');
         icon.classList.add('status-qr');
         text.innerText = needScanLabel;
@@ -298,20 +298,27 @@
         qrSection.style.display = 'block';
         
         qrContainer.innerHTML = '';
-        if (typeof QRCode === 'undefined') {
-          console.error('QRCode library still not loaded!');
+        if (status.qrImage) {
+          const img = document.createElement('img');
+          img.src = status.qrImage;
+          img.style.width = '256px';
+          img.style.height = '256px';
+          img.style.borderRadius = '8px';
+          img.alt = 'Scan WhatsApp QR';
+          qrContainer.appendChild(img);
+        } else if (typeof QRCode !== 'undefined' && status.qr) {
+          QRCode.toCanvas(status.qr, { width: 256, margin: 2 }, function (error, canvas) {
+            if (error) {
+              console.error('QR Generate Error:', error);
+              qrContainer.innerText = I18N.qrFail;
+            } else {
+              console.log('QR Code Canvas generated successfully.');
+              qrContainer.appendChild(canvas);
+            }
+          });
+        } else {
           qrContainer.innerText = I18N.waitQrLib;
-          return;
         }
-        QRCode.toCanvas(status.qr, { width: 256, margin: 2 }, function (error, canvas) {
-          if (error) {
-            console.error('QR Generate Error:', error);
-            qrContainer.innerText = I18N.qrFail;
-          } else {
-            console.log('QR Code Canvas generated successfully.');
-            qrContainer.appendChild(canvas);
-          }
-        });
       } else {
         icon.classList.add('status-close');
         text.innerText = I18N.descOffPrefix + ' (' + (status.connection || 'off') + ')';
