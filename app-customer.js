@@ -653,6 +653,20 @@ const metaWAService = require('./services/metaWhatsappService');
 app.get('/api/meta-webhook', (req, res) => metaWAService.verifyWebhook(req, res));
 app.post('/api/meta-webhook', (req, res) => metaWAService.processWebhookEvent(req, res));
 
+// Fonnte WhatsApp Gateway Public Webhook Endpoint
+app.post(['/api/webhook/fonnte', '/api/fonnte-webhook'], express.json(), express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    const data = req.body || {};
+    const sender = data.sender || data.from || '';
+    const message = data.message || data.text || '';
+    logger.info(`[Fonnte Webhook Received] From: ${sender} - Message: "${message}"`);
+    res.json({ status: true, message: 'Webhook received' });
+  } catch (err) {
+    logger.error('[Fonnte Webhook Error]', err.message);
+    res.status(500).json({ status: false, error: err.message });
+  }
+});
+
 app.post('/api/webhook/v1/payment-notif', multer().any(), async (req, res) => {
   let body = req.body || {};
   try {

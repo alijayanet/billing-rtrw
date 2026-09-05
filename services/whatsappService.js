@@ -2,22 +2,27 @@ const { logger } = require('../config/logger');
 const { getSetting } = require('../config/settingsManager');
 const db = require('../config/database');
 const metaWAService = require('./metaWhatsappService');
+const fonnteWAService = require('./fonnteWhatsappService');
 
 /**
  * Unified WhatsApp Gateway Service
- * Menangani routing pengiriman pesan baik via Baileys (Unofficial Web) maupun Meta Cloud API (Official Meta).
+ * Menangani routing pengiriman pesan baik via Baileys (Unofficial Web), Fonnte API, maupun Meta Cloud API (Official Meta).
  */
 
 /**
  * Kirim pesan WhatsApp universal
  * @param {string} toPhone Nomor HP tujuan
  * @param {string} messageText Teks pesan
- * @param {object} options Opsi tambahan: { templateName, parameters, langCode }
+ * @param {object} options Opsi tambahan: { templateName, parameters, langCode, url, filename }
  */
 async function sendWhatsAppMessage(toPhone, messageText, options = {}) {
-  const gatewayType = getSetting('wa_gateway_type', 'baileys'); // 'baileys' or 'meta'
+  const gatewayType = getSetting('wa_gateway_type', 'baileys'); // 'baileys', 'fonnte', or 'meta'
 
-  if (gatewayType === 'meta') {
+  if (gatewayType === 'fonnte') {
+    // Mode FONNTE API GATEWAY (Cloud / Self-Hosted)
+    const res = await fonnteWAService.sendFonnteMessage(toPhone, messageText, options);
+    return res && res.success;
+  } else if (gatewayType === 'meta') {
     // Mode META API RESMI
     if (options.templateName) {
       // Kirim via Meta Template Message
