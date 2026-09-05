@@ -6020,7 +6020,15 @@ router.post('/whatsapp/auto-billing', requireAdminSession, express.urlencoded({ 
 router.get('/api/whatsapp/status', requireAdmin, async (req, res) => {
     try {
       const gatewayType = getSetting('wa_gateway_type', 'baileys');
-      if (gatewayType === 'meta') {
+      if (gatewayType === 'fonnte') {
+        const token = getSetting('fonnte_token', '');
+        res.json({
+          connection: token ? 'open' : 'close',
+          gateway: 'fonnte',
+          user: { id: 'fonnte_gateway', name: 'Fonnte Gateway' },
+          lastUpdate: new Date().toISOString()
+        });
+      } else if (gatewayType === 'meta') {
         const phoneId = getSetting('meta_phone_number_id', '');
         const token = getSetting('meta_access_token', '');
         res.json({ connection: (phoneId && token) ? 'open' : 'connecting', gateway: 'meta' });

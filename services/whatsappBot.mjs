@@ -748,9 +748,65 @@ ${footerInfo ? footerInfo : '💡 _Tanpa TAG = perintah untuk device yang terika
 }
 
 export const whatsappStatus = {
-  connection: 'connecting',
+  _connection: 'connecting',
+  get connection() {
+    try {
+      const gw = getSetting('wa_gateway_type', 'baileys');
+      if (gw === 'fonnte') {
+        const token = getSetting('fonnte_token', '');
+        return token ? 'open' : 'close';
+      }
+      if (gw === 'meta') {
+        const token = getSetting('wa_meta_token', '');
+        return token ? 'open' : 'close';
+      }
+    } catch (_) {}
+    return this._connection || 'connecting';
+  },
+  set connection(val) {
+    this._connection = val;
+  },
+  _user: null,
+  get user() {
+    try {
+      const gw = getSetting('wa_gateway_type', 'baileys');
+      if (gw === 'fonnte') {
+        return { id: 'fonnte_gateway', name: 'Fonnte Gateway' };
+      }
+      if (gw === 'meta') {
+        return { id: 'meta_gateway', name: 'Meta Cloud API' };
+      }
+    } catch (_) {}
+    return this._user;
+  },
+  set user(val) {
+    this._user = val;
+  },
+  _phoneNumber: null,
+  get phoneNumber() {
+    try {
+      const gw = getSetting('wa_gateway_type', 'baileys');
+      if (gw === 'fonnte') return 'Fonnte Gateway';
+      if (gw === 'meta') return getSetting('meta_phone_number_id', 'Meta API');
+    } catch (_) {}
+    return this._phoneNumber || this.user?.id?.split(':')[0] || '-';
+  },
+  set phoneNumber(val) {
+    this._phoneNumber = val;
+  },
+  _pushName: null,
+  get pushName() {
+    try {
+      const gw = getSetting('wa_gateway_type', 'baileys');
+      if (gw === 'fonnte') return 'Fonnte Gateway';
+      if (gw === 'meta') return 'Meta Cloud API';
+    } catch (_) {}
+    return this._pushName || this.user?.name || '-';
+  },
+  set pushName(val) {
+    this._pushName = val;
+  },
   qr: null,
-  user: null,
   lastUpdate: getCurrentDateInTimezone()
 };
 
@@ -780,7 +836,8 @@ function loadWhatsappAdminSendList() {
  * @param {string} priority - Priority level: 'high', 'medium', 'low'
  */
 export async function sendMonitoringAlert(message, priority = 'medium') {
-  if (!currentSock || whatsappStatus.connection !== 'open') {
+  const gatewayType = getSetting('wa_gateway_type', 'baileys');
+  if (gatewayType === 'baileys' && (!currentSock || whatsappStatus._connection !== 'open')) {
     logger.warn('[WhatsApp] Bot belum siap (koneksi belum terbuka), tidak dapat mengirim alert monitoring');
     return { success: false, message: 'Bot belum siap' };
   }
@@ -832,9 +889,19 @@ export async function sendMonitoringAlert(message, priority = 'medium') {
     const results = [];
     for (const jid of recipients) {
       try {
-        await currentSock.sendMessage(jid, { text: formattedMessage });
-        results.push({ jid, success: true });
-        logger.info(`[WhatsApp] Alert monitoring terkirim ke ${jid}`);
+        if (gatewayType === 'fonnte' || gatewayType === 'meta') {
+          const ok = await sendWA(jid, formattedMessage);
+          if (ok) {
+            results.push({ jid, success: true });
+            logger.info(`[WhatsApp] Alert monitoring terkirim ke ${jid}`);
+          } else {
+            throw new Error(`Gagal mengirim alert via ${gatewayType}`);
+          }
+        } else {
+          await currentSock.sendMessage(jid, { text: formattedMessage });
+          results.push({ jid, success: true });
+          logger.info(`[WhatsApp] Alert monitoring terkirim ke ${jid}`);
+        }
       } catch (error) {
         results.push({ jid, success: false, error: error.message });
         logger.error(`[WhatsApp] Gagal mengirim alert ke ${jid}: ${error.message}`);
@@ -875,7 +942,47 @@ export async function simulateHumanTyping(sock, jid, text = '') {
 }
 
 export async function sendWA(to, text, options = {}) {
-  if (!currentSock || whatsappStatus.connection !== 'open') {
+  const gatewayType = getSetting('wa_gateway_type', 'baileys');
+
+  let finalText = text;
+  if (options.spintax !== false && typeof text === 'string' && text.includes('{') && text.includes('}')) {
+    finalText = parseSpintax(text);
+  }
+
+  // Routing Gateway FONNTE (Cloud / Self-Hosted)
+  if (gatewayType === 'fonnte') {
+    try {
+      const fonnteWAService = require('./fonnteWhatsappService');
+      const res = await fonnteWAService.sendFonnteMessage(to, finalText, options);
+      return !!(res && res.success);
+    } catch (err) {
+      logger.error('[WA Fonnte sendWA] Gagal kirim pesan:', err.message);
+      return false;
+    }
+  }
+
+  // Routing Gateway META OFFICIAL CLOUD API
+  if (gatewayType === 'meta') {
+    try {
+      const metaWAService = require('./metaWhatsappService');
+      if (options.templateName) {
+        return await metaWAService.sendMetaTemplateMessage(
+          to,
+          options.templateName,
+          options.langCode || 'id',
+          options.parameters || []
+        );
+      } else {
+        return await metaWAService.sendMetaTextMessage(to, finalText);
+      }
+    } catch (err) {
+      logger.error('[WA Meta sendWA] Gagal kirim pesan:', err.message);
+      return false;
+    }
+  }
+
+  // Gateway BAILEYS WEB (Default)
+  if (!currentSock || whatsappStatus._connection !== 'open') {
     logger.warn('WhatsApp: Gagal kirim pesan, bot belum terhubung.');
     return false;
   }
@@ -897,11 +1004,6 @@ export async function sendWA(to, text, options = {}) {
       }
     }
 
-    let finalText = text;
-    if (options.spintax !== false && (text.includes('{') && text.includes('}'))) {
-      finalText = parseSpintax(text);
-    }
-
     if (options.simulateTyping !== false) {
       await simulateHumanTyping(currentSock, jid, finalText);
     }
@@ -920,7 +1022,35 @@ export async function sendWA(to, text, options = {}) {
 }
 
 export async function sendWAImage(to, imageBuffer, caption = '', options = {}) {
-  if (!currentSock || whatsappStatus.connection !== 'open') {
+  const gatewayType = getSetting('wa_gateway_type', 'baileys');
+
+  let finalCaption = caption;
+  if (options.spintax !== false && typeof caption === 'string' && caption.includes('{') && caption.includes('}')) {
+    finalCaption = parseSpintax(caption);
+  }
+
+  if (gatewayType === 'fonnte') {
+    try {
+      const fonnteWAService = require('./fonnteWhatsappService');
+      const res = await fonnteWAService.sendFonnteMessage(to, finalCaption, options);
+      return !!(res && res.success);
+    } catch (err) {
+      logger.error('[WA Fonnte sendWAImage] Gagal kirim image:', err.message);
+      return false;
+    }
+  }
+
+  if (gatewayType === 'meta') {
+    try {
+      const metaWAService = require('./metaWhatsappService');
+      return await metaWAService.sendMetaTextMessage(to, finalCaption);
+    } catch (err) {
+      logger.error('[WA Meta sendWAImage] Gagal kirim image:', err.message);
+      return false;
+    }
+  }
+
+  if (!currentSock || whatsappStatus._connection !== 'open') {
     logger.warn('WhatsApp: Gagal kirim pesan, bot belum terhubung.');
     return false;
   }
@@ -943,11 +1073,6 @@ export async function sendWAImage(to, imageBuffer, caption = '', options = {}) {
     const img = Buffer.isBuffer(imageBuffer) ? imageBuffer : Buffer.from(imageBuffer || []);
     if (!img.length) return false;
 
-    let finalCaption = caption;
-    if (options.spintax !== false && (caption.includes('{') && caption.includes('}'))) {
-      finalCaption = parseSpintax(caption);
-    }
-
     if (options.simulateTyping !== false) {
       await simulateHumanTyping(currentSock, jid, finalCaption);
     }
@@ -961,7 +1086,35 @@ export async function sendWAImage(to, imageBuffer, caption = '', options = {}) {
 }
 
 export async function sendWADocument(to, documentBuffer, filename = 'Invoice.pdf', caption = '', mimetype = 'application/pdf', options = {}) {
-  if (!currentSock || whatsappStatus.connection !== 'open') {
+  const gatewayType = getSetting('wa_gateway_type', 'baileys');
+
+  let finalCaption = caption;
+  if (options.spintax !== false && typeof caption === 'string' && caption.includes('{') && caption.includes('}')) {
+    finalCaption = parseSpintax(caption);
+  }
+
+  if (gatewayType === 'fonnte') {
+    try {
+      const fonnteWAService = require('./fonnteWhatsappService');
+      const res = await fonnteWAService.sendFonnteMessage(to, finalCaption, { ...options, filename });
+      return !!(res && res.success);
+    } catch (err) {
+      logger.error('[WA Fonnte sendWADocument] Gagal kirim dokumen:', err.message);
+      return false;
+    }
+  }
+
+  if (gatewayType === 'meta') {
+    try {
+      const metaWAService = require('./metaWhatsappService');
+      return await metaWAService.sendMetaTextMessage(to, finalCaption);
+    } catch (err) {
+      logger.error('[WA Meta sendWADocument] Gagal kirim dokumen:', err.message);
+      return false;
+    }
+  }
+
+  if (!currentSock || whatsappStatus._connection !== 'open') {
     logger.warn('WhatsApp: Gagal kirim dokumen, bot belum terhubung.');
     return false;
   }
@@ -983,11 +1136,6 @@ export async function sendWADocument(to, documentBuffer, filename = 'Invoice.pdf
     }
     const doc = Buffer.isBuffer(documentBuffer) ? documentBuffer : Buffer.from(documentBuffer || []);
     if (!doc.length) return false;
-
-    let finalCaption = caption;
-    if (options.spintax !== false && (caption.includes('{') && caption.includes('}'))) {
-      finalCaption = parseSpintax(caption);
-    }
 
     if (options.simulateTyping !== false) {
       await simulateHumanTyping(currentSock, jid, finalCaption);

@@ -150,6 +150,12 @@ function startCronJobs() {
         logger.warn('[CRON] Kredensial Meta API belum diisi, pengingat tagihan otomatis dilewati.');
         return;
       }
+    } else if (gatewayType === 'fonnte') {
+      const token = getSetting('fonnte_token', '');
+      if (!token) {
+        logger.warn('[CRON] Token Fonnte belum diisi, pengingat tagihan otomatis dilewati.');
+        return;
+      }
     } else {
       let whatsappStatus;
       try {
