@@ -221,10 +221,10 @@ async function resolveCustomerContext(key, lidStore) {
   const digits = pnDigits || remoteDigits || null;
 
   const cached =
-    (remoteJid.endsWith('@lid') ? lidStore.get(remoteJid) : null) ||
-    (senderLid && senderLid.endsWith('@lid') ? lidStore.get(senderLid) : null) ||
-    (senderPn && senderPn.endsWith('@s.whatsapp.net') ? lidStore.get(senderPn) : null) ||
-    (remoteJid.endsWith('@s.whatsapp.net') ? lidStore.get(remoteJid) : null) ||
+    (remoteJid.endsWith('@lid') && lidStore ? lidStore.get(remoteJid) : null) ||
+    (senderLid && senderLid.endsWith('@lid') && lidStore ? lidStore.get(senderLid) : null) ||
+    (senderPn && senderPn.endsWith('@s.whatsapp.net') && lidStore ? lidStore.get(senderPn) : null) ||
+    (remoteJid.endsWith('@s.whatsapp.net') && lidStore ? lidStore.get(remoteJid) : null) ||
     null;
 
   let customer = null;
@@ -243,7 +243,7 @@ async function resolveCustomerContext(key, lidStore) {
 
   if (!deviceKey) return null;
 
-  if (digits) {
+  if (digits && lidStore) {
     const tagToCache = (customer && (customer.genieacs_tag || customer.pppoe_username)) ? (customer.genieacs_tag || customer.pppoe_username) : deviceKey;
     const pnJid = senderPn && senderPn.endsWith('@s.whatsapp.net') ? senderPn : (remoteJid.endsWith('@s.whatsapp.net') ? remoteJid : null);
     const lidJid = remoteJid.endsWith('@lid') ? remoteJid : (senderLid && senderLid.endsWith('@lid') ? senderLid : null);
@@ -432,8 +432,10 @@ function parseCommand(text, isAdmin) {
   const t = String(text || '').trim();
   if (!t) return null;
   const parts = t.split(/\s+/);
-  const cmd = parts[0].toLowerCase();
-  const rest = t.slice(parts[0].length).trim();
+  const rawFirst = parts[0];
+  const cleanFirst = rawFirst.replace(/^[\/!#]/, '');
+  const cmd = cleanFirst.toLowerCase();
+  const rest = t.slice(rawFirst.length).trim();
 
   if (['menu', 'bantuan', 'help'].includes(cmd)) return { cmd: 'menu', rest: '' };
 
@@ -493,8 +495,8 @@ function parseCommand(text, isAdmin) {
   }
 
   // Customer Commands
-  if (cmd === 'cektagihan') return { cmd: 'cektagihan', rest: '' };
-  if (['info', 'cekstatus', 'cekonu', 'statusonu'].includes(cmd)) return { cmd: 'info', rest: '' };
+  if (['cektagihan', 'tagihan', 'cek_tagihan', 'bill', 'invoicewa'].includes(cmd)) return { cmd: 'cektagihan', rest: '' };
+  if (['info', 'cekstatus', 'cekonu', 'statusonu', 'status'].includes(cmd)) return { cmd: 'info', rest: '' };
   if (cmd === 'cekterhubung') return { cmd: 'cekterhubung', rest: '' };
   if (cmd === 'gantissid') return { cmd: 'gantissid', rest };
   if (cmd === 'gantisandi') return { cmd: 'gantisandi', rest };
@@ -626,6 +628,14 @@ async function notifyCustomer(sock, lidStore, tag, message) {
       const parsedTag = normalizeDigitsTo62(tag);
       if (parsedTag.length >= 10) {
         phoneNumber = parsedTag;
+      }
+    }
+
+    if (phoneNumber) {
+      const sent = await sendWA(phoneNumber, text);
+      if (sent) {
+        logger.info(`[WA notifyCustomer] Notifikasi terkirim via gateway universal ke ${phoneNumber}`);
+        return true;
       }
     }
 
@@ -1169,6 +1179,819 @@ export async function restartWhatsAppBot() {
   }, 1000);
 }
 
+let defaultLidStore = null;
+export function getDefaultLidStore() {
+  if (!defaultLidStore) {
+    try {
+      const lidMapPath = path.resolve(projectRoot, getSetting('whatsapp_lid_map_file', 'data/wa-lid-map.json'));
+      defaultLidStore = new WaLidStore(lidMapPath);
+    } catch (e) {
+      logger.warn('[WA] WaLidStore init warning: ' + e.message);
+    }
+  }
+  return defaultLidStore;
+}
+
+
+/**
+ * Universal WhatsApp Bot Command Processor
+ * Dapat dipanggil oleh Baileys, Fonnte Webhook, maupun Meta Cloud API Webhook
+ */
+export async function processIncomingCommand({
+  senderPhone,
+  text,
+  reply,
+  senderName = '',
+  key = null,
+  sock = null,
+  lidStore = null
+}) {
+  if (!text || typeof text !== 'string') return false;
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+
+  let phone = String(senderPhone || '').replace(/\D/g, '');
+  if (phone.startsWith('0')) {
+    phone = '62' + phone.slice(1);
+  }
+
+  const msgKey = key || {
+    remoteJid: phone ? `${phone}@s.whatsapp.net` : null,
+    senderPn: phone ? `${phone}@s.whatsapp.net` : null
+  };
+
+  const currentLidStore = lidStore || getDefaultLidStore();
+  const currentSockInstance = sock || currentSock;
+
+  logger.info(`[WA] Pesan masuk dari ${(msgKey.remoteJid || phone)}: "${text}"`);
+  const adminSet = loadWhatsappAdminSet(currentLidStore);
+  const isAdmin = (phone && adminSet.has(phone)) || isWhatsappAdminKey(msgKey, adminSet, currentSockInstance, currentLidStore);
+  logger.info(`[WA] Sender details: JID=${(msgKey.remoteJid || phone)}, isAdmin=${isAdmin}, adminSet=${JSON.stringify([...adminSet])}`);
+  const parsed = parseCommand(text, isAdmin);
+        logger.info(`[WA] Parsed command: ${JSON.stringify(parsed)}`);
+        if (!parsed) return false;
+
+        // Rate Limiting Check
+        /* phone already defined */
+        if (phone) {
+          // Cek command cooldown (2 detik)
+          const cooldownCheck = checkCommandCooldown(phone);
+          if (!cooldownCheck.allowed) {
+            await reply(`⏳ Mohon tunggu *${cooldownCheck.waitTime} detik* sebelum mengirim perintah lagi.`);
+            logger.warn(`[WhatsApp Bot] Rate limit cooldown triggered for ${phone}`);
+            return true;
+          }
+
+          // Cek rate limit per menit (10 perintah)
+          const rateLimitCheck = checkRateLimit(phone);
+          if (!rateLimitCheck.allowed) {
+            await reply(`⚠️ Anda telah mencapai batas perintah. Tunggu *${rateLimitCheck.waitTime} detik* sebelum mencoba lagi.`);
+            logger.warn(`[WhatsApp Bot] Rate limit exceeded for ${phone}`);
+            return true;
+          }
+
+          // Log rate limit info
+          if (rateLimitCheck.remaining <= 3) {
+            logger.info(`[WhatsApp Bot] Rate limit warning for ${phone}: ${rateLimitCheck.remaining} commands remaining`);
+          }
+        }
+
+        if (parsed.cmd === 'menu') {
+          let body = getMenuText();
+          if (isAdmin) body += '\n\n_Anda admin — ketik `admin` untuk perintah kelola semua tag._';
+          /* phone already defined */
+          const agent = phone ? agentSvc.getAgentByPhone(phone) : null;
+          if (agent) {
+            body +=
+              '\n\n📱 *MENU AGENT*\n' +
+              '⚡ `pulsa SKU TARGET` — Beli pulsa/produk Digiflazz\n' +
+              '🔎 `cekpulsa TXID` — Cek status transaksi pulsa';
+          }
+          await reply(body);
+          return true;
+        }
+
+        if (parsed.cmd === 'adminmenu') {
+          if (!isAdmin) {
+            await reply('❌ Perintah ini khusus nomor admin (pengaturan whatsapp_admin_numbers).');
+            return true;
+          }
+          await reply(getAdminMenuText());
+          return true;
+        }
+
+        if (parsed.cmd === 'listonu' && parsed.admin) {
+          if (!isAdmin) {
+            await reply('❌ Akses ditolak. Perintah ini khusus admin.');
+            return true;
+          }
+          let res = await customerDevice.listDevicesWithTags(300);
+          if (!res.ok || !res.devices || res.devices.length === 0) {
+            res = await customerDevice.listAllDevices(300);
+          }
+          if (!res.ok) {
+            await reply('❌ ' + (res.message || 'Gagal mengambil daftar.'));
+            return true;
+          }
+          const body = formatListOnu(res.devices || []);
+          const chunks = splitWaChunks(body);
+          for (const ch of chunks) {
+            await reply(ch);
+          }
+          return true;
+        }
+
+        // Admin MikroTik Logic
+        if (parsed.admin && parsed.cmd === 'mtactive') {
+          try {
+            const pppoe = await mikrotikSvc.getPppoeActive();
+            const hotspot = await mikrotikSvc.getHotspotActive();
+            await reply(formatActiveMikrotik(pppoe, hotspot));
+          } catch (e) {
+            await reply('❌ Gagal mengambil data aktif: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'kickuser') {
+          try {
+            const [user] = parsed.args;
+            const pk = await mikrotikSvc.kickPppoeUser(user);
+            const hk = await mikrotikSvc.kickHotspotUser(user);
+            if (pk || hk) await reply(`✅ Session user *${user}* berhasil diputus.`);
+            else await reply(`❌ User *${user}* tidak ditemukan di session aktif.`);
+          } catch (e) {
+            await reply('❌ Gagal kick user: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'addpppoe') {
+          try {
+            const [user, pass, profile] = parsed.args;
+            await mikrotikSvc.addPppoeSecret({ name: user, password: pass, profile, service: 'pppoe' });
+            await reply(`✅ PPPoE Secret *${user}* berhasil ditambahkan.`);
+          } catch (e) {
+            await reply('❌ Gagal tambah PPPoE: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'editpppoe') {
+          try {
+            const [user, profile] = parsed.args;
+            await mikrotikSvc.setPppoeProfile(user, profile);
+            await reply(`✅ Profile PPPoE *${user}* berhasil diubah ke *${profile}* dan session aktif telah diputus.`);
+          } catch (e) {
+            await reply('❌ Gagal edit PPPoE: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'delpppoe') {
+          try {
+            const [user] = parsed.args;
+            const secrets = await mikrotikSvc.getPppoeSecrets();
+            const found = secrets.find(s => s.name === user);
+            if (!found) return await reply(`❌ User *${user}* tidak ditemukan.`);
+            await mikrotikSvc.deletePppoeSecret(found['.id'] || found.id);
+            await mikrotikSvc.kickPppoeUser(user);
+            await reply(`✅ PPPoE Secret *${user}* berhasil dihapus dan session aktif diputus.`);
+          } catch (e) {
+            await reply('❌ Gagal hapus PPPoE: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'addhotspot') {
+          try {
+            const [user, pass, profile] = parsed.args;
+            await mikrotikSvc.addHotspotUser({ name: user, password: pass, profile });
+            await reply(`✅ Hotspot User *${user}* berhasil ditambahkan.`);
+          } catch (e) {
+            await reply('❌ Gagal tambah Hotspot: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'vcr') {
+          try {
+            const [code, profile] = parsed.args;
+            const now = getCurrentDateInTimezone();
+            const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+            const comment = `vc ${code} ${dateStr}`;
+
+            await mikrotikSvc.addHotspotUser({
+              name: code,
+              password: code,
+              profile: profile,
+              comment: comment
+            });
+
+            await reply(`✅ Voucher Hotspot *${code}* berhasil dibuat.\n\n👤 User: *${code}*\n🔑 Pass: *${code}*\n🏷️ Profile: *${profile}*\n📝 Comment: *${comment}*`);
+          } catch (e) {
+            await reply('❌ Gagal buat voucher: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'delhotspot') {
+          try {
+            const [user] = parsed.args;
+            const users = await mikrotikSvc.getHotspotUsers();
+            const found = users.find(u => u.name === user);
+            if (!found) return await reply(`❌ User Hotspot *${user}* tidak ditemukan.`);
+            await mikrotikSvc.deleteHotspotUser(found['.id'] || found.id);
+            await mikrotikSvc.kickHotspotUser(user);
+            await reply(`✅ Hotspot User *${user}* berhasil dihapus dan session aktif diputus.`);
+          } catch (e) {
+            await reply('❌ Gagal hapus Hotspot: ' + e.message);
+          }
+          return true;
+        }
+
+        // Admin Billing Logic
+        if (parsed.admin && parsed.cmd === 'ringkasan') {
+          const stats = billingSvc.getDashboardStats();
+          await reply(formatBillingSummary(stats));
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'lunas') {
+          logger.info(`[WA lunas] Memulai pemrosesan lunas untuk target: "${parsed.targetId}"`);
+          try {
+            const keyRaw = String(parsed.targetId || '').trim();
+            if (!keyRaw) {
+              logger.warn(`[WA lunas] Target kosong!`);
+              return await reply('❌ Format: `lunas IDTAGIHAN` atau `lunas nama/nohp/pppoe/tag`');
+            }
+
+            let targetInvId = null;
+            let targetInv = null;
+            const isNumeric = /^\d+$/.test(keyRaw);
+            if (isNumeric) {
+              targetInvId = Number(keyRaw);
+              targetInv = billingSvc.getInvoiceById(targetInvId);
+              logger.info(`[WA lunas] Pencarian numerik ID Invoice: ${targetInvId} -> Found: ${!!targetInv}`);
+            }
+
+            // If not found by ID, try find customer and their oldest unpaid invoice
+            if (!targetInv) {
+              let cust =
+                (isNumeric ? customerSvc.getCustomerById(Number(keyRaw)) : null) ||
+                customerSvc.findCustomerByAny(keyRaw);
+              logger.info(`[WA lunas] Pencarian customer untuk key: "${keyRaw}" -> Found: ${cust ? cust.name + " (ID:" + cust.id + ")" : 'null'}`);
+
+              if (!cust) {
+                const candidates = customerSvc.getAllCustomers(keyRaw) || [];
+                const unique = Array.from(new Map(candidates.map(c => [c.id, c])).values());
+                logger.info(`[WA lunas] Ditemukan ${unique.length} kandidat unik`);
+                if (unique.length === 1) {
+                  cust = customerSvc.getCustomerById(unique[0].id);
+                  logger.info(`[WA lunas] Menggunakan kandidat tunggal: ${cust.name}`);
+                } else if (unique.length > 1) {
+                  const top = unique.slice(0, 5).map(c =>
+                    `- ID:${c.id} • ${c.name || '-'} • ${c.phone || '-'} • PPPoE:${c.pppoe_username || '-'}`
+                  ).join('\n');
+                  return await reply(`⚠️ Nama/ID tidak spesifik. Ditemukan ${unique.length} pelanggan:\n\n${top}\n\nKirim ulang: \`lunas IDPELANGGAN\` atau \`lunas NOHP/PPPOE/TAG\``);
+                }
+              }
+
+              if (cust) {
+                const unpaid = billingSvc.getUnpaidInvoicesByCustomerId(cust.id);
+                logger.info(`[WA lunas] Tagihan belum dibayar untuk customer ${cust.name}: ${unpaid ? unpaid.length : 0}`);
+                if (unpaid && unpaid.length > 0) {
+                  targetInv = unpaid[0];
+                  targetInvId = targetInv.id;
+                } else {
+                  return await reply(`✅ Pelanggan *${cust.name}* tidak memiliki tagihan menunggak.`);
+                }
+              }
+            }
+
+            if (!targetInv) {
+              logger.warn(`[WA lunas] Invoice/Customer tidak ditemukan untuk: "${keyRaw}"`);
+              return await reply(`❌ Tagihan atau Pelanggan *${keyRaw}* tidak ditemukan.`);
+            }
+            if (targetInvId != null) {
+              const enriched = billingSvc.getInvoiceById(targetInvId);
+              if (enriched) targetInv = enriched;
+            }
+            if (targetInv && targetInv.status === 'paid') {
+              logger.info(`[WA lunas] Invoice #${targetInv.id} sudah paid`);
+              return await reply(`✅ Invoice *#${targetInv.id}* sudah berstatus LUNAS.`);
+            }
+
+            logger.info(`[WA lunas] Menandai lunas invoice #${targetInvId}...`);
+            billingSvc.markAsPaid(targetInvId, 'WA Bot Admin', 'Paid via WhatsApp Command');
+
+            const customer = customerSvc.getCustomerById(targetInv.customer_id);
+            const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+            const customerName = String(targetInv.customer_name || customer?.name || targetInv.customer_name || '-');
+            const notifyTag = customer?.genieacs_tag || customer?.pppoe_username || customer?.phone || targetInv.customer_phone || targetInv.genieacs_tag || '';
+            logger.info(`[WA lunas] Detail: customerName="${customerName}", notifyTag="${notifyTag}", status="${customer?.status}"`);
+
+            if (customer && customer.status === 'suspended') {
+              const freshCustomer = customerSvc.getAllCustomers().find(c => c.id === targetInv.customer_id);
+              const unpaidCount = freshCustomer && Number.isFinite(Number(freshCustomer.unpaid_count)) ? Number(freshCustomer.unpaid_count) : 1;
+              logger.info(`[WA lunas] Customer status suspended, sisa unpaidCount: ${unpaidCount}`);
+              if (unpaidCount === 0) {
+                logger.info(`[WA lunas] Mengaktifkan customer ID ${targetInv.customer_id}...`);
+                await customerSvc.activateCustomer(targetInv.customer_id);
+                logger.info(`[WA lunas] Customer berhasil diaktifkan. Mengirim notifikasi lunas...`);
+                const ok = await notifyCustomer(
+                  currentSockInstance,
+                  currentLidStore,
+                  notifyTag,
+                  waWrap(
+                    '✅ *PEMBAYARAN BERHASIL*',
+                    `Invoice *#${targetInvId}* sudah *LUNAS*.\n` +
+                      `👤 *Nama:* ${customerName}\n` +
+                      `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
+                      `💰 *Total:* ${formatter.format(Number(targetInv.amount || 0))}\n\n` +
+                      `🟢 Layanan internet Anda sudah aktif kembali.\n\n` +
+                      `Terima kasih.`
+                  )
+                );
+                await reply(`✅ Invoice *#${targetInvId}* LUNAS. Pelanggan *${customerName}* otomatis diaktifkan kembali.\n📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`);
+              } else {
+                logger.info(`[WA lunas] Customer masih memiliki ${unpaidCount} invoice unpaid, notif dikirim...`);
+                const ok = await notifyCustomer(
+                  currentSockInstance,
+                  currentLidStore,
+                  notifyTag,
+                  waWrap(
+                    '✅ *PEMBAYARAN BERHASIL*',
+                    `Invoice *#${targetInvId}* sudah *LUNAS*.\n` +
+                      `👤 *Nama:* ${customerName}\n` +
+                      `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
+                      `💰 *Total:* ${formatter.format(Number(targetInv.amount || 0))}\n\n` +
+                      `⚠️ Masih ada ${unpaidCount} tagihan lain yang belum dibayar.\n\n` +
+                      `Terima kasih.`
+                  )
+                );
+                await reply(`✅ Invoice *#${targetInvId}* LUNAS. (Masih ada ${unpaidCount} tagihan lain, isolir tetap aktif)\n📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`);
+              }
+            } else {
+              logger.info(`[WA lunas] Customer tidak suspended atau null, mengirim notifikasi lunas...`);
+              const ok = await notifyCustomer(
+                currentSockInstance,
+                currentLidStore,
+                notifyTag,
+                waWrap(
+                  '✅ *PEMBAYARAN BERHASIL*',
+                  `Invoice *#${targetInvId}* sudah *LUNAS*.\n` +
+                    `👤 *Nama:* ${customerName}\n` +
+                    `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
+                    `💰 *Total:* ${formatter.format(Number(targetInv.amount || 0))}\n\n` +
+                    `Terima kasih.`
+                )
+              );
+              await reply(`✅ Invoice *#${targetInvId}* (a.n ${customerName}) berhasil ditandai LUNAS.\n📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`);
+            }
+          } catch (e) {
+            logger.error('[WA lunas] Gagal update status: ' + e.message);
+            await reply('❌ Gagal update status: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'isolir') {
+          try {
+            const cust = customerSvc.findCustomerByAny(parsed.targetId);
+            if (!cust) return await reply(`❌ Pelanggan *${parsed.targetId}* tidak ditemukan.`);
+            await customerSvc.suspendCustomer(cust.id);
+            await reply(`✅ Pelanggan *${cust.name}* (ID: ${cust.id}) berhasil di-isolir.`);
+          } catch (e) {
+            await reply('❌ Gagal isolir: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'buka') {
+          try {
+            const cust = customerSvc.findCustomerByAny(parsed.targetId);
+            if (!cust) return await reply(`❌ Pelanggan *${parsed.targetId}* tidak ditemukan.`);
+            await customerSvc.activateCustomer(cust.id);
+            await reply(`✅ Pelanggan *${cust.name}* (ID: ${cust.id}) berhasil diaktifkan kembali.`);
+          } catch (e) {
+            await reply('❌ Gagal buka isolir: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'generate') {
+          try {
+            const count = billingSvc.generateMonthlyInvoices(parseInt(parsed.month), parseInt(parsed.year));
+            await reply(`✅ Berhasil generate *${count}* tagihan untuk periode ${parsed.month}/${parsed.year}.`);
+          } catch (e) {
+            await reply('❌ Gagal generate: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'digiflazz_balance') {
+          if (!isAdmin) {
+            await reply('❌ Akses ditolak. Perintah ini khusus admin.');
+            return true;
+          }
+          try {
+            const r = await agentSvc.digiflazzCheckBalance();
+            await reply(`🏦 *SALDO DIGIFLAZZ*\n\n💳 Deposit: Rp ${Number(r?.deposit || 0).toLocaleString('id-ID')}`);
+          } catch (e) {
+            await reply('❌ Gagal cek saldo Digiflazz: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.cmd === 'topupagent') {
+          if (!isAdmin) {
+            await reply('❌ Akses ditolak. Perintah ini khusus admin.');
+            return true;
+          }
+          try {
+            const agentKeyRaw = String(parsed.agentKey || '').trim();
+            const amount = Number(String(parsed.amount || '').replace(/[^\d]/g, '')) || 0;
+            if (!agentKeyRaw) throw new Error('Agent username/id tidak valid');
+            if (!amount) throw new Error('Nominal tidak valid');
+
+            const normalizeDigits = (v) => {
+              let d = String(v || '').replace(/\D/g, '');
+              if (!d) return '';
+              if (d.startsWith('0')) d = '62' + d.slice(1);
+              return d;
+            };
+
+            const agentKey = agentKeyRaw.startsWith('@') ? agentKeyRaw.slice(1) : agentKeyRaw;
+            const agentKeyLc = agentKey.toLowerCase();
+            const agentDigits = normalizeDigits(agentKey);
+
+            const agents = agentSvc.getAllAgents();
+            const candidates = [];
+
+            const byId = /^\d+$/.test(agentKey) ? agents.find(a => Number(a?.id) === Number(agentKey)) : null;
+            if (byId) candidates.push(byId);
+
+            const byUsername = agents.find(a => String(a?.username || '').toLowerCase() === agentKeyLc) || null;
+            if (byUsername) candidates.push(byUsername);
+
+            if (agentDigits) {
+              const byPhone = agents.find(a => normalizeDigits(a?.phone || '') === agentDigits) || null;
+              if (byPhone) candidates.push(byPhone);
+            }
+
+            const byNameExact = agents.find(a => String(a?.name || '').trim().toLowerCase() === agentKeyLc) || null;
+            if (byNameExact) candidates.push(byNameExact);
+
+            let agent = candidates.length > 0 ? candidates[0] : null;
+            if (!agent) {
+              const byNameContains = agents.filter(a => String(a?.name || '').trim().toLowerCase().includes(agentKeyLc));
+              if (byNameContains.length === 1) agent = byNameContains[0];
+              if (!agent && byNameContains.length > 1) {
+                const list = byNameContains.slice(0, 8).map(a => `- ${a.name} (@${a.username}) [ID:${a.id}]`).join('\n');
+                throw new Error(`Nama agent lebih dari satu. Gunakan username/ID/nohp.\n\n${list}`);
+              }
+            }
+            if (!agent) throw new Error('Agent tidak ditemukan');
+
+            /* phone already defined */
+            const actorName = phone ? `Admin WA (${phone})` : 'Admin WA';
+            const note = String(parsed.note || '').trim() || 'Transfer saldo via WhatsApp';
+            const r = agentSvc.topupAgent(agent.id, amount, note, actorName);
+            await reply(
+              `✅ *TOPUP AGENT BERHASIL*\n\n` +
+              `👤 Agent: *${agent.name}* (@${agent.username})\n` +
+              `💸 Nominal: Rp ${Number(amount || 0).toLocaleString('id-ID')}\n` +
+              `💳 Saldo: Rp ${Number(r.before || 0).toLocaleString('id-ID')} ➜ Rp ${Number(r.after || 0).toLocaleString('id-ID')}\n` +
+              `📝 Catatan: ${note}`
+            );
+          } catch (e) {
+            await reply('❌ Gagal topup agent: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.cmd === 'agent_pulsa') {
+          try {
+            /* phone already defined */
+            const agent = phone ? agentSvc.getAgentByPhone(phone) : null;
+
+            const sku = String(parsed.sku || '').trim();
+            const target = String(parsed.target || '').trim();
+            const sellPrice = Math.max(0, Math.floor(Number(parsed.sellPrice || 0) || 0));
+
+            if (agent) {
+              const result = await agentSvc.buyPulsaAsAgent(agent.id, sku, target, { sell_price: sellPrice });
+              const status = String(result?.tx?.digi_status || 'pending').toLowerCase();
+              const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⏳';
+
+              const lines = [];
+              lines.push(`${icon} *TRANSAKSI PULSA*`);
+              lines.push('');
+              lines.push(`👤 Agent: *${agent.name}* (@${agent.username})`);
+              lines.push(`📦 SKU: *${sku}*`);
+              lines.push(`🎯 Target: *${target}*`);
+              lines.push(`🧾 TX ID: *#${result?.tx?.id || '-'}*`);
+              lines.push(`🧾 Ref ID: *${result?.tx?.digi_ref_id || '-'}*`);
+              lines.push(`📡 Status: *${status.toUpperCase()}*`);
+              if (result?.tx?.digi_sn) lines.push(`🔢 SN: *${result.tx.digi_sn}*`);
+              if (result?.tx?.digi_message) lines.push(`💬 Pesan: ${result.tx.digi_message}`);
+              lines.push(`💰 Potong Saldo: Rp ${(Number(result?.tx?.amount_sell || 0) || 0).toLocaleString('id-ID')}`);
+              lines.push(`💳 Sisa Saldo: Rp ${(Number(result?.agent?.balance || 0) || 0).toLocaleString('id-ID')}`);
+              if (status === 'pending') lines.push(`\nKetik: \`cekpulsa ${result?.tx?.id || ''}\` untuk cek ulang.`);
+              await reply(lines.join('\n'));
+              return true;
+            }
+
+            if (!isAdmin) {
+              await reply('❌ Nomor ini tidak terdaftar sebagai agent.');
+              return true;
+            }
+
+            const result = await agentSvc.buyPulsaAsAdmin({
+              sku,
+              target,
+              actorPhone: phone || '',
+              actorName: 'WhatsApp Admin'
+            });
+            const status = String(result?.tx?.status || 'pending').toLowerCase();
+            const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⏳';
+            const lines = [];
+            lines.push(`${icon} *TRANSAKSI PULSA (ADMIN)*`);
+            lines.push('');
+            lines.push(`📦 SKU: *${sku}*`);
+            lines.push(`🎯 Target: *${target}*`);
+            lines.push(`🧾 TX ID: *#${result?.tx?.id || '-'}*`);
+            lines.push(`🧾 Ref ID: *${result?.tx?.ref_id || '-'}*`);
+            lines.push(`📡 Status: *${status.toUpperCase()}*`);
+            if (result?.tx?.sn) lines.push(`🔢 SN: *${result.tx.sn}*`);
+            if (result?.tx?.message) lines.push(`💬 Pesan: ${result.tx.message}`);
+            if (Number(result?.tx?.price || 0) > 0) lines.push(`💰 Harga Vendor: Rp ${Number(result.tx.price || 0).toLocaleString('id-ID')}`);
+            if (status === 'pending') lines.push(`\nKetik: \`cekpulsa ${result?.tx?.id || ''}\` untuk cek ulang.`);
+            await reply(lines.join('\n'));
+          } catch (e) {
+            await reply('❌ Gagal transaksi pulsa: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.cmd === 'agent_pulsa_check') {
+          try {
+            /* phone already defined */
+            const agent = phone ? agentSvc.getAgentByPhone(phone) : null;
+            const txId = Number(String(parsed.txId || '').replace(/[^\d]/g, '')) || 0;
+            if (!txId) {
+              await reply('❌ Format salah. Gunakan: `cekpulsa TXID`');
+              return true;
+            }
+
+            if (agent) {
+              const result = await agentSvc.checkPulsaStatusAsAgent(agent.id, txId);
+              const status = String(result?.tx?.digi_status || 'pending').toLowerCase();
+              const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⏳';
+              const lines = [];
+              lines.push(`${icon} *STATUS PULSA*`);
+              lines.push('');
+              lines.push(`🧾 TX ID: *#${txId}*`);
+              lines.push(`🧾 Ref ID: *${result?.tx?.digi_ref_id || '-'}*`);
+              lines.push(`📡 Status: *${status.toUpperCase()}*`);
+              if (result?.tx?.digi_sn) lines.push(`🔢 SN: *${result.tx.digi_sn}*`);
+              if (result?.tx?.digi_message) lines.push(`💬 Pesan: ${result.tx.digi_message}`);
+              await reply(lines.join('\n'));
+              return true;
+            }
+
+            if (!isAdmin) {
+              await reply('❌ Nomor ini tidak terdaftar sebagai agent.');
+              return true;
+            }
+
+            const result = await agentSvc.checkPulsaStatusAsAdmin(txId);
+            const status = String(result?.tx?.status || 'pending').toLowerCase();
+            const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⏳';
+            const lines = [];
+            lines.push(`${icon} *STATUS PULSA (ADMIN)*`);
+            lines.push('');
+            lines.push(`🧾 TX ID: *#${txId}*`);
+            lines.push(`🧾 Ref ID: *${result?.tx?.ref_id || '-'}*`);
+            lines.push(`📡 Status: *${status.toUpperCase()}*`);
+            if (result?.tx?.sn) lines.push(`🔢 SN: *${result.tx.sn}*`);
+            if (result?.tx?.message) lines.push(`💬 Pesan: ${result.tx.message}`);
+            await reply(lines.join('\n'));
+          } catch (e) {
+            await reply('❌ Gagal cek status pulsa: ' + e.message);
+          }
+          return true;
+        }
+
+        if (parsed.admin && parsed.targetTag) {
+          if (!isAdmin) {
+            await reply('❌ Akses ditolak. Perintah ini khusus admin.');
+            return true;
+          }
+          const targetTag = await resolveTargetTagForAdmin(parsed.targetTag);
+          const targetDevice = await customerDevice.resolveDeviceToken(targetTag);
+          if (!targetDevice) {
+            await reply(`❌ Target *${parsed.targetTag}* tidak ditemukan di GenieACS.`);
+            return true;
+          }
+          if (parsed.cmd === 'info') {
+            const data = await customerDevice.getCustomerDeviceData(targetTag);
+            await reply(formatInfo(data));
+            return true;
+          }
+          if (parsed.cmd === 'cekterhubung') {
+            const data = await customerDevice.getCustomerDeviceData(targetTag);
+            await reply(formatCekTerhubung(data));
+            return true;
+          }
+          if (parsed.cmd === 'gantissid') {
+            if (!parsed.rest) {
+              await reply('❌ Format salah. Gunakan: \`gantissid TAG namaSSID\`');
+              return true;
+            }
+            const ok = await customerDevice.updateSSID(targetTag, parsed.rest);
+            if (ok) {
+              await reply(`✅ SSID untuk *${targetTag}* berhasil diubah menjadi:\n\n📶 *${parsed.rest}*`);
+              // Kirim notifikasi ke pelanggan
+              const now = getNowLocal();
+              const cust = customerSvc.findCustomerByAny(targetTag);
+              const custName = cust?.name ? `👤 *Pelanggan:* ${cust.name}\n` : '';
+              const notifMsg =
+                `📶 *PERUBAHAN SSID WIFI*\n\n` +
+                custName +
+                `🏷️ *Tag/ID:* ${targetTag}\n` +
+                `🕒 *Waktu:* ${now}\n\n` +
+                `SSID WiFi Anda sudah diperbarui oleh Admin menjadi:\n` +
+                `📡 *${parsed.rest}*\n\n` +
+                `Jika perangkat belum tersambung, silakan pilih SSID baru di HP/laptop Anda.\n` +
+                `⚠️ Jangan bagikan info ini ke orang lain.`;
+              const notifSent = await notifyCustomer(currentSockInstance, currentLidStore, targetTag, notifMsg);
+              if (notifSent) {
+                await reply(`📤 Notifikasi terkirim ke pelanggan *${targetTag}*`);
+              } else {
+                await reply(`⚠️ Tidak dapat mengirim notifikasi ke pelanggan *${targetTag}* (nomor belum terdaftar)`);
+              }
+            } else {
+              await reply('❌ Gagal mengubah SSID.');
+            }
+            return true;
+          }
+          if (parsed.cmd === 'gantisandi') {
+            if (!parsed.rest || parsed.rest.length < 8) {
+              await reply('❌ Sandi minimal 8 karakter.');
+              return true;
+            }
+            const ok = await customerDevice.updatePassword(targetTag, parsed.rest);
+            if (ok) {
+              await reply('✅ Password WiFi berhasil diubah.');
+              // Kirim notifikasi ke pelanggan
+              const now = getNowLocal();
+              const cust = customerSvc.findCustomerByAny(targetTag);
+              const custName = cust?.name ? `👤 *Pelanggan:* ${cust.name}\n` : '';
+              const notifMsg =
+                `🔑 *PERUBAHAN PASSWORD WIFI*\n\n` +
+                custName +
+                `🏷️ *Tag/ID:* ${targetTag}\n` +
+                `🕒 *Waktu:* ${now}\n\n` +
+                `Password WiFi Anda sudah diperbarui oleh Admin menjadi:\n` +
+                `🔐 *${parsed.rest}*\n\n` +
+                `Silakan gunakan password baru untuk terhubung.\n` +
+                `⚠️ Jangan bagikan password ini ke orang lain.`;
+              const notifSent = await notifyCustomer(currentSockInstance, currentLidStore, targetTag, notifMsg);
+              if (notifSent) {
+                await reply(`📤 Notifikasi terkirim ke pelanggan *${targetTag}*`);
+              } else {
+                await reply(`⚠️ Tidak dapat mengirim notifikasi ke pelanggan *${targetTag}* (nomor belum terdaftar)`);
+              }
+            } else {
+              await reply('❌ Gagal mengubah password.');
+            }
+            return true;
+          }
+          if (parsed.cmd === 'reboot') {
+            const r = await customerDevice.requestReboot(targetTag);
+            await reply(`🔄 *${targetTag}*\n\n${r.message}`);
+            return true;
+          }
+        }
+
+        if (parsed.cmd === 'daftar') {
+          if (!parsed.rest) {
+            await reply('❌ Format salah. Gunakan:\n\n\`daftar 081234567890\`\n\n(gunakan tag/nomor yang sama dengan di GenieACS)');
+            return true;
+          }
+          const dev = await customerDevice.resolveDeviceToken(parsed.rest);
+          if (!dev) {
+            await reply('❌ Tag/nomor tidak ditemukan di GenieACS. Periksa penulisan atau hubungi admin.');
+            return true;
+          }
+          const nk = normalizeKey(msgKey);
+          const tagKey = String(parsed.rest || '').trim();
+          if (currentLidStore) {
+            currentLidStore.set((msgKey.remoteJid || phone), tagKey);
+            if (nk.senderLid) currentLidStore.set(nk.senderLid, tagKey);
+            if (nk.senderPn) currentLidStore.set(nk.senderPn, tagKey);
+          }
+          await reply(`✅ Berhasil! Nomor WA ini diikat ke tag:\n\n📍 *${tagKey}*\n\nSilakan gunakan perintah lain.`);
+          return true;
+        }
+
+        const ctx = await resolveCustomerContext(msgKey, currentLidStore);
+        if (!ctx) {
+          await reply(
+            '❌ Nomor/tag Anda belum dikenali (sering terjadi jika WA memakai @lid).\n\n' +
+            'Kirim sekali:\n\`daftar NOMORATAUTAG\`\n(sama persis dengan tag di GenieACS), lalu ulangi perintah.'
+          );
+          return true;
+        }
+
+        if (parsed.cmd === 'cektagihan') {
+          const invoices = billingSvc.getInvoicesByAny(ctx.billingKey);
+          await reply(formatCustomerInvoices(invoices, ctx.billingKey));
+          return true;
+        }
+
+        if (parsed.cmd === 'info') {
+          const data = await customerDevice.getCustomerDeviceData(ctx.deviceKey);
+          await reply(formatInfo(data));
+          return true;
+        }
+
+        if (parsed.cmd === 'cekterhubung') {
+          const data = await customerDevice.getCustomerDeviceData(ctx.deviceKey);
+          await reply(formatCekTerhubung(data));
+          return true;
+        }
+
+        if (parsed.cmd === 'gantissid') {
+          if (!parsed.rest) {
+            await reply('❌ Format salah. Gunakan:\n\n\`gantissid NamaWiFiBaru\`');
+            return true;
+          }
+          const ok = await customerDevice.updateSSID(ctx.deviceKey, parsed.rest);
+          if (ok) {
+            await reply(`✅ SSID berhasil diubah menjadi:\n\n📶 *${parsed.rest}*`);
+            // Kirim notifikasi konfirmasi ke pelanggan via WA
+            try {
+              const cust = customerSvc.findCustomerByAny(ctx.billingKey || ctx.deviceKey);
+              if (cust && cust.phone) {
+                const now = getNowLocal();
+                const notifMsg =
+                  `📶 *PERUBAHAN SSID WIFI*\n\n` +
+                  `👤 *Pelanggan:* ${cust.name}\n` +
+                  `🕒 *Waktu:* ${now}\n\n` +
+                  `SSID WiFi Anda sudah diperbarui menjadi:\n` +
+                  `📡 *${parsed.rest}*\n\n` +
+                  `Silakan pilih SSID baru di perangkat Anda untuk terhubung.\n` +
+                  `⚠️ Jangan bagikan info ini ke orang lain.`;
+                await notifyCustomer(currentSockInstance, currentLidStore, ctx.deviceKey, notifMsg);
+              }
+            } catch (e) { /* ignore notification errors */ }
+          } else {
+            await reply('❌ Gagal mengubah SSID. Coba lagi atau hubungi admin.');
+          }
+          return true;
+        }
+
+        if (parsed.cmd === 'gantisandi') {
+          if (!parsed.rest || parsed.rest.length < 8) {
+            await reply('❌ Format salah. Gunakan:\n\n\`gantisandi sandibarumin8huruf\`\n\nSandi minimal 8 karakter.');
+            return true;
+          }
+          const ok = await customerDevice.updatePassword(ctx.deviceKey, parsed.rest);
+          if (ok) {
+            await reply('✅ Password WiFi berhasil diubah.');
+            // Kirim notifikasi konfirmasi ke pelanggan via WA
+            try {
+              const cust = customerSvc.findCustomerByAny(ctx.billingKey || ctx.deviceKey);
+              if (cust && cust.phone) {
+                const now = getNowLocal();
+                const notifMsg =
+                  `🔑 *PERUBAHAN PASSWORD WIFI*\n\n` +
+                  `👤 *Pelanggan:* ${cust.name}\n` +
+                  `🕒 *Waktu:* ${now}\n\n` +
+                  `Password WiFi Anda sudah diperbarui menjadi:\n` +
+                  `🔐 *${parsed.rest}*\n\n` +
+                  `Silakan gunakan password baru untuk terhubung.\n` +
+                  `⚠️ Jangan bagikan password ini ke orang lain.`;
+                await notifyCustomer(currentSockInstance, currentLidStore, ctx.deviceKey, notifMsg);
+              }
+            } catch (e) { /* ignore notification errors */ }
+          } else {
+            await reply('❌ Gagal mengubah password.');
+          }
+          return true;
+        }
+
+        if (parsed.cmd === 'reboot') {
+          const r = await customerDevice.requestReboot(ctx.deviceKey);
+          await reply(`🔄 *Reboot ONU*\n\n${r.message}`);
+        }
+
+  return true;
+}
+
 export async function startWhatsAppBot() {
   if (currentSock) {
     try {
@@ -1183,7 +2006,7 @@ export async function startWhatsAppBot() {
 
   const authFolder = path.resolve(projectRoot, getSetting('whatsapp_auth_folder', 'auth_info_baileys'));
   const lidMapPath = path.resolve(projectRoot, getSetting('whatsapp_lid_map_file', 'data/wa-lid-map.json'));
-  const lidStore = new WaLidStore(lidMapPath);
+  const lidStore = getDefaultLidStore();
 
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
   let version = [2, 3000, 1017531287]; // Fallback version
@@ -1343,770 +2166,16 @@ export async function startWhatsAppBot() {
           }
         };
 
-        logger.info(`[WA] Pesan masuk dari ${remote}: "${text}"`);
-        logger.info(`[WA] Full message object: ${JSON.stringify(m)}`);
-        const adminSet = loadWhatsappAdminSet(lidStore);
-        const isAdmin = isWhatsappAdminKey(m.key, adminSet, sock, lidStore);
-        logger.info(`[WA] Sender details: JID=${remote}, isAdmin=${isAdmin}, adminSet=${JSON.stringify([...adminSet])}`);
-        const parsed = parseCommand(text, isAdmin);
-        logger.info(`[WA] Parsed command: ${JSON.stringify(parsed)}`);
-        if (!parsed) continue;
-
-        // Rate Limiting Check
         const phone = getPhoneFromKey(m.key);
-        if (phone) {
-          // Cek command cooldown (2 detik)
-          const cooldownCheck = checkCommandCooldown(phone);
-          if (!cooldownCheck.allowed) {
-            await reply(`⏳ Mohon tunggu *${cooldownCheck.waitTime} detik* sebelum mengirim perintah lagi.`);
-            logger.warn(`[WhatsApp Bot] Rate limit cooldown triggered for ${phone}`);
-            continue;
-          }
-
-          // Cek rate limit per menit (10 perintah)
-          const rateLimitCheck = checkRateLimit(phone);
-          if (!rateLimitCheck.allowed) {
-            await reply(`⚠️ Anda telah mencapai batas perintah. Tunggu *${rateLimitCheck.waitTime} detik* sebelum mencoba lagi.`);
-            logger.warn(`[WhatsApp Bot] Rate limit exceeded for ${phone}`);
-            continue;
-          }
-
-          // Log rate limit info
-          if (rateLimitCheck.remaining <= 3) {
-            logger.info(`[WhatsApp Bot] Rate limit warning for ${phone}: ${rateLimitCheck.remaining} commands remaining`);
-          }
-        }
-
-        if (parsed.cmd === 'menu') {
-          let body = getMenuText();
-          if (isAdmin) body += '\n\n_Anda admin — ketik `admin` untuk perintah kelola semua tag._';
-          const phone = getPhoneFromKey(m.key);
-          const agent = phone ? agentSvc.getAgentByPhone(phone) : null;
-          if (agent) {
-            body +=
-              '\n\n📱 *MENU AGENT*\n' +
-              '⚡ `pulsa SKU TARGET` — Beli pulsa/produk Digiflazz\n' +
-              '🔎 `cekpulsa TXID` — Cek status transaksi pulsa';
-          }
-          await reply(body);
-          continue;
-        }
-
-        if (parsed.cmd === 'adminmenu') {
-          if (!isAdmin) {
-            await reply('❌ Perintah ini khusus nomor admin (pengaturan whatsapp_admin_numbers).');
-            continue;
-          }
-          await reply(getAdminMenuText());
-          continue;
-        }
-
-        if (parsed.cmd === 'listonu' && parsed.admin) {
-          if (!isAdmin) {
-            await reply('❌ Akses ditolak. Perintah ini khusus admin.');
-            continue;
-          }
-          let res = await customerDevice.listDevicesWithTags(300);
-          if (!res.ok || !res.devices || res.devices.length === 0) {
-            res = await customerDevice.listAllDevices(300);
-          }
-          if (!res.ok) {
-            await reply('❌ ' + (res.message || 'Gagal mengambil daftar.'));
-            continue;
-          }
-          const body = formatListOnu(res.devices || []);
-          const chunks = splitWaChunks(body);
-          for (const ch of chunks) {
-            await reply(ch);
-          }
-          continue;
-        }
-
-        // Admin MikroTik Logic
-        if (parsed.admin && parsed.cmd === 'mtactive') {
-          try {
-            const pppoe = await mikrotikSvc.getPppoeActive();
-            const hotspot = await mikrotikSvc.getHotspotActive();
-            await reply(formatActiveMikrotik(pppoe, hotspot));
-          } catch (e) {
-            await reply('❌ Gagal mengambil data aktif: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'kickuser') {
-          try {
-            const [user] = parsed.args;
-            const pk = await mikrotikSvc.kickPppoeUser(user);
-            const hk = await mikrotikSvc.kickHotspotUser(user);
-            if (pk || hk) await reply(`✅ Session user *${user}* berhasil diputus.`);
-            else await reply(`❌ User *${user}* tidak ditemukan di session aktif.`);
-          } catch (e) {
-            await reply('❌ Gagal kick user: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'addpppoe') {
-          try {
-            const [user, pass, profile] = parsed.args;
-            await mikrotikSvc.addPppoeSecret({ name: user, password: pass, profile, service: 'pppoe' });
-            await reply(`✅ PPPoE Secret *${user}* berhasil ditambahkan.`);
-          } catch (e) {
-            await reply('❌ Gagal tambah PPPoE: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'editpppoe') {
-          try {
-            const [user, profile] = parsed.args;
-            await mikrotikSvc.setPppoeProfile(user, profile);
-            await reply(`✅ Profile PPPoE *${user}* berhasil diubah ke *${profile}* dan session aktif telah diputus.`);
-          } catch (e) {
-            await reply('❌ Gagal edit PPPoE: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'delpppoe') {
-          try {
-            const [user] = parsed.args;
-            const secrets = await mikrotikSvc.getPppoeSecrets();
-            const found = secrets.find(s => s.name === user);
-            if (!found) return await reply(`❌ User *${user}* tidak ditemukan.`);
-            await mikrotikSvc.deletePppoeSecret(found['.id'] || found.id);
-            await mikrotikSvc.kickPppoeUser(user);
-            await reply(`✅ PPPoE Secret *${user}* berhasil dihapus dan session aktif diputus.`);
-          } catch (e) {
-            await reply('❌ Gagal hapus PPPoE: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'addhotspot') {
-          try {
-            const [user, pass, profile] = parsed.args;
-            await mikrotikSvc.addHotspotUser({ name: user, password: pass, profile });
-            await reply(`✅ Hotspot User *${user}* berhasil ditambahkan.`);
-          } catch (e) {
-            await reply('❌ Gagal tambah Hotspot: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'vcr') {
-          try {
-            const [code, profile] = parsed.args;
-            const now = getCurrentDateInTimezone();
-            const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-            const comment = `vc ${code} ${dateStr}`;
-
-            await mikrotikSvc.addHotspotUser({
-              name: code,
-              password: code,
-              profile: profile,
-              comment: comment
-            });
-
-            await reply(`✅ Voucher Hotspot *${code}* berhasil dibuat.\n\n👤 User: *${code}*\n🔑 Pass: *${code}*\n🏷️ Profile: *${profile}*\n📝 Comment: *${comment}*`);
-          } catch (e) {
-            await reply('❌ Gagal buat voucher: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'delhotspot') {
-          try {
-            const [user] = parsed.args;
-            const users = await mikrotikSvc.getHotspotUsers();
-            const found = users.find(u => u.name === user);
-            if (!found) return await reply(`❌ User Hotspot *${user}* tidak ditemukan.`);
-            await mikrotikSvc.deleteHotspotUser(found['.id'] || found.id);
-            await mikrotikSvc.kickHotspotUser(user);
-            await reply(`✅ Hotspot User *${user}* berhasil dihapus dan session aktif diputus.`);
-          } catch (e) {
-            await reply('❌ Gagal hapus Hotspot: ' + e.message);
-          }
-          continue;
-        }
-
-        // Admin Billing Logic
-        if (parsed.admin && parsed.cmd === 'ringkasan') {
-          const stats = billingSvc.getDashboardStats();
-          await reply(formatBillingSummary(stats));
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'lunas') {
-          logger.info(`[WA lunas] Memulai pemrosesan lunas untuk target: "${parsed.targetId}"`);
-          try {
-            const keyRaw = String(parsed.targetId || '').trim();
-            if (!keyRaw) {
-              logger.warn(`[WA lunas] Target kosong!`);
-              return await reply('❌ Format: `lunas IDTAGIHAN` atau `lunas nama/nohp/pppoe/tag`');
-            }
-
-            let targetInvId = null;
-            let targetInv = null;
-            const isNumeric = /^\d+$/.test(keyRaw);
-            if (isNumeric) {
-              targetInvId = Number(keyRaw);
-              targetInv = billingSvc.getInvoiceById(targetInvId);
-              logger.info(`[WA lunas] Pencarian numerik ID Invoice: ${targetInvId} -> Found: ${!!targetInv}`);
-            }
-
-            // If not found by ID, try find customer and their oldest unpaid invoice
-            if (!targetInv) {
-              let cust =
-                (isNumeric ? customerSvc.getCustomerById(Number(keyRaw)) : null) ||
-                customerSvc.findCustomerByAny(keyRaw);
-              logger.info(`[WA lunas] Pencarian customer untuk key: "${keyRaw}" -> Found: ${cust ? cust.name + " (ID:" + cust.id + ")" : 'null'}`);
-
-              if (!cust) {
-                const candidates = customerSvc.getAllCustomers(keyRaw) || [];
-                const unique = Array.from(new Map(candidates.map(c => [c.id, c])).values());
-                logger.info(`[WA lunas] Ditemukan ${unique.length} kandidat unik`);
-                if (unique.length === 1) {
-                  cust = customerSvc.getCustomerById(unique[0].id);
-                  logger.info(`[WA lunas] Menggunakan kandidat tunggal: ${cust.name}`);
-                } else if (unique.length > 1) {
-                  const top = unique.slice(0, 5).map(c =>
-                    `- ID:${c.id} • ${c.name || '-'} • ${c.phone || '-'} • PPPoE:${c.pppoe_username || '-'}`
-                  ).join('\n');
-                  return await reply(`⚠️ Nama/ID tidak spesifik. Ditemukan ${unique.length} pelanggan:\n\n${top}\n\nKirim ulang: \`lunas IDPELANGGAN\` atau \`lunas NOHP/PPPOE/TAG\``);
-                }
-              }
-
-              if (cust) {
-                const unpaid = billingSvc.getUnpaidInvoicesByCustomerId(cust.id);
-                logger.info(`[WA lunas] Tagihan belum dibayar untuk customer ${cust.name}: ${unpaid ? unpaid.length : 0}`);
-                if (unpaid && unpaid.length > 0) {
-                  targetInv = unpaid[0];
-                  targetInvId = targetInv.id;
-                } else {
-                  return await reply(`✅ Pelanggan *${cust.name}* tidak memiliki tagihan menunggak.`);
-                }
-              }
-            }
-
-            if (!targetInv) {
-              logger.warn(`[WA lunas] Invoice/Customer tidak ditemukan untuk: "${keyRaw}"`);
-              return await reply(`❌ Tagihan atau Pelanggan *${keyRaw}* tidak ditemukan.`);
-            }
-            if (targetInvId != null) {
-              const enriched = billingSvc.getInvoiceById(targetInvId);
-              if (enriched) targetInv = enriched;
-            }
-            if (targetInv && targetInv.status === 'paid') {
-              logger.info(`[WA lunas] Invoice #${targetInv.id} sudah paid`);
-              return await reply(`✅ Invoice *#${targetInv.id}* sudah berstatus LUNAS.`);
-            }
-
-            logger.info(`[WA lunas] Menandai lunas invoice #${targetInvId}...`);
-            billingSvc.markAsPaid(targetInvId, 'WA Bot Admin', 'Paid via WhatsApp Command');
-
-            const customer = customerSvc.getCustomerById(targetInv.customer_id);
-            const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
-            const customerName = String(targetInv.customer_name || customer?.name || targetInv.customer_name || '-');
-            const notifyTag = customer?.genieacs_tag || customer?.pppoe_username || customer?.phone || targetInv.customer_phone || targetInv.genieacs_tag || '';
-            logger.info(`[WA lunas] Detail: customerName="${customerName}", notifyTag="${notifyTag}", status="${customer?.status}"`);
-
-            if (customer && customer.status === 'suspended') {
-              const freshCustomer = customerSvc.getAllCustomers().find(c => c.id === targetInv.customer_id);
-              const unpaidCount = freshCustomer && Number.isFinite(Number(freshCustomer.unpaid_count)) ? Number(freshCustomer.unpaid_count) : 1;
-              logger.info(`[WA lunas] Customer status suspended, sisa unpaidCount: ${unpaidCount}`);
-              if (unpaidCount === 0) {
-                logger.info(`[WA lunas] Mengaktifkan customer ID ${targetInv.customer_id}...`);
-                await customerSvc.activateCustomer(targetInv.customer_id);
-                logger.info(`[WA lunas] Customer berhasil diaktifkan. Mengirim notifikasi lunas...`);
-                const ok = await notifyCustomer(
-                  sock,
-                  lidStore,
-                  notifyTag,
-                  waWrap(
-                    '✅ *PEMBAYARAN BERHASIL*',
-                    `Invoice *#${targetInvId}* sudah *LUNAS*.\n` +
-                      `👤 *Nama:* ${customerName}\n` +
-                      `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
-                      `💰 *Total:* ${formatter.format(Number(targetInv.amount || 0))}\n\n` +
-                      `🟢 Layanan internet Anda sudah aktif kembali.\n\n` +
-                      `Terima kasih.`
-                  )
-                );
-                await reply(`✅ Invoice *#${targetInvId}* LUNAS. Pelanggan *${customerName}* otomatis diaktifkan kembali.\n📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`);
-              } else {
-                logger.info(`[WA lunas] Customer masih memiliki ${unpaidCount} invoice unpaid, notif dikirim...`);
-                const ok = await notifyCustomer(
-                  sock,
-                  lidStore,
-                  notifyTag,
-                  waWrap(
-                    '✅ *PEMBAYARAN BERHASIL*',
-                    `Invoice *#${targetInvId}* sudah *LUNAS*.\n` +
-                      `👤 *Nama:* ${customerName}\n` +
-                      `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
-                      `💰 *Total:* ${formatter.format(Number(targetInv.amount || 0))}\n\n` +
-                      `⚠️ Masih ada ${unpaidCount} tagihan lain yang belum dibayar.\n\n` +
-                      `Terima kasih.`
-                  )
-                );
-                await reply(`✅ Invoice *#${targetInvId}* LUNAS. (Masih ada ${unpaidCount} tagihan lain, isolir tetap aktif)\n📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`);
-              }
-            } else {
-              logger.info(`[WA lunas] Customer tidak suspended atau null, mengirim notifikasi lunas...`);
-              const ok = await notifyCustomer(
-                sock,
-                lidStore,
-                notifyTag,
-                waWrap(
-                  '✅ *PEMBAYARAN BERHASIL*',
-                  `Invoice *#${targetInvId}* sudah *LUNAS*.\n` +
-                    `👤 *Nama:* ${customerName}\n` +
-                    `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
-                    `💰 *Total:* ${formatter.format(Number(targetInv.amount || 0))}\n\n` +
-                    `Terima kasih.`
-                )
-              );
-              await reply(`✅ Invoice *#${targetInvId}* (a.n ${customerName}) berhasil ditandai LUNAS.\n📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`);
-            }
-          } catch (e) {
-            logger.error('[WA lunas] Gagal update status: ' + e.message);
-            await reply('❌ Gagal update status: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'isolir') {
-          try {
-            const cust = customerSvc.findCustomerByAny(parsed.targetId);
-            if (!cust) return await reply(`❌ Pelanggan *${parsed.targetId}* tidak ditemukan.`);
-            await customerSvc.suspendCustomer(cust.id);
-            await reply(`✅ Pelanggan *${cust.name}* (ID: ${cust.id}) berhasil di-isolir.`);
-          } catch (e) {
-            await reply('❌ Gagal isolir: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'buka') {
-          try {
-            const cust = customerSvc.findCustomerByAny(parsed.targetId);
-            if (!cust) return await reply(`❌ Pelanggan *${parsed.targetId}* tidak ditemukan.`);
-            await customerSvc.activateCustomer(cust.id);
-            await reply(`✅ Pelanggan *${cust.name}* (ID: ${cust.id}) berhasil diaktifkan kembali.`);
-          } catch (e) {
-            await reply('❌ Gagal buka isolir: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'generate') {
-          try {
-            const count = billingSvc.generateMonthlyInvoices(parseInt(parsed.month), parseInt(parsed.year));
-            await reply(`✅ Berhasil generate *${count}* tagihan untuk periode ${parsed.month}/${parsed.year}.`);
-          } catch (e) {
-            await reply('❌ Gagal generate: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'digiflazz_balance') {
-          if (!isAdmin) {
-            await reply('❌ Akses ditolak. Perintah ini khusus admin.');
-            continue;
-          }
-          try {
-            const r = await agentSvc.digiflazzCheckBalance();
-            await reply(`🏦 *SALDO DIGIFLAZZ*\n\n💳 Deposit: Rp ${Number(r?.deposit || 0).toLocaleString('id-ID')}`);
-          } catch (e) {
-            await reply('❌ Gagal cek saldo Digiflazz: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.cmd === 'topupagent') {
-          if (!isAdmin) {
-            await reply('❌ Akses ditolak. Perintah ini khusus admin.');
-            continue;
-          }
-          try {
-            const agentKeyRaw = String(parsed.agentKey || '').trim();
-            const amount = Number(String(parsed.amount || '').replace(/[^\d]/g, '')) || 0;
-            if (!agentKeyRaw) throw new Error('Agent username/id tidak valid');
-            if (!amount) throw new Error('Nominal tidak valid');
-
-            const normalizeDigits = (v) => {
-              let d = String(v || '').replace(/\D/g, '');
-              if (!d) return '';
-              if (d.startsWith('0')) d = '62' + d.slice(1);
-              return d;
-            };
-
-            const agentKey = agentKeyRaw.startsWith('@') ? agentKeyRaw.slice(1) : agentKeyRaw;
-            const agentKeyLc = agentKey.toLowerCase();
-            const agentDigits = normalizeDigits(agentKey);
-
-            const agents = agentSvc.getAllAgents();
-            const candidates = [];
-
-            const byId = /^\d+$/.test(agentKey) ? agents.find(a => Number(a?.id) === Number(agentKey)) : null;
-            if (byId) candidates.push(byId);
-
-            const byUsername = agents.find(a => String(a?.username || '').toLowerCase() === agentKeyLc) || null;
-            if (byUsername) candidates.push(byUsername);
-
-            if (agentDigits) {
-              const byPhone = agents.find(a => normalizeDigits(a?.phone || '') === agentDigits) || null;
-              if (byPhone) candidates.push(byPhone);
-            }
-
-            const byNameExact = agents.find(a => String(a?.name || '').trim().toLowerCase() === agentKeyLc) || null;
-            if (byNameExact) candidates.push(byNameExact);
-
-            let agent = candidates.length > 0 ? candidates[0] : null;
-            if (!agent) {
-              const byNameContains = agents.filter(a => String(a?.name || '').trim().toLowerCase().includes(agentKeyLc));
-              if (byNameContains.length === 1) agent = byNameContains[0];
-              if (!agent && byNameContains.length > 1) {
-                const list = byNameContains.slice(0, 8).map(a => `- ${a.name} (@${a.username}) [ID:${a.id}]`).join('\n');
-                throw new Error(`Nama agent lebih dari satu. Gunakan username/ID/nohp.\n\n${list}`);
-              }
-            }
-            if (!agent) throw new Error('Agent tidak ditemukan');
-
-            const phone = getPhoneFromKey(m.key);
-            const actorName = phone ? `Admin WA (${phone})` : 'Admin WA';
-            const note = String(parsed.note || '').trim() || 'Transfer saldo via WhatsApp';
-            const r = agentSvc.topupAgent(agent.id, amount, note, actorName);
-            await reply(
-              `✅ *TOPUP AGENT BERHASIL*\n\n` +
-              `👤 Agent: *${agent.name}* (@${agent.username})\n` +
-              `💸 Nominal: Rp ${Number(amount || 0).toLocaleString('id-ID')}\n` +
-              `💳 Saldo: Rp ${Number(r.before || 0).toLocaleString('id-ID')} ➜ Rp ${Number(r.after || 0).toLocaleString('id-ID')}\n` +
-              `📝 Catatan: ${note}`
-            );
-          } catch (e) {
-            await reply('❌ Gagal topup agent: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.cmd === 'agent_pulsa') {
-          try {
-            const phone = getPhoneFromKey(m.key);
-            const agent = phone ? agentSvc.getAgentByPhone(phone) : null;
-
-            const sku = String(parsed.sku || '').trim();
-            const target = String(parsed.target || '').trim();
-            const sellPrice = Math.max(0, Math.floor(Number(parsed.sellPrice || 0) || 0));
-
-            if (agent) {
-              const result = await agentSvc.buyPulsaAsAgent(agent.id, sku, target, { sell_price: sellPrice });
-              const status = String(result?.tx?.digi_status || 'pending').toLowerCase();
-              const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⏳';
-
-              const lines = [];
-              lines.push(`${icon} *TRANSAKSI PULSA*`);
-              lines.push('');
-              lines.push(`👤 Agent: *${agent.name}* (@${agent.username})`);
-              lines.push(`📦 SKU: *${sku}*`);
-              lines.push(`🎯 Target: *${target}*`);
-              lines.push(`🧾 TX ID: *#${result?.tx?.id || '-'}*`);
-              lines.push(`🧾 Ref ID: *${result?.tx?.digi_ref_id || '-'}*`);
-              lines.push(`📡 Status: *${status.toUpperCase()}*`);
-              if (result?.tx?.digi_sn) lines.push(`🔢 SN: *${result.tx.digi_sn}*`);
-              if (result?.tx?.digi_message) lines.push(`💬 Pesan: ${result.tx.digi_message}`);
-              lines.push(`💰 Potong Saldo: Rp ${(Number(result?.tx?.amount_sell || 0) || 0).toLocaleString('id-ID')}`);
-              lines.push(`💳 Sisa Saldo: Rp ${(Number(result?.agent?.balance || 0) || 0).toLocaleString('id-ID')}`);
-              if (status === 'pending') lines.push(`\nKetik: \`cekpulsa ${result?.tx?.id || ''}\` untuk cek ulang.`);
-              await reply(lines.join('\n'));
-              continue;
-            }
-
-            if (!isAdmin) {
-              await reply('❌ Nomor ini tidak terdaftar sebagai agent.');
-              continue;
-            }
-
-            const result = await agentSvc.buyPulsaAsAdmin({
-              sku,
-              target,
-              actorPhone: phone || '',
-              actorName: 'WhatsApp Admin'
-            });
-            const status = String(result?.tx?.status || 'pending').toLowerCase();
-            const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⏳';
-            const lines = [];
-            lines.push(`${icon} *TRANSAKSI PULSA (ADMIN)*`);
-            lines.push('');
-            lines.push(`📦 SKU: *${sku}*`);
-            lines.push(`🎯 Target: *${target}*`);
-            lines.push(`🧾 TX ID: *#${result?.tx?.id || '-'}*`);
-            lines.push(`🧾 Ref ID: *${result?.tx?.ref_id || '-'}*`);
-            lines.push(`📡 Status: *${status.toUpperCase()}*`);
-            if (result?.tx?.sn) lines.push(`🔢 SN: *${result.tx.sn}*`);
-            if (result?.tx?.message) lines.push(`💬 Pesan: ${result.tx.message}`);
-            if (Number(result?.tx?.price || 0) > 0) lines.push(`💰 Harga Vendor: Rp ${Number(result.tx.price || 0).toLocaleString('id-ID')}`);
-            if (status === 'pending') lines.push(`\nKetik: \`cekpulsa ${result?.tx?.id || ''}\` untuk cek ulang.`);
-            await reply(lines.join('\n'));
-          } catch (e) {
-            await reply('❌ Gagal transaksi pulsa: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.cmd === 'agent_pulsa_check') {
-          try {
-            const phone = getPhoneFromKey(m.key);
-            const agent = phone ? agentSvc.getAgentByPhone(phone) : null;
-            const txId = Number(String(parsed.txId || '').replace(/[^\d]/g, '')) || 0;
-            if (!txId) {
-              await reply('❌ Format salah. Gunakan: `cekpulsa TXID`');
-              continue;
-            }
-
-            if (agent) {
-              const result = await agentSvc.checkPulsaStatusAsAgent(agent.id, txId);
-              const status = String(result?.tx?.digi_status || 'pending').toLowerCase();
-              const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⏳';
-              const lines = [];
-              lines.push(`${icon} *STATUS PULSA*`);
-              lines.push('');
-              lines.push(`🧾 TX ID: *#${txId}*`);
-              lines.push(`🧾 Ref ID: *${result?.tx?.digi_ref_id || '-'}*`);
-              lines.push(`📡 Status: *${status.toUpperCase()}*`);
-              if (result?.tx?.digi_sn) lines.push(`🔢 SN: *${result.tx.digi_sn}*`);
-              if (result?.tx?.digi_message) lines.push(`💬 Pesan: ${result.tx.digi_message}`);
-              await reply(lines.join('\n'));
-              continue;
-            }
-
-            if (!isAdmin) {
-              await reply('❌ Nomor ini tidak terdaftar sebagai agent.');
-              continue;
-            }
-
-            const result = await agentSvc.checkPulsaStatusAsAdmin(txId);
-            const status = String(result?.tx?.status || 'pending').toLowerCase();
-            const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⏳';
-            const lines = [];
-            lines.push(`${icon} *STATUS PULSA (ADMIN)*`);
-            lines.push('');
-            lines.push(`🧾 TX ID: *#${txId}*`);
-            lines.push(`🧾 Ref ID: *${result?.tx?.ref_id || '-'}*`);
-            lines.push(`📡 Status: *${status.toUpperCase()}*`);
-            if (result?.tx?.sn) lines.push(`🔢 SN: *${result.tx.sn}*`);
-            if (result?.tx?.message) lines.push(`💬 Pesan: ${result.tx.message}`);
-            await reply(lines.join('\n'));
-          } catch (e) {
-            await reply('❌ Gagal cek status pulsa: ' + e.message);
-          }
-          continue;
-        }
-
-        if (parsed.admin && parsed.targetTag) {
-          if (!isAdmin) {
-            await reply('❌ Akses ditolak. Perintah ini khusus admin.');
-            continue;
-          }
-          const targetTag = await resolveTargetTagForAdmin(parsed.targetTag);
-          const targetDevice = await customerDevice.resolveDeviceToken(targetTag);
-          if (!targetDevice) {
-            await reply(`❌ Target *${parsed.targetTag}* tidak ditemukan di GenieACS.`);
-            continue;
-          }
-          if (parsed.cmd === 'info') {
-            const data = await customerDevice.getCustomerDeviceData(targetTag);
-            await reply(formatInfo(data));
-            continue;
-          }
-          if (parsed.cmd === 'cekterhubung') {
-            const data = await customerDevice.getCustomerDeviceData(targetTag);
-            await reply(formatCekTerhubung(data));
-            continue;
-          }
-          if (parsed.cmd === 'gantissid') {
-            if (!parsed.rest) {
-              await reply('❌ Format salah. Gunakan: \`gantissid TAG namaSSID\`');
-              continue;
-            }
-            const ok = await customerDevice.updateSSID(targetTag, parsed.rest);
-            if (ok) {
-              await reply(`✅ SSID untuk *${targetTag}* berhasil diubah menjadi:\n\n📶 *${parsed.rest}*`);
-              // Kirim notifikasi ke pelanggan
-              const now = getNowLocal();
-              const cust = customerSvc.findCustomerByAny(targetTag);
-              const custName = cust?.name ? `👤 *Pelanggan:* ${cust.name}\n` : '';
-              const notifMsg =
-                `📶 *PERUBAHAN SSID WIFI*\n\n` +
-                custName +
-                `🏷️ *Tag/ID:* ${targetTag}\n` +
-                `🕒 *Waktu:* ${now}\n\n` +
-                `SSID WiFi Anda sudah diperbarui oleh Admin menjadi:\n` +
-                `📡 *${parsed.rest}*\n\n` +
-                `Jika perangkat belum tersambung, silakan pilih SSID baru di HP/laptop Anda.\n` +
-                `⚠️ Jangan bagikan info ini ke orang lain.`;
-              const notifSent = await notifyCustomer(sock, lidStore, targetTag, notifMsg);
-              if (notifSent) {
-                await reply(`📤 Notifikasi terkirim ke pelanggan *${targetTag}*`);
-              } else {
-                await reply(`⚠️ Tidak dapat mengirim notifikasi ke pelanggan *${targetTag}* (nomor belum terdaftar)`);
-              }
-            } else {
-              await reply('❌ Gagal mengubah SSID.');
-            }
-            continue;
-          }
-          if (parsed.cmd === 'gantisandi') {
-            if (!parsed.rest || parsed.rest.length < 8) {
-              await reply('❌ Sandi minimal 8 karakter.');
-              continue;
-            }
-            const ok = await customerDevice.updatePassword(targetTag, parsed.rest);
-            if (ok) {
-              await reply('✅ Password WiFi berhasil diubah.');
-              // Kirim notifikasi ke pelanggan
-              const now = getNowLocal();
-              const cust = customerSvc.findCustomerByAny(targetTag);
-              const custName = cust?.name ? `👤 *Pelanggan:* ${cust.name}\n` : '';
-              const notifMsg =
-                `🔑 *PERUBAHAN PASSWORD WIFI*\n\n` +
-                custName +
-                `🏷️ *Tag/ID:* ${targetTag}\n` +
-                `🕒 *Waktu:* ${now}\n\n` +
-                `Password WiFi Anda sudah diperbarui oleh Admin menjadi:\n` +
-                `🔐 *${parsed.rest}*\n\n` +
-                `Silakan gunakan password baru untuk terhubung.\n` +
-                `⚠️ Jangan bagikan password ini ke orang lain.`;
-              const notifSent = await notifyCustomer(sock, lidStore, targetTag, notifMsg);
-              if (notifSent) {
-                await reply(`📤 Notifikasi terkirim ke pelanggan *${targetTag}*`);
-              } else {
-                await reply(`⚠️ Tidak dapat mengirim notifikasi ke pelanggan *${targetTag}* (nomor belum terdaftar)`);
-              }
-            } else {
-              await reply('❌ Gagal mengubah password.');
-            }
-            continue;
-          }
-          if (parsed.cmd === 'reboot') {
-            const r = await customerDevice.requestReboot(targetTag);
-            await reply(`🔄 *${targetTag}*\n\n${r.message}`);
-            continue;
-          }
-        }
-
-        if (parsed.cmd === 'daftar') {
-          if (!parsed.rest) {
-            await reply('❌ Format salah. Gunakan:\n\n\`daftar 081234567890\`\n\n(gunakan tag/nomor yang sama dengan di GenieACS)');
-            continue;
-          }
-          const dev = await customerDevice.resolveDeviceToken(parsed.rest);
-          if (!dev) {
-            await reply('❌ Tag/nomor tidak ditemukan di GenieACS. Periksa penulisan atau hubungi admin.');
-            continue;
-          }
-          const nk = normalizeKey(m.key);
-          const tagKey = String(parsed.rest || '').trim();
-          lidStore.set(remote, tagKey);
-          if (nk.senderLid) lidStore.set(nk.senderLid, tagKey);
-          if (nk.senderPn) lidStore.set(nk.senderPn, tagKey);
-          await reply(`✅ Berhasil! Nomor WA ini diikat ke tag:\n\n📍 *${tagKey}*\n\nSilakan gunakan perintah lain.`);
-          continue;
-        }
-
-        const ctx = await resolveCustomerContext(m.key, lidStore);
-        if (!ctx) {
-          await reply(
-            '❌ Nomor/tag Anda belum dikenali (sering terjadi jika WA memakai @lid).\n\n' +
-            'Kirim sekali:\n\`daftar NOMORATAUTAG\`\n(sama persis dengan tag di GenieACS), lalu ulangi perintah.'
-          );
-          continue;
-        }
-
-        if (parsed.cmd === 'cektagihan') {
-          const invoices = billingSvc.getInvoicesByAny(ctx.billingKey);
-          await reply(formatCustomerInvoices(invoices, ctx.billingKey));
-          continue;
-        }
-
-        if (parsed.cmd === 'info') {
-          const data = await customerDevice.getCustomerDeviceData(ctx.deviceKey);
-          await reply(formatInfo(data));
-          continue;
-        }
-
-        if (parsed.cmd === 'cekterhubung') {
-          const data = await customerDevice.getCustomerDeviceData(ctx.deviceKey);
-          await reply(formatCekTerhubung(data));
-          continue;
-        }
-
-        if (parsed.cmd === 'gantissid') {
-          if (!parsed.rest) {
-            await reply('❌ Format salah. Gunakan:\n\n\`gantissid NamaWiFiBaru\`');
-            continue;
-          }
-          const ok = await customerDevice.updateSSID(ctx.deviceKey, parsed.rest);
-          if (ok) {
-            await reply(`✅ SSID berhasil diubah menjadi:\n\n📶 *${parsed.rest}*`);
-            // Kirim notifikasi konfirmasi ke pelanggan via WA
-            try {
-              const cust = customerSvc.findCustomerByAny(ctx.billingKey || ctx.deviceKey);
-              if (cust && cust.phone) {
-                const now = getNowLocal();
-                const notifMsg =
-                  `📶 *PERUBAHAN SSID WIFI*\n\n` +
-                  `👤 *Pelanggan:* ${cust.name}\n` +
-                  `🕒 *Waktu:* ${now}\n\n` +
-                  `SSID WiFi Anda sudah diperbarui menjadi:\n` +
-                  `📡 *${parsed.rest}*\n\n` +
-                  `Silakan pilih SSID baru di perangkat Anda untuk terhubung.\n` +
-                  `⚠️ Jangan bagikan info ini ke orang lain.`;
-                await notifyCustomer(sock, lidStore, ctx.deviceKey, notifMsg);
-              }
-            } catch (e) { /* ignore notification errors */ }
-          } else {
-            await reply('❌ Gagal mengubah SSID. Coba lagi atau hubungi admin.');
-          }
-          continue;
-        }
-
-        if (parsed.cmd === 'gantisandi') {
-          if (!parsed.rest || parsed.rest.length < 8) {
-            await reply('❌ Format salah. Gunakan:\n\n\`gantisandi sandibarumin8huruf\`\n\nSandi minimal 8 karakter.');
-            continue;
-          }
-          const ok = await customerDevice.updatePassword(ctx.deviceKey, parsed.rest);
-          if (ok) {
-            await reply('✅ Password WiFi berhasil diubah.');
-            // Kirim notifikasi konfirmasi ke pelanggan via WA
-            try {
-              const cust = customerSvc.findCustomerByAny(ctx.billingKey || ctx.deviceKey);
-              if (cust && cust.phone) {
-                const now = getNowLocal();
-                const notifMsg =
-                  `🔑 *PERUBAHAN PASSWORD WIFI*\n\n` +
-                  `👤 *Pelanggan:* ${cust.name}\n` +
-                  `🕒 *Waktu:* ${now}\n\n` +
-                  `Password WiFi Anda sudah diperbarui menjadi:\n` +
-                  `🔐 *${parsed.rest}*\n\n` +
-                  `Silakan gunakan password baru untuk terhubung.\n` +
-                  `⚠️ Jangan bagikan password ini ke orang lain.`;
-                await notifyCustomer(sock, lidStore, ctx.deviceKey, notifMsg);
-              }
-            } catch (e) { /* ignore notification errors */ }
-          } else {
-            await reply('❌ Gagal mengubah password.');
-          }
-          continue;
-        }
-
-        if (parsed.cmd === 'reboot') {
-          const r = await customerDevice.requestReboot(ctx.deviceKey);
-          await reply(`🔄 *Reboot ONU*\n\n${r.message}`);
-        }
+        await processIncomingCommand({
+          senderPhone: phone,
+          text: text,
+          reply: reply,
+          senderName: m.pushName || '',
+          key: m.key,
+          sock: sock,
+          lidStore: lidStore
+        });
       } catch (e) {
         logger.error('WhatsApp message handler:', e.message || e);
       }
