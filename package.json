@@ -10,7 +10,7 @@
     "fix-permissions": "sudo chown -R $USER:$USER ."
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.21",
+    "@whiskeysockets/baileys": "^6.7.24",
     "@zxing/library": "^0.21.3",
     "axios": "^1.6.7",
     "better-sqlite3": "^11.3.0",
@@ -32,7 +32,7 @@
     "routeros-client": "^1.1.1",
     "ssh2": "^1.15.0",
     "winston": "^3.8.2",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.1/xlsx-0.20.1.tgz"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
