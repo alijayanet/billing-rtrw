@@ -50,16 +50,17 @@
       <a href="/admin/whatsapp/live-chat" class="wa-tab"><i class="bi bi-chat-dots-fill"></i> Live Chat (Pesan Langsung)</a>
     </div>
 
-    <!-- PENGATURAN HYBRID GATEWAY (BAILEYS VS META API) -->
+    <!-- PENGATURAN HYBRID GATEWAY (BAILEYS VS FONNTE VS META API) -->
     <div class="card mb16" style="padding: 20px;">
-      <h6 style="margin-bottom: 15px; font-weight: 700; color: var(--primary);"><i class="bi bi-sliders"></i> Mode WhatsApp Gateway & Meta Cloud API (Resmi)</h6>
+      <h6 style="margin-bottom: 15px; font-weight: 700; color: var(--primary);"><i class="bi bi-sliders"></i> Mode WhatsApp Gateway (Baileys / Fonnte / Meta API)</h6>
       
       <form method="POST" action="/admin/whatsapp/gateway-settings">
         <div class="form-row mb16">
           <div class="fg">
             <label class="fl">Pilihan Provider / Gateway WhatsApp</label>
-            <select class="fs" name="wa_gateway_type" id="wa_gateway_type" onchange="toggleMetaFields()">
-              <option value="baileys" <%= waGatewayType === 'baileys' ? 'selected' : '' %>>🌐 Baileys Web (Unofficial - Gratis & Scan QR Code)</option>
+            <select class="fs" name="wa_gateway_type" id="wa_gateway_type" onchange="toggleGatewayFields()">
+              <option value="baileys" <%= waGatewayType === 'baileys' ? 'selected' : '' %>>🌐 Baileys Web (Unofficial - Internal & Scan QR Code)</option>
+              <option value="fonnte" <%= waGatewayType === 'fonnte' ? 'selected' : '' %>>🚀 Fonnte API Gateway (Cloud Resmi & Self-Hosted Ready)</option>
               <option value="meta" <%= waGatewayType === 'meta' ? 'selected' : '' %>>🟢 Meta Cloud API (Official - Resmi Meta & Anti-Banned)</option>
             </select>
           </div>
@@ -69,6 +70,53 @@
           </div>
         </div>
 
+        <!-- 1. FONNTE GATEWAY FIELDS -->
+        <div id="fonnte_fields_container" style="<%= waGatewayType === 'fonnte' ? '' : 'display:none;' %> background: rgba(59, 130, 246, 0.04); padding: 16px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 16px;">
+          <div class="fw6 mb12" style="color: #2563eb; font-size: 13px;"><i class="bi bi-send-check"></i> Konfigurasi Fonnte WhatsApp Gateway</div>
+          
+          <div class="form-row mb12">
+            <div class="fg" style="flex: 2;">
+              <label class="fl">Fonnte API Token / Device Key *</label>
+              <input class="fc" name="fonnte_token" id="fonnte_token" value="<%= fonnteSettings.fonnte_token %>" placeholder="Paste Token Akun / Device Fonnte di sini...">
+            </div>
+            <div class="fg" style="flex: 1;">
+              <label class="fl">Country Code (Kode Negara)</label>
+              <input class="fc" name="fonnte_country_code" value="<%= fonnteSettings.fonnte_country_code %>" placeholder="62">
+            </div>
+          </div>
+
+          <div class="fg mb12">
+            <label class="fl">API Endpoint URL (Default: <code>https://api.fonnte.com/send</code> atau URL Server Self-Hosted)</label>
+            <input class="fc" name="fonnte_api_url" value="<%= fonnteSettings.fonnte_api_url %>" placeholder="https://api.fonnte.com/send">
+            <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">
+              <i class="bi bi-info-circle"></i> Gunakan <code>https://api.fonnte.com/send</code> untuk Fonnte Cloud, atau ubah ke domain/IP server mandiri jika menggunakan <b>Fonnte Self-Hosted</b> (misal: <code>http://192.168.1.100:8000/send</code>).
+            </div>
+          </div>
+
+          <!-- BOX COPY-PASTE WEBHOOK URL -->
+          <div style="font-size: 11.5px; margin-top: 12px; background: var(--bg2); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <strong style="color: #2563eb;"><i class="bi bi-link-45deg"></i> Webhook Callback URL (Untuk disalin ke Dashboard Fonnte):</strong>
+              <button type="button" class="btn btn-g btn-sm" onclick="copyWebhookUrl('fonnte_webhook_url')" style="padding: 2px 8px; font-size: 11px;"><i class="bi bi-clipboard"></i> Salin URL</button>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="fonnte_webhook_url" class="fc" readonly value="http://<%= host %>/api/webhook/fonnte" style="font-family: monospace; font-size: 12px; background: var(--bg3); cursor: pointer;" onclick="this.select();">
+            </div>
+          </div>
+
+          <!-- LIVE TEST SENDER FONNTE -->
+          <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(59, 130, 246, 0.2);">
+            <label class="fl" style="color: #2563eb; font-weight: 600;"><i class="bi bi-lightning-charge"></i> Tes Kirim Pesan Cepat via Fonnte</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <input type="text" id="test_fonnte_phone" class="fc" placeholder="Nomor WhatsApp (misal: 08123456789)" style="flex: 1; min-width: 180px;">
+              <input type="text" id="test_fonnte_msg" class="fc" placeholder="Pesan uji coba..." value="🔔 Tes Notifikasi Billing via Fonnte Gateway Berhasil!" style="flex: 2; min-width: 240px;">
+              <button type="button" class="btn btn-p" onclick="sendTestFonnte()"><i class="bi bi-send"></i> Tes Kirim</button>
+            </div>
+            <div id="test_fonnte_result" style="margin-top: 8px; font-size: 12px; display: none;"></div>
+          </div>
+        </div>
+
+        <!-- 2. META CLOUD API FIELDS -->
         <div id="meta_fields_container" style="<%= waGatewayType === 'meta' ? '' : 'display:none;' %> background: rgba(16, 185, 129, 0.04); padding: 16px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.2); margin-bottom: 16px;">
           <div class="fw6 mb12" style="color: var(--success); font-size: 13px;"><i class="bi bi-shield-check"></i> Kredensial Meta WhatsApp Cloud API</div>
           
@@ -93,11 +141,12 @@
             <input class="fc" name="meta_verify_token" value="<%= metaSettings.meta_verify_token %>" placeholder="Token Rahasia Webhook">
           </div>
 
-          <div style="font-size: 11px; margin-top: 10px; background: #fff; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
-            <strong style="color: var(--primary);"><i class="bi bi-link-45deg"></i> Callback Webhook URL untuk diajukan di Meta Developer Portal:</strong><br>
-            <code style="background:var(--bg3); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; user-select: all;">
-              http://<%= host %>/api/meta-webhook
-            </code>
+          <div style="font-size: 11.5px; margin-top: 10px; background: var(--bg2); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <strong style="color: var(--primary);"><i class="bi bi-link-45deg"></i> Callback Webhook URL Meta Developer Portal:</strong>
+              <button type="button" class="btn btn-g btn-sm" onclick="copyWebhookUrl('meta_webhook_url')" style="padding: 2px 8px; font-size: 11px;"><i class="bi bi-clipboard"></i> Salin URL</button>
+            </div>
+            <input type="text" id="meta_webhook_url" class="fc" readonly value="http://<%= host %>/api/meta-webhook" style="font-family: monospace; font-size: 12px; background: var(--bg3); cursor: pointer;" onclick="this.select();">
           </div>
         </div>
 
@@ -106,9 +155,59 @@
     </div>
 
     <script>
-      function toggleMetaFields() {
+      function toggleGatewayFields() {
         const val = document.getElementById('wa_gateway_type').value;
+        document.getElementById('fonnte_fields_container').style.display = val === 'fonnte' ? 'block' : 'none';
         document.getElementById('meta_fields_container').style.display = val === 'meta' ? 'block' : 'none';
+      }
+
+      function copyWebhookUrl(elementId) {
+        const el = document.getElementById(elementId);
+        if (el) {
+          el.select();
+          navigator.clipboard.writeText(el.value).then(() => {
+            alert('✅ Webhook URL berhasil disalin ke clipboard:\n' + el.value);
+          }).catch(() => {
+            document.execCommand('copy');
+            alert('✅ Webhook URL berhasil disalin ke clipboard:\n' + el.value);
+          });
+        }
+      }
+
+      async function sendTestFonnte() {
+        const phone = document.getElementById('test_fonnte_phone').value.trim();
+        const msg = document.getElementById('test_fonnte_msg').value.trim();
+        const resDiv = document.getElementById('test_fonnte_result');
+
+        if (!phone) {
+          alert('Harap masukkan nomor WhatsApp tujuan tes!');
+          document.getElementById('test_fonnte_phone').focus();
+          return;
+        }
+
+        resDiv.style.display = 'block';
+        resDiv.style.color = 'var(--muted)';
+        resDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Mengirim pesan tes via Fonnte...';
+
+        try {
+          const resp = await fetch('/admin/whatsapp/test-fonnte', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, message: msg })
+          });
+          const data = await resp.json();
+
+          if (data.success) {
+            resDiv.style.color = 'var(--success)';
+            resDiv.innerHTML = '✅ <b>Berhasil!</b> Pesan tes telah dikirim via Fonnte. Silakan cek WhatsApp penerima.';
+          } else {
+            resDiv.style.color = 'var(--danger)';
+            resDiv.innerHTML = '❌ <b>Gagal:</b> ' + (data.error || 'Terjadi kesalahan saat menghubungi API Fonnte.');
+          }
+        } catch (err) {
+          resDiv.style.color = 'var(--danger)';
+          resDiv.innerHTML = '❌ <b>Error:</b> ' + err.message;
+        }
       }
     </script>
 
