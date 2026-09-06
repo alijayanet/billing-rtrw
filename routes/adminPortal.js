@@ -5660,6 +5660,13 @@ router.post('/whatsapp/gateway-settings', requireAdminSession, express.urlencode
       fonnte_api_url: String(fonnte_api_url || 'https://api.fonnte.com/send').trim(),
       fonnte_country_code: String(fonnte_country_code || '62').trim()
     });
+
+    if ((wa_gateway_type || 'baileys') === 'baileys') {
+      import('../services/whatsappBot.mjs').then(m => m.startWhatsAppBot()).catch(e => {
+        logger.error('Failed to start Baileys bot on gateway change: ' + e.message);
+      });
+    }
+
     req.session._msg = { type: 'success', text: 'Pengaturan WhatsApp Gateway (Baileys / Fonnte / Meta) berhasil disimpan.' };
   } catch (e) {
     req.session._msg = { type: 'danger', text: 'Gagal menyimpan pengaturan: ' + e.message };
@@ -6033,7 +6040,10 @@ router.get('/api/whatsapp/status', requireAdmin, async (req, res) => {
         const token = getSetting('meta_access_token', '');
         res.json({ connection: (phoneId && token) ? 'open' : 'connecting', gateway: 'meta' });
       } else {
-        const { whatsappStatus } = await import('../services/whatsappBot.mjs');
+        const { whatsappStatus, startWhatsAppBot, isBotRunning } = await import('../services/whatsappBot.mjs');
+        if (getSetting('whatsapp_enabled', true) && !isBotRunning() && whatsappStatus.connection !== 'open' && whatsappStatus.connection !== 'qr') {
+          startWhatsAppBot().catch(err => logger.error('Auto start Baileys error: ' + err.message));
+        }
         res.json(whatsappStatus);
       }
     } catch (e) {

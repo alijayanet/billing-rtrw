@@ -112,6 +112,28 @@ function getPhoneFromKey(key) {
   const remoteJid = key.remoteJid || key;
   if (!remoteJid) return null;
 
+  // If remoteJid is @lid, try resolving from lidStore or senderPn
+  if (typeof remoteJid === 'string' && remoteJid.endsWith('@lid')) {
+    try {
+      const lidStore = getDefaultLidStore();
+      if (lidStore) {
+        const mapped = lidStore.get(remoteJid) || lidStore.get(remoteJid.split('@')[0]);
+        if (mapped) {
+          let p = String(mapped).replace(/\D/g, '');
+          if (p.startsWith('0')) p = '62' + p.slice(1);
+          else if (!p.startsWith('62')) p = '62' + p;
+          return p;
+        }
+      }
+    } catch (_) {}
+    if (key.senderPn && key.senderPn.endsWith('@s.whatsapp.net')) {
+      let p = key.senderPn.split('@')[0].replace(/\D/g, '');
+      if (p.startsWith('0')) p = '62' + p.slice(1);
+      else if (!p.startsWith('62')) p = '62' + p;
+      return p;
+    }
+  }
+
   // Extract phone number from JID
   const [user, host] = remoteJid.split('@');
   if (!user || !host) return null;
@@ -649,8 +671,8 @@ async function notifyCustomer(sock, lidStore, tag, message) {
       try {
         const [waCheck] = await sock.onWhatsApp(directJid);
         if (waCheck && waCheck.exists) {
-          targetJid = waCheck.lid || waCheck.jid || directJid;
-          logger.info(`[WA notifyCustomer] JID terverifikasi dari WhatsApp server (menggunakan LID jika ada) untuk nomor ${phoneNumber}: ${targetJid}`);
+          targetJid = waCheck.jid || directJid || waCheck.lid;
+          logger.info(`[WA notifyCustomer] JID terverifikasi dari WhatsApp server untuk nomor ${phoneNumber}: ${targetJid}`);
         } else {
           logger.info(`[WA notifyCustomer] Nomor ${phoneNumber} tidak terdaftar menurut onWhatsApp`);
         }
@@ -676,7 +698,10 @@ async function notifyCustomer(sock, lidStore, tag, message) {
 
     if (targetJid) {
       logger.info(`[WA notifyCustomer] Mengirim pesan ke JID target: ${targetJid}`);
-      await sock.sendMessage(targetJid, { text });
+      const res = await sock.sendMessage(targetJid, { text });
+      if (res && res.key && res.message) {
+        cacheSentMessage(res.key, res.message);
+      }
       logger.info(`[WA notifyCustomer] Pesan berhasil dikirim ke JID target: ${targetJid}`);
       return true;
     }
@@ -825,6 +850,11 @@ export const whatsappStatus = {
 let currentSock = null;
 let qrShownSinceStart = false;
 let notifiedAdminForQr = false;
+let isStarting = false;
+
+export function isBotRunning() {
+  return !!currentSock;
+}
 
 function loadWhatsappAdminSendList() {
   const list = getWhatsappAdminNumbers();
@@ -910,7 +940,10 @@ export async function sendMonitoringAlert(message, priority = 'medium') {
             throw new Error(`Gagal mengirim alert via ${gatewayType}`);
           }
         } else {
-          await currentSock.sendMessage(jid, { text: formattedMessage });
+          const res = await currentSock.sendMessage(jid, { text: formattedMessage });
+          if (res && res.key && res.message) {
+            cacheSentMessage(res.key, res.message);
+          }
           results.push({ jid, success: true });
           logger.info(`[WhatsApp] Alert monitoring terkirim ke ${jid}`);
         }
@@ -1089,7 +1122,10 @@ export async function sendWAImage(to, imageBuffer, caption = '', options = {}) {
       await simulateHumanTyping(currentSock, jid, finalCaption);
     }
 
-    await currentSock.sendMessage(jid, { image: img, caption: String(finalCaption || '') });
+    const result = await currentSock.sendMessage(jid, { image: img, caption: String(finalCaption || '') });
+    if (result && result.key && result.message) {
+      cacheSentMessage(result.key, result.message);
+    }
     return true;
   } catch (e) {
     logger.error('Gagal kirim WA image:', e.message);
@@ -1153,12 +1189,15 @@ export async function sendWADocument(to, documentBuffer, filename = 'Invoice.pdf
       await simulateHumanTyping(currentSock, jid, finalCaption);
     }
 
-    await currentSock.sendMessage(jid, {
+    const result = await currentSock.sendMessage(jid, {
       document: doc,
       mimetype: mimetype || 'application/pdf',
       fileName: filename || 'Document.pdf',
       caption: String(finalCaption || '')
     });
+    if (result && result.key && result.message) {
+      cacheSentMessage(result.key, result.message);
+    }
     return true;
   } catch (e) {
     logger.error('Gagal kirim WA document:', e.message);
@@ -1995,201 +2034,217 @@ export async function processIncomingCommand({
 }
 
 export async function startWhatsAppBot() {
-  if (currentSock) {
-    try {
-      logger.info('WhatsApp: Menutup koneksi socket lama yang masih aktif sebelum reconnect...');
-      currentSock.ev.removeAllListeners();
-      currentSock.end();
-    } catch (e) {
-      logger.error('WhatsApp: Gagal menutup socket lama:', e.message);
-    }
-    currentSock = null;
+  if (isStarting) {
+    logger.info('WhatsApp: startWhatsAppBot sedang berjalan, melewati panggilan duplikat.');
+    return;
   }
-
-  const authFolder = path.resolve(projectRoot, getSetting('whatsapp_auth_folder', 'auth_info_baileys'));
-  const lidMapPath = path.resolve(projectRoot, getSetting('whatsapp_lid_map_file', 'data/wa-lid-map.json'));
-  const lidStore = getDefaultLidStore();
-
-  const { state, saveCreds } = await useMultiFileAuthState(authFolder);
-  let version = [2, 3000, 1017531287]; // Fallback version
+  isStarting = true;
   try {
-    const latest = await fetchLatestBaileysVersion();
-    if (latest && latest.version) {
-      version = latest.version;
-    }
-  } catch (err) {
-    logger.warn(`WhatsApp: Gagal mengambil versi terbaru Baileys: ${err.message}. Menggunakan fallback.`);
-  }
-
-  const sock = makeWASocket({
-    version,
-    auth: state,
-    printQRInTerminal: false,
-    browser: Browsers.ubuntu('Chrome'),
-    syncFullHistory: false,
-    markOnlineOnConnect: false,
-    generateHighQualityLinkPreview: false,
-    msgRetryCounterCache,
-    getMessage: async (key) => {
-      if (key && key.id) {
-        const storeKey = `${key.remoteJid || ''}:${key.id}`;
-        const cached = sentMessageMap.get(storeKey);
-        if (cached) return cached;
+    if (currentSock) {
+      try {
+        logger.info('WhatsApp: Menutup koneksi socket lama yang masih aktif sebelum reconnect...');
+        currentSock.ev.removeAllListeners();
+        currentSock.end();
+      } catch (e) {
+        logger.error('WhatsApp: Gagal menutup socket lama:', e.message);
       }
-      return { conversation: '' };
-    },
-    keepAliveIntervalMs: 30000,
-    connectTimeoutMs: 60000,
-    defaultQueryTimeoutMs: 60000,
-    logger: pino({ level: 'silent' })
-  });
-
-  currentSock = sock;
-
-  sock.ev.on('creds.update', saveCreds);
-
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect, qr } = update;
-    whatsappStatus.lastUpdate = getCurrentDateInTimezone();
-
-    if (qr) {
-      whatsappStatus.qr = qr;
-      whatsappStatus.connection = 'qr';
-      qrShownSinceStart = true;
-      notifiedAdminForQr = false;
-      logger.info(`[WA] QR Code Baru Dihasilkan: ${qr.slice(0, 20)}...`);
-      qrcode.generate(qr, { small: true });
-      QRCodeNode.toDataURL(qr, { margin: 2, scale: 6 })
-        .then((url) => {
-          whatsappStatus.qrImage = url;
-        })
-        .catch(() => {
-          whatsappStatus.qrImage = null;
-        });
+      currentSock = null;
     }
 
-    if (connection) {
-      logger.info(`[WA] Connection Update: ${connection}`);
-    }
+    const authFolder = path.resolve(projectRoot, getSetting('whatsapp_auth_folder', 'auth_info_baileys'));
+    const lidMapPath = path.resolve(projectRoot, getSetting('whatsapp_lid_map_file', 'data/wa-lid-map.json'));
+    const lidStore = getDefaultLidStore();
 
-    if (connection === 'close') {
-      whatsappStatus.qr = null;
-      whatsappStatus.qrImage = null;
-      whatsappStatus.user = null;
-      const code = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = code !== DisconnectReason.loggedOut;
-      whatsappStatus.connection = code === DisconnectReason.loggedOut ? 'loggedOut' : 'connecting';
-
-      logger.warn(
-        `WhatsApp terputus (kode ${code}). ` +
-        (code === DisconnectReason.loggedOut
-          ? 'Sesi logout — hapus folder auth dan pindai QR lagi.'
-          : 'Mencoba reconnect dalam 3 detik...')
-      );
-      if (shouldReconnect) {
-        setTimeout(() => startWhatsAppBot(), 3000);
+    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+    let version = [2, 3000, 1043857760]; // Fallback version terbaru
+    try {
+      const latest = await fetchLatestBaileysVersion();
+      if (latest && latest.version) {
+        version = latest.version;
       }
-    } else if (connection === 'open') {
-      whatsappStatus.qr = null;
-      whatsappStatus.qrImage = null;
-      whatsappStatus.connection = 'open';
-      whatsappStatus.user = sock.user;
-      logger.info('WhatsApp bot terhubung. Akun Bot JID: ' + (sock.user?.id || 'unknown') + ', Name: ' + (sock.user?.name || 'unknown'));
+    } catch (err) {
+      logger.warn(`WhatsApp: Gagal mengambil versi terbaru Baileys: ${err.message}. Menggunakan fallback.`);
+    }
 
-      // Pre-resolve admin LIDs
-      (async () => {
-        try {
-          const adminList = getWhatsappAdminNumbers();
-          for (const n of adminList) {
-            const digits = String(n).replace(/\D/g, '');
-            if (digits.length >= 8) {
-              const formatted = digits.startsWith('0') ? '62' + digits.slice(1) : digits.startsWith('62') ? digits : '62' + digits;
-              const jid = `${formatted}@s.whatsapp.net`;
-              const waCheck = await sock.onWhatsApp(jid).catch(() => []);
-              if (waCheck && waCheck.length > 0 && waCheck[0].exists && waCheck[0].lid) {
-                const lidJid = waCheck[0].lid;
-                const lidUser = lidJid.split('@')[0];
-                lidStore.set(lidJid, formatted);
-                lidStore.set(lidUser, formatted);
-                logger.info(`[WA Admin Pre-resolve] Nomor admin ${formatted} terpetakan ke LID: ${lidJid}`);
+    const sock = makeWASocket({
+      version,
+      auth: state,
+      browser: Browsers.ubuntu('Chrome'),
+      syncFullHistory: false,
+      markOnlineOnConnect: false,
+      generateHighQualityLinkPreview: false,
+      msgRetryCounterCache,
+      getMessage: async (key) => {
+        if (key && key.id) {
+          const storeKey = `${key.remoteJid || ''}:${key.id}`;
+          const cached = sentMessageMap.get(storeKey);
+          if (cached) return cached;
+          const idOnly = key.id;
+          for (const [k, v] of sentMessageMap.entries()) {
+            if (k.endsWith(`:${idOnly}`)) return v;
+          }
+        }
+        return undefined;
+      },
+      keepAliveIntervalMs: 30000,
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      logger: pino({ level: 'silent' })
+    });
+
+    currentSock = sock;
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', (update) => {
+      const { connection, lastDisconnect, qr } = update;
+      whatsappStatus.lastUpdate = getCurrentDateInTimezone();
+
+      if (qr) {
+        whatsappStatus.qr = qr;
+        whatsappStatus.connection = 'qr';
+        qrShownSinceStart = true;
+        notifiedAdminForQr = false;
+        logger.info(`[WA] QR Code Baru Dihasilkan: ${qr.slice(0, 20)}...`);
+        qrcode.generate(qr, { small: true });
+        QRCodeNode.toDataURL(qr, { margin: 2, scale: 6 })
+          .then((url) => {
+            whatsappStatus.qrImage = url;
+          })
+          .catch(() => {
+            whatsappStatus.qrImage = null;
+          });
+      }
+
+      if (connection) {
+        logger.info(`[WA] Connection Update: ${connection}`);
+      }
+
+      if (connection === 'close') {
+        whatsappStatus.qr = null;
+        whatsappStatus.qrImage = null;
+        whatsappStatus.user = null;
+        const code = lastDisconnect?.error?.output?.statusCode;
+        const shouldReconnect = code !== DisconnectReason.loggedOut;
+        whatsappStatus.connection = code === DisconnectReason.loggedOut ? 'loggedOut' : 'connecting';
+
+        logger.warn(
+          `WhatsApp terputus (kode ${code}). ` +
+          (code === DisconnectReason.loggedOut
+            ? 'Sesi logout — hapus folder auth dan pindai QR lagi.'
+            : 'Mencoba reconnect dalam 3 detik...')
+        );
+        if (shouldReconnect) {
+          setTimeout(() => startWhatsAppBot(), 3000);
+        }
+      } else if (connection === 'open') {
+        whatsappStatus.qr = null;
+        whatsappStatus.qrImage = null;
+        whatsappStatus.connection = 'open';
+        whatsappStatus.user = sock.user;
+        logger.info('WhatsApp bot terhubung. Akun Bot JID: ' + (sock.user?.id || 'unknown') + ', Name: ' + (sock.user?.name || 'unknown'));
+
+        // Pre-resolve admin LIDs
+        (async () => {
+          try {
+            const adminList = getWhatsappAdminNumbers();
+            for (const n of adminList) {
+              const digits = String(n).replace(/\D/g, '');
+              if (digits.length >= 8) {
+                const formatted = digits.startsWith('0') ? '62' + digits.slice(1) : digits.startsWith('62') ? digits : '62' + digits;
+                const jid = `${formatted}@s.whatsapp.net`;
+                const waCheck = await sock.onWhatsApp(jid).catch(() => []);
+                if (waCheck && waCheck.length > 0 && waCheck[0].exists && waCheck[0].lid) {
+                  const lidJid = waCheck[0].lid;
+                  const lidUser = lidJid.split('@')[0];
+                  lidStore.set(lidJid, formatted);
+                  lidStore.set(lidUser, formatted);
+                  logger.info(`[WA Admin Pre-resolve] Nomor admin ${formatted} terpetakan ke LID: ${lidJid}`);
+                }
               }
             }
+          } catch (e) {
+            logger.warn(`[WA Admin Pre-resolve] Pre-resolve error: ${e.message}`);
           }
-        } catch (e) {
-          logger.warn(`[WA Admin Pre-resolve] Pre-resolve error: ${e.message}`);
-        }
-      })();
+        })();
 
-      if (qrShownSinceStart && !notifiedAdminForQr) {
-        notifiedAdminForQr = true;
-        const toList = loadWhatsappAdminSendList();
-        if (toList.length > 0) {
-          const wid = sock.user?.id ? String(sock.user.id).split(':')[0] : '-';
-          const body =
-            `✅ QR berhasil dipindai dan bot sudah aktif.\n\n` +
-            `Nomor Bot: ${wid}\n` +
-            `Waktu: ${getNowLocal()}\n\n` +
-            `Silakan gunakan menu Admin untuk fitur billing, notifikasi, dan broadcast.\n\n` +
-            `🙏 Jika aplikasi ini bermanfaat dan Anda ingin mendukung pengembangan, Anda dapat berdonasi secara sukarela ke nomor: 081947215703.\n` +
-            `Terima kasih atas dukungannya.`;
-          const msg = waWrap('🤖 *WHATSAPP BOT AKTIF*', body);
-          for (const digits of toList) {
-            const jid = `${digits}@s.whatsapp.net`;
-            sock.sendMessage(jid, { text: msg }).catch(() => { });
-          }
-        }
-        qrShownSinceStart = false;
-      }
-    }
-  });
-
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
-    for (const m of messages) {
-      try {
-        const selfPn = sock.user && sock.user.id ? sock.user.id.split(':')[0].split('@')[0] : null;
-        const selfLid = sock.user && sock.user.lid ? sock.user.lid.split('@')[0] : null;
-        const remoteUser = m.key.remoteJid ? m.key.remoteJid.split('@')[0] : null;
-        const isSelf = m.key.fromMe && (remoteUser === selfPn || (selfLid && remoteUser === selfLid));
-        if (m.key.fromMe && !isSelf) continue;
-        const text = getMessageText(m);
-        if (!text) continue;
-
-        const remote = m.key.remoteJid;
-        if (!remote || remote.endsWith('@g.us')) continue;
-
-        const reply = async (msg) => {
-          logger.info(`[WA reply] Menyiapkan balasan ke ${remote}: "${msg.substring(0, 60)}..."`);
-          try {
-            const targetJid = (m.key.senderPn && m.key.senderPn.endsWith('@s.whatsapp.net')) 
-              ? m.key.senderPn 
-              : remote;
-
-            logger.info(`[WA reply] Mengirim balasan ke JID target: ${targetJid}`);
-            if (targetJid.endsWith('@lid')) {
-              await sock.sendMessage(targetJid, { text: waAutoWrap(msg) });
-            } else {
-              await sock.sendMessage(targetJid, { text: waAutoWrap(msg) }, { quoted: m });
+        if (qrShownSinceStart && !notifiedAdminForQr) {
+          notifiedAdminForQr = true;
+          const toList = loadWhatsappAdminSendList();
+          if (toList.length > 0) {
+            const wid = sock.user?.id ? String(sock.user.id).split(':')[0] : '-';
+            const body =
+              `✅ QR berhasil dipindai dan bot sudah aktif.\n\n` +
+              `Nomor Bot: ${wid}\n` +
+              `Waktu: ${getNowLocal()}\n\n` +
+              `Silakan gunakan menu Admin untuk fitur billing, notifikasi, dan broadcast.\n\n` +
+              `🙏 Jika aplikasi ini bermanfaat dan Anda ingin mendukung pengembangan, Anda dapat berdonasi secara sukarela ke nomor: 081947215703.\n` +
+              `Terima kasih atas dukungannya.`;
+            const msg = waWrap('🤖 *WHATSAPP BOT AKTIF*', body);
+            for (const digits of toList) {
+              const jid = `${digits}@s.whatsapp.net`;
+              sock.sendMessage(jid, { text: msg }).then(res => {
+                if (res && res.key && res.message) cacheSentMessage(res.key, res.message);
+              }).catch(() => { });
             }
-            logger.info(`[WA reply] Balasan berhasil dikirim ke JID target: ${targetJid}`);
-          } catch (sendErr) {
-            logger.error('[WA reply] Gagal mengirim balasan: ' + sendErr.message);
           }
-        };
-
-        const phone = getPhoneFromKey(m.key);
-        await processIncomingCommand({
-          senderPhone: phone,
-          text: text,
-          reply: reply,
-          senderName: m.pushName || '',
-          key: m.key,
-          sock: sock,
-          lidStore: lidStore
-        });
-      } catch (e) {
-        logger.error('WhatsApp message handler:', e.message || e);
+          qrShownSinceStart = false;
+        }
       }
-    }
-  });
+    });
+
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+      if (type !== 'notify') return;
+      for (const m of messages) {
+        try {
+          if (m.key && m.message) {
+            cacheSentMessage(m.key, m.message);
+          }
+          const selfPn = sock.user && sock.user.id ? sock.user.id.split(':')[0].split('@')[0] : null;
+          const selfLid = sock.user && sock.user.lid ? sock.user.lid.split('@')[0] : null;
+          const remoteUser = m.key.remoteJid ? m.key.remoteJid.split('@')[0] : null;
+          const isSelf = m.key.fromMe && (remoteUser === selfPn || (selfLid && remoteUser === selfLid));
+          if (m.key.fromMe && !isSelf) continue;
+          const text = getMessageText(m);
+          if (!text) continue;
+
+          const remote = m.key.remoteJid;
+          if (!remote || remote.endsWith('@g.us')) continue;
+
+          const reply = async (msg) => {
+            logger.info(`[WA reply] Menyiapkan balasan ke ${remote}: "${msg.substring(0, 60)}..."`);
+            try {
+              const targetJid = remote;
+              logger.info(`[WA reply] Mengirim balasan ke JID target: ${targetJid}`);
+              const result = await sock.sendMessage(targetJid, { text: waAutoWrap(msg) }, { quoted: m });
+              if (result && result.key && result.message) {
+                cacheSentMessage(result.key, result.message);
+              }
+              logger.info(`[WA reply] Balasan berhasil dikirim ke JID target: ${targetJid}`);
+            } catch (sendErr) {
+              logger.error('[WA reply] Gagal mengirim balasan: ' + sendErr.message);
+            }
+          };
+
+          const phone = getPhoneFromKey(m.key);
+          await processIncomingCommand({
+            senderPhone: phone,
+            text: text,
+            reply: reply,
+            senderName: m.pushName || '',
+            key: m.key,
+            sock: sock,
+            lidStore: lidStore
+          });
+        } catch (e) {
+          logger.error('WhatsApp message handler:', e.message || e);
+        }
+      }
+    });
+  } catch (err) {
+    logger.error('Gagal inisialisasi Baileys WhatsApp bot:', err);
+    throw err;
+  } finally {
+    isStarting = false;
+  }
 }
