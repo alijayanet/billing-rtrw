@@ -219,6 +219,9 @@
           <select id="olt-selector" class="custom-select-v2" onchange="handleOltChange()">
             <% if (olts.length === 0) { %>
               <option value=""><%= t('admin.olts.no_data', 'Tidak ada data OLT') %></option>
+            <% } else if (olts.length === 1) { %>
+              <option value="<%= olts[0].id %>" <%= olts[0].is_active ? '' : 'disabled' %> selected><%= olts[0].name %> (<%= olts[0].host %>)</option>
+              <option value="all">🌐 Semua OLT (Ringkasan Total)</option>
             <% } else { %>
               <option value="all">🌐 Semua OLT (Ringkasan Total)</option>
               <% olts.forEach(olt => { %>
@@ -739,12 +742,22 @@ async function loadOltDashboard(id) {
     
     // Update System Info
     if (stats.is_all) {
-      document.getElementById('stat-temp').innerText = 'Agregasi ' + (stats.olts_summary?.length || 0) + ' OLT';
-      document.getElementById('stat-cpu').innerText = '-';
-      document.getElementById('stat-ram').innerText = '-';
-      document.getElementById('stat-uptime').innerText = 'Multi-OLT Active';
-      document.getElementById('stat-traffic-in').innerText = '-';
-      document.getElementById('stat-traffic-out').innerText = '-';
+      if (stats.olts_summary && stats.olts_summary.length === 1) {
+        const s0 = stats.olts_summary[0];
+        document.getElementById('stat-temp').innerText = s0.temp || stats.temp || 'N/A';
+        document.getElementById('stat-cpu').innerText = s0.cpu || stats.cpu || 'N/A';
+        document.getElementById('stat-ram').innerText = s0.ram || stats.ram || 'N/A';
+        document.getElementById('stat-uptime').innerText = s0.uptime || stats.uptime || 'N/A';
+        document.getElementById('stat-traffic-in').innerText = formatBytes(s0.uplink_rx || stats.uplink_rx || 0) + '/s';
+        document.getElementById('stat-traffic-out').innerText = formatBytes(s0.uplink_tx || stats.uplink_tx || 0) + '/s';
+      } else {
+        document.getElementById('stat-temp').innerText = stats.temp || ('Agregasi ' + (stats.olts_summary?.length || 0) + ' OLT');
+        document.getElementById('stat-cpu').innerText = stats.cpu || '-';
+        document.getElementById('stat-ram').innerText = stats.ram || '-';
+        document.getElementById('stat-uptime').innerText = stats.uptime || 'Multi-OLT Active';
+        document.getElementById('stat-traffic-in').innerText = formatBytes(stats.uplink_rx || 0) + '/s';
+        document.getElementById('stat-traffic-out').innerText = formatBytes(stats.uplink_tx || 0) + '/s';
+      }
     } else {
       document.getElementById('stat-temp').innerText = stats.temp || 'N/A';
       document.getElementById('stat-cpu').innerText = stats.cpu || 'N/A';

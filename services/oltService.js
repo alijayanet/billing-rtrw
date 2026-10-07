@@ -1026,6 +1026,40 @@ const getHrCpuPercent = async (session) => {
 };
 
 const getHrRamPercent = async (session) => {
+  // Fast path: try direct GET on common hrStorage indices first (1, 3, 6, 7)
+  // hrStorageSize and hrStorageUsed with allocation unit 1024 bytes
+  const fastOids = [
+    '1.3.6.1.2.1.25.2.2.0',         // hrMemorySize (total KB)
+    '1.3.6.1.2.1.25.2.3.1.4.1',     // hrStorageAllocationUnits.1
+    '1.3.6.1.2.1.25.2.3.1.5.1',     // hrStorageSize.1
+    '1.3.6.1.2.1.25.2.3.1.6.1',     // hrStorageUsed.1
+    '1.3.6.1.2.1.25.2.3.1.2.1',     // hrStorageType.1 (OID value)
+  ];
+  try {
+    const vbs = await snmpGet(session, fastOids);
+    const totalKb   = bufferToInt(vbs[0]);
+    const allocUnit = bufferToInt(vbs[1]);
+    const size      = bufferToInt(vbs[2]);
+    const used      = bufferToInt(vbs[3]);
+
+    if (Number.isFinite(totalKb) && totalKb > 0 &&
+        Number.isFinite(allocUnit) && allocUnit > 0 &&
+        Number.isFinite(size) && size > 0 &&
+        Number.isFinite(used)) {
+      // size/used are in allocation units
+      const usedKb = (used * allocUnit) / 1024;
+      const pct = Math.round((usedKb / totalKb) * 100);
+      return Math.max(0, Math.min(100, pct));
+    }
+    // Fallback: size as a percentage directly
+    if (Number.isFinite(size) && size > 0 && Number.isFinite(used)) {
+      return Math.max(0, Math.min(100, Math.round((used / size) * 100)));
+    }
+  } catch (e) {
+    // fall through to slow path
+  }
+
+  // Slow path: full walk (for other brands)
   const descrMap = await slowWalk(session, '1.3.6.1.2.1.25.2.3.1.3');
   const typeMap  = await slowWalk(session, '1.3.6.1.2.1.25.2.3.1.2');
   const sizeMap  = await slowWalk(session, '1.3.6.1.2.1.25.2.3.1.5');
@@ -1213,11 +1247,55 @@ const readInterfaceOctets = async (session, ifIndex) => {
 };
 
 /**
+ * Ambil CPU, RAM, Suhu modul optik, dan Uptime via Telnet CLI untuk Hioso / HSGQ.
+ * Berfungsi sebagai fallback handal jika OLT tidak mendukung OID Suhu/CPU vendor via SNMP.
+ */
+const fetchHiosoSystemMetricsViaTelnet = async (olt, stats) => {
+  if (!olt || !olt.host) return;
+  const user = olt.web_user || 'admin';
+  const pass = olt.web_password || 'admin';
+  const cmds = [
+    'show cpu resource',
+    'show epon optical-ddm 0/1'
+  ];
+  try {
+    const out = await telnetLoginAndRun(olt.host, user, pass, cmds, {
+      port: olt.telnet_port || 23,
+      enablePassword: olt.enable_password || pass || 'admin'
+    });
+    if (!out) return;
+
+    if (stats.cpu === 'N/A' || !stats.cpu || stats.cpu === '-') {
+      const cpuMatch = out.match(/CPU usage\s*:\s*(\d+)%/i);
+      if (cpuMatch) stats.cpu = `${cpuMatch[1]}%`;
+    }
+
+    if (stats.ram === 'N/A' || !stats.ram || stats.ram === '-') {
+      const ramMatch = out.match(/Memory usage\s*:\s*([\d\.]+)%/i);
+      if (ramMatch) stats.ram = `${Math.round(parseFloat(ramMatch[1]))}%`;
+    }
+
+    if (stats.temp === 'N/A' || !stats.temp || stats.temp === '-') {
+      const tempMatch = out.match(/Temperature\s*:\s*([\d\.]+)\s*C/i);
+      if (tempMatch) stats.temp = `${parseFloat(tempMatch[1]).toFixed(0)}°C`;
+    }
+
+    if (stats.uptime === 'N/A' || !stats.uptime || stats.uptime === '-') {
+      const uptimeMatch = out.match(/OS up time\s*:\s*([^\r\n]+)/i);
+      if (uptimeMatch) stats.uptime = uptimeMatch[1].trim();
+    }
+  } catch (e) {
+    logger.debug(`[oltService] fetchHiosoSystemMetricsViaTelnet: ${e.message}`);
+  }
+};
+
+/**
  * Ambil system metrics (temp, cpu, ram, uplink) untuk brand tertentu.
  * Mengisi field stats secara langsung.
  */
-const fetchSystemMetrics = async (session, brandKey, stats, oltId) => {
+const fetchSystemMetrics = async (session, brandKey, stats, oltOrId) => {
   const oids = SYSTEM_OIDS[brandKey] || SYSTEM_OIDS.hioso;
+  const oltId = (oltOrId && typeof oltOrId === 'object') ? oltOrId.id : oltOrId;
   try {
     const [temp, cpu, ram, rx, tx] = await snmpGet(session, [
       oids.temp, oids.cpu, oids.ram, oids.uplink_rx, oids.uplink_tx
@@ -1268,6 +1346,16 @@ const fetchSystemMetrics = async (session, brandKey, stats, oltId) => {
     if (stats.ram === 'N/A') {
       const hrRam = await getHrRamPercent(session);
       if (hrRam != null) stats.ram = `${hrRam}%`;
+    }
+
+    // Telnet Fallback untuk Suhu/CPU/RAM pada Hioso/HSGQ jika SNMP tidak menyediakan
+    if (stats.cpu === 'N/A' || stats.ram === 'N/A' || stats.temp === 'N/A') {
+      if (brandKey === 'hioso' || brandKey === 'hsgq') {
+        const oltObj = (oltOrId && typeof oltOrId === 'object') ? oltOrId : getOltById(oltOrId);
+        if (oltObj) {
+          await fetchHiosoSystemMetricsViaTelnet(oltObj, stats);
+        }
+      }
     }
   } catch (e) {
   }
@@ -1574,7 +1662,7 @@ async function getOltStatsInternal(id, full = false) {
       resolve(data);
     };
 
-    const timeoutMs = full ? 90000 : 12000;
+    const timeoutMs = full ? 90000 : 20000;
     const globalTimeout = setTimeout(() => {
       stats.error = `Koneksi Timeout (${Math.round(timeoutMs / 1000)}s) - OLT ${olt.host} tidak merespons SNMP/Telnet`;
       safeResolve(stats);
@@ -1617,6 +1705,7 @@ async function getOltStatsInternal(id, full = false) {
                   uptime: r.onlineTime || '-'
                 }));
               }
+              await fetchHiosoSystemMetricsViaTelnet(olt, stats);
               safeResolve(stats);
               return;
             }
@@ -1665,6 +1754,7 @@ async function getOltStatsInternal(id, full = false) {
                   uptime: r.onlineTime || '-'
                 }));
               }
+              await fetchHiosoSystemMetricsViaTelnet(olt, stats);
               safeResolve(stats);
               return;
             }
@@ -1688,7 +1778,7 @@ async function getOltStatsInternal(id, full = false) {
         const onlineVals = getOnlineValues(detectedBrandKey, activeProfile);
 
         // Start system metrics concurrently
-        const systemMetricsPromise = fetchSystemMetrics(session, detectedBrandKey, stats, olt.id);
+        const systemMetricsPromise = fetchSystemMetrics(session, detectedBrandKey, stats, olt);
 
         // 4. Mode Counter (ZTE)
         if (activeProfile.is_counter) {
@@ -2506,9 +2596,15 @@ async function configureWanViaAcs(sn, data) {
    let onus_online = 0;
    let onus_offline = 0;
    let onus_weak = 0;
+   let uplink_rx = 0;
+   let uplink_tx = 0;
    const allOnus = [];
    const allUnauth = [];
    const olts_summary = [];
+
+   const tempValues = [];
+   const cpuValues = [];
+   const ramValues = [];
 
    for (let i = 0; i < results.length; i++) {
      const s = results[i];
@@ -2518,6 +2614,15 @@ async function configureWanViaAcs(sn, data) {
        onus_online += (s.onus_online || 0);
        onus_offline += (s.onus_offline || 0);
        onus_weak += (s.onus_weak || 0);
+       uplink_rx += (s.uplink_rx || 0);
+       uplink_tx += (s.uplink_tx || 0);
+
+       const tN = parseFloat(s.temp);
+       if (Number.isFinite(tN) && tN > 0) tempValues.push(tN);
+       const cN = parseFloat(s.cpu);
+       if (Number.isFinite(cN) && cN >= 0) cpuValues.push(cN);
+       const rN = parseFloat(s.ram);
+       if (Number.isFinite(rN) && rN > 0) ramValues.push(rN);
 
        olts_summary.push({
          id: oltInfo.id,
@@ -2533,6 +2638,8 @@ async function configureWanViaAcs(sn, data) {
          cpu: s.cpu,
          ram: s.ram,
          uptime: s.uptime,
+         uplink_rx: s.uplink_rx || 0,
+         uplink_tx: s.uplink_tx || 0,
          error: s.error,
          activeProfile: s.activeProfile || null,
          systemOids: s.systemOids || null,
@@ -2553,12 +2660,46 @@ async function configureWanViaAcs(sn, data) {
      }
    }
 
+   let temp = 'N/A';
+   let cpu = 'N/A';
+   let ram = 'N/A';
+   let uptime = 'Multi-OLT Active';
+
+   if (olts_summary.length === 1) {
+     const s0 = olts_summary[0];
+     temp = s0.temp || 'N/A';
+     cpu = s0.cpu || 'N/A';
+     ram = s0.ram || 'N/A';
+     uptime = s0.uptime || 'N/A';
+   } else if (olts_summary.length > 1) {
+     if (tempValues.length > 0) {
+       const avgT = Math.round(tempValues.reduce((a, b) => a + b, 0) / tempValues.length);
+       temp = `${avgT}°C (rata-rata)`;
+     }
+     if (cpuValues.length > 0) {
+       const avgC = Math.round(cpuValues.reduce((a, b) => a + b, 0) / cpuValues.length);
+       cpu = `${avgC}% (rata-rata)`;
+     }
+     if (ramValues.length > 0) {
+       const avgR = Math.round(ramValues.reduce((a, b) => a + b, 0) / ramValues.length);
+       ram = `${avgR}% (rata-rata)`;
+     }
+     const onlineCount = olts_summary.filter(o => o.status === 'Online').length;
+     uptime = `${onlineCount}/${olts_summary.length} OLT Online`;
+   }
+
    return {
      is_all: true,
      onus_total,
      onus_online,
      onus_offline,
      onus_weak,
+     temp,
+     cpu,
+     ram,
+     uptime,
+     uplink_rx,
+     uplink_tx,
      onus: allOnus,
      unauth_onus: allUnauth,
      olts_summary
