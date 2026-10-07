@@ -437,15 +437,31 @@ const oidUnderBase = (rawOid, baseOid) => {
   return normRaw.startsWith(normBase + '.') || normRaw === normBase;
 };
 
+function formatSnWithColons(val) {
+  if (!val || typeof val !== 'string') return val;
+  const clean = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  // Jika 12 karakter hex (MAC address format MikroTik, misal 2C334187A820 -> 2C:33:41:87:A8:20)
+  if (/^[0-9A-F]{12}$/.test(clean)) {
+    return clean.match(/.{1,2}/g).join(':');
+  }
+  // Jika 16 karakter hex (8 bytes GPON hex)
+  if (/^[0-9A-F]{16}$/.test(clean)) {
+    return clean.match(/.{1,2}/g).join(':');
+  }
+  return val;
+}
+
 const decodeSn = (val) => {
   if (!val) return 'N/A';
+  let res = '';
   if (Buffer.isBuffer(val)) {
     const ascii = val.toString('utf8').replace(/\0/g, '').trim();
     const looksAscii = ascii.length >= 4 && /^[\x20-\x7E]+$/.test(ascii);
-    if (looksAscii) return ascii.toUpperCase();
-    return val.toString('hex').toUpperCase();
+    res = looksAscii ? ascii.toUpperCase() : val.toString('hex').toUpperCase();
+  } else {
+    res = val.toString().toUpperCase();
   }
-  return val.toString().toUpperCase();
+  return formatSnWithColons(res);
 };
 
 /**
@@ -631,7 +647,7 @@ const parseHiosoOnuTable = (text) => {
       rows.push({
         id,
         name: name === 'NA' ? null : name,
-        mac,
+        mac: formatSnWithColons(mac),
         status,
         fwVersion,
         chipId,
@@ -1695,7 +1711,7 @@ async function getOltStatsInternal(id, full = false) {
                   index: r.id || idx,
                   id: r.id || '-',
                   name: r.name || r.mac || `ONU-${idx+1}`,
-                  sn: r.mac || '-',
+                  sn: formatSnWithColons(r.mac) || '-',
                   status: String(r.status).toLowerCase().includes('on') ? 'Online' : 'Offline',
                   offline_reason: translateOfflineReason(brandKey, r.offlineReason),
                   tx: r.txPower || 'N/A',
@@ -1744,7 +1760,7 @@ async function getOltStatsInternal(id, full = false) {
                   index: r.id || idx,
                   id: r.id || '-',
                   name: r.name || r.mac || `ONU-${idx+1}`,
-                  sn: r.mac || '-',
+                  sn: formatSnWithColons(r.mac) || '-',
                   status: String(r.status).toLowerCase().includes('on') ? 'Online' : 'Offline',
                   offline_reason: translateOfflineReason(brandKey, r.offlineReason),
                   tx: r.txPower || 'N/A',

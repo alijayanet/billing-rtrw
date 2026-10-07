@@ -841,7 +841,7 @@ async function loadOltDashboard(id) {
           <td><span class="badge-v2">${card.type}</span></td>
           <td><span class="status-pill-v2 ${statusClass}">${card.status}</span></td>
           <td>${card.ports}</td>
-          <td><code class="sn-mac">${card.serial}</code></td>
+          <td><code class="sn-mac">${formatSn(card.serial)}</code></td>
           <td>${card.cpu}</td>
           <td>${card.ram}</td>
         </tr>`;
@@ -859,7 +859,7 @@ async function loadOltDashboard(id) {
         const targetOltId = onu.olt_id || id;
         return `<tr>
           <td><code class="sn-mac">${onu.id || onu.index}</code></td>
-          <td><code class="sn-mac">${onu.sn}</code> ${onu.olt_name ? `<span class="badge bg-secondary ms-1">${onu.olt_name}</span>` : ''}</td>
+          <td><code class="sn-mac">${formatSn(onu.sn)}</code> ${onu.olt_name ? `<span class="badge bg-secondary ms-1">${onu.olt_name}</span>` : ''}</td>
           <td><span class="badge-v2">${onu.type}</span></td>
           <td>
             <button class="btn btn-sm btn-p" onclick="authorizeOnuPrompt('${targetOltId}', '${onu.index}', '${onu.sn}')">
@@ -897,7 +897,7 @@ async function loadOltDashboard(id) {
             <strong>${onu.name || '-'}</strong>
             ${custBadge}
           </td>
-          <td><code class="sn-mac">${onu.sn || '-'}</code></td>
+          <td><code class="sn-mac">${formatSn(onu.sn) || '-'}</code></td>
           <td>
             <span class="status-pill-v2 ${statusClass}"><i class="bi bi-circle-fill" style="font-size:6px;"></i> ${formatStatus(statusVal) || '-'}</span>
             ${!isOnline && onu.offline_reason ? `<div class="text-danger small mt-1" style="font-size: 11px; font-weight: 500;"><i class="bi bi-exclamation-octagon"></i> ${onu.offline_reason}</div>` : ''}
@@ -933,6 +933,22 @@ async function loadOltDashboard(id) {
   }
 }
 
+function formatSn(sn) {
+  if (!sn || typeof sn !== 'string') return sn || '-';
+  const raw = sn.trim();
+  if (!raw || raw === '-' || raw === 'N/A') return raw;
+  const clean = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  // Jika 12 karakter hex (MAC address format MikroTik, misal 2C334187A820 -> 2C:33:41:87:A8:20)
+  if (/^[0-9A-F]{12}$/.test(clean)) {
+    return clean.match(/.{1,2}/g).join(':');
+  }
+  // Jika 16 karakter hex (8 bytes GPON hex)
+  if (/^[0-9A-F]{16}$/.test(clean)) {
+    return clean.match(/.{1,2}/g).join(':');
+  }
+  return raw;
+}
+
 function formatStatus(statusVal) {
   const v = String(statusVal || '').trim();
   if (!v) return '';
@@ -952,12 +968,14 @@ function refreshCurrentOlt() {
 
 function filterOnuTable() {
   const input = document.getElementById('onu-search');
-  const filter = input.value.toLowerCase();
+  const filter = input.value.toLowerCase().trim();
+  const filterClean = filter.replace(/[:\-\.]/g, '');
   const rows = document.querySelectorAll('#onu-table-body tr');
   
   rows.forEach(row => {
     const text = row.innerText.toLowerCase();
-    row.style.display = text.includes(filter) ? '' : 'none';
+    const textClean = text.replace(/[:\-\.]/g, '');
+    row.style.display = (text.includes(filter) || (filterClean && textClean.includes(filterClean))) ? '' : 'none';
   });
 }
 
