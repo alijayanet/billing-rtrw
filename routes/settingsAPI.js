@@ -326,11 +326,13 @@ async function testMikroTikConnection() {
       return { success: false, message: 'MikroTik credentials not configured' };
     }
 
+    const useTls = Number(port) === 8729 || getSetting('mikrotik_tls') === true;
     const api = new RouterOSClient({
       host,
-      port,
+      port: Number(port),
       user,
       password,
+      tls: useTls ? { rejectUnauthorized: false } : false,
       timeout: 5000
     });
 

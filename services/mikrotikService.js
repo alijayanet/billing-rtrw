@@ -335,7 +335,7 @@ async function getConnection(routerId = null) {
       port: selectedPort,
       user,
       password,
-      tls: Boolean(useTls),
+      tls: useTls ? { rejectUnauthorized: false } : false,
       timeout: 5000
     });
 
