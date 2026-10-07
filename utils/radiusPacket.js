@@ -46,6 +46,7 @@ const ATTR_TYPES = {
   ACCT_TERMINATE_CAUSE: 49,
   ACCT_INPUT_GIGAWORDS: 52,
   ACCT_OUTPUT_GIGAWORDS: 53,
+  CHAP_CHALLENGE: 60,
   FRAMED_POOL: 88
 };
 
@@ -106,6 +107,10 @@ function decodePacket(buffer, secret) {
       parsedAttrs.username = value.toString('utf8');
     } else if (type === ATTR_TYPES.USER_PASSWORD && secret) {
       parsedAttrs.password = decryptPapPassword(value, authenticator, secret);
+    } else if (type === ATTR_TYPES.CHAP_PASSWORD) {
+      parsedAttrs.chapPassword = value;
+    } else if (type === ATTR_TYPES.CHAP_CHALLENGE) {
+      parsedAttrs.chapChallenge = value;
     } else if (type === ATTR_TYPES.NAS_IP_ADDRESS) {
       parsedAttrs.nasIp = parseIp(value);
     } else if (type === ATTR_TYPES.NAS_PORT) {
@@ -237,11 +242,45 @@ function encodeResponsePacket({ code, identifier, requestAuthenticator, attribut
   return Buffer.concat([headerBuf, allAttrsBuf]);
 }
 
+/**
+ * Verifikasi Password CHAP RFC 2865
+ * @param {Buffer} chapPasswordBuf - 17 bytes (1 byte ident + 16 bytes MD5 hash response)
+ * @param {string} userSecret - Password plaintext pelanggan/pengguna
+ * @param {Buffer} challengeBuf - Buffer challenge (dari atribut CHAP-Challenge atau request authenticator)
+ * @returns {boolean}
+ */
+function verifyChapPassword(chapPasswordBuf, userSecret, challengeBuf) {
+  if (!Buffer.isBuffer(chapPasswordBuf) || chapPasswordBuf.length < 17) {
+    return false;
+  }
+  if (!Buffer.isBuffer(challengeBuf) || challengeBuf.length === 0) {
+    return false;
+  }
+
+  const chapIdent = chapPasswordBuf[0];
+  const chapResponse = chapPasswordBuf.slice(1, 17);
+
+  // MD5(ident + userSecret + challenge)
+  const hash = crypto.createHash('md5')
+    .update(Buffer.from([chapIdent]))
+    .update(Buffer.from(String(userSecret || ''), 'utf8'))
+    .update(challengeBuf)
+    .digest();
+
+  try {
+    return crypto.timingSafeEqual(chapResponse, hash);
+  } catch (e) {
+    return false;
+  }
+}
+
 module.exports = {
   CODES,
   ATTR_TYPES,
   MIKROTIK_VENDOR_ID,
   MIKROTIK_VSAS,
   decodePacket,
-  encodeResponsePacket
+  encodeResponsePacket,
+  verifyChapPassword
 };
+

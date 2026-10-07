@@ -7317,6 +7317,20 @@ router.get('/radius-settings', requireAdminSession, restrictToAdmin, async (req,
     const msg = req.session._msg || null;
     req.session._msg = null;
 
+    let detectedServerIp = '192.168.8.88';
+    try {
+      const ifaces = os.networkInterfaces();
+      for (const ifaceName in ifaces) {
+        for (const alias of ifaces[ifaceName]) {
+          if (alias.family === 'IPv4' && !alias.internal && alias.address !== '127.0.0.1') {
+            detectedServerIp = alias.address;
+            break;
+          }
+        }
+        if (detectedServerIp !== '192.168.8.88') break;
+      }
+    } catch (e) {}
+
     res.render('admin/radius-settings', {
       title: 'Pengaturan RADIUS',
       company: company(),
@@ -7328,6 +7342,7 @@ router.get('/radius-settings', requireAdminSession, restrictToAdmin, async (req,
       nasList,
       todayTrafficMB,
       todayEvents,
+      serverIp: detectedServerIp,
       msg
     });
   } catch (error) {
@@ -7400,6 +7415,21 @@ router.post('/radius/disconnect', requireAdminSession, restrictToAdmin, async (r
   } catch (e) {
     logger.error('Error disconnecting RADIUS session:', e);
     req.session._msg = { type: 'danger', text: 'Gagal memutus sesi RADIUS: ' + e.message };
+  }
+  res.redirect('/admin/radius-settings');
+});
+
+router.post('/radius/clear-stale', requireAdminSession, restrictToAdmin, async (req, res) => {
+  try {
+    const result = db.prepare(`
+      UPDATE radius_accounting
+      SET status_type = 2, terminate_cause = 10, updated_at = NOW_LOCAL()
+      WHERE status_type IN (1, 3) AND updated_at < datetime('now', '-2 hours')
+    `).run();
+    req.session._msg = { type: 'success', text: `Berhasil membersihkan ${result.changes} sesi kadaluarsa / ghost.` };
+  } catch (e) {
+    logger.error('Error clearing stale RADIUS sessions:', e);
+    req.session._msg = { type: 'danger', text: 'Gagal membersihkan sesi: ' + e.message };
   }
   res.redirect('/admin/radius-settings');
 });

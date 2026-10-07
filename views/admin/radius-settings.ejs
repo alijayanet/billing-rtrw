@@ -342,9 +342,13 @@
 
           <!-- Card 5: Panduan Firewall Linux UFW & Script MikroTik -->
           <div class="card mb16">
-            <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
               <h6 style="margin:0;"><i class="bi bi-terminal-fill"></i> Script Setup Otomatis MikroTik (RADIUS & Isolir)</h6>
-              <button type="button" class="btn btn-s btn-sm" onclick="copyMikrotikScript()"><i class="bi bi-clipboard-check"></i> Salin Script MikroTik</button>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <label style="font-size:12px;margin:0;color:var(--muted);white-space:nowrap;">IP Server Billing:</label>
+                <input type="text" id="billing-ip-input" class="fc" value="<%= typeof serverIp !== 'undefined' ? serverIp : '192.168.8.88' %>" oninput="updateScriptIp(this.value)" style="width:140px;height:30px;font-size:12px;padding:3px 8px;" title="Ubah IP server jika router mengakses lewat IP lain/VPS">
+                <button type="button" class="btn btn-s btn-sm" onclick="copyMikrotikScript()"><i class="bi bi-clipboard-check"></i> Salin Script MikroTik</button>
+              </div>
             </div>
             <div class="card-bd">
               <div class="fg" style="margin-bottom:14px;">
@@ -358,27 +362,28 @@
 
               <div class="fg" style="margin-bottom:0;">
                 <label class="fl">2. Script Integrasi RADIUS & Isolir di MikroTik (RouterOS Terminal)</label>
-                <small class="text-muted" style="font-size:11px;display:block;margin-bottom:6px;">Copy dan pastekan seluruh script di bawah ini ke <strong>Terminal MikroTik</strong> (Ganti <code>IP_SERVER_BILLING</code> dengan IP server billing Anda, misal <code>192.168.8.8</code>):</small>
-                <textarea id="mikrotik-script-area" class="fc" rows="12" style="font-family:monospace;font-size:11px;background:var(--bg3);color:#10b981;line-height:1.4;white-space:pre;" readonly>
-# =========================================================
-# SCRIPT OTOMATIS RADIUS & FITUR ISOLIR RADIUS MIKROTIK
+                <small class="text-muted" style="font-size:11px;display:block;margin-bottom:6px;">Copy dan pastekan seluruh script di bawah ini ke <strong>Terminal MikroTik</strong> (IP server otomatis terisi dari IP di atas):</small>
+                <textarea id="mikrotik-script-area" class="fc" rows="14" style="font-family:monospace;font-size:11px;background:var(--bg3);color:#10b981;line-height:1.4;white-space:pre;" readonly># =========================================================
+# SCRIPT SETUP OTOMATIS RADIUS BILLING & ISOLIR MIKROTIK
 # =========================================================
 
 # 1. Aktifkan Fitur RADIUS pada PPP MikroTik
 /ppp aaa set use-radius=yes accounting=yes interim-update=1m
 
-# 2. Tambahkan Server RADIUS Billing ke MikroTik
-/radius remove [find comment="RTRW-Billing-RADIUS"]
-/radius add service=ppp address=IP_SERVER_BILLING secret="<%= radiusStatus.secret %>" authentication-port=<%= radiusStatus.authPort %> accounting-port=<%= radiusStatus.acctPort %> timeout=3000ms comment="RTRW-Billing-RADIUS"
+# 2. Buka Akses Disconnect / CoA RADIUS MikroTik (Port UDP 3799)
+/radius incoming set accept=yes port=3799
 
-# 3. Tambahkan IP Address Gateway Subnet Isolir RADIUS (Menggunakan ID Interface Bridge Utama)
+# 3. Tambahkan Server RADIUS Billing ke MikroTik
+/radius remove [find comment="RTRW-Billing-RADIUS"]
+/radius add service=ppp address=<%= typeof serverIp !== 'undefined' ? serverIp : '192.168.8.88' %> secret="<%= radiusStatus.secret %>" authentication-port=<%= radiusStatus.authPort %> accounting-port=<%= radiusStatus.acctPort %> timeout=3000ms comment="RTRW-Billing-RADIUS"
+
+# 4. Tambahkan IP Address Gateway Subnet Isolir RADIUS
 /ip address remove [find comment="Gateway-Isolir-RADIUS"]
 :do { /ip address add address=<%= (typeof radiusStatus.isolirIpPoolStart !== 'undefined' ? radiusStatus.isolirIpPoolStart.replace(/\.\d+$/, '.1') : '10.10.99.1') %>/24 interface=([/interface find type=bridge]->0) comment="Gateway-Isolir-RADIUS" } on-error={ /ip address add address=<%= (typeof radiusStatus.isolirIpPoolStart !== 'undefined' ? radiusStatus.isolirIpPoolStart.replace(/\.\d+$/, '.1') : '10.10.99.1') %>/24 interface=([/interface find]->0) comment="Gateway-Isolir-RADIUS" }
 
-# 4. Filter Drop Akses Internet Pelanggan Terisolir RADIUS (Universal)
+# 5. Filter Drop Akses Internet Pelanggan Terisolir RADIUS (Universal)
 /ip firewall filter remove [find comment="Isolir-RADIUS-Block-Internet"]
-/ip firewall filter add chain=forward src-address=<%= (typeof radiusStatus.isolirIpPoolStart !== 'undefined' ? radiusStatus.isolirIpPoolStart.replace(/\.\d+$/, '.0') : '10.10.99.0') %>/24 action=drop comment="Isolir-RADIUS-Block-Internet"
-</textarea>
+/ip firewall filter add chain=forward src-address=<%= (typeof radiusStatus.isolirIpPoolStart !== 'undefined' ? radiusStatus.isolirIpPoolStart.replace(/\.\d+$/, '.0') : '10.10.99.0') %>/24 action=drop comment="Isolir-RADIUS-Block-Internet"</textarea>
               </div>
             </div>
           </div>
@@ -463,8 +468,15 @@
     <!-- TAB 3: SESI ONLINE RADIUS -->
     <div id="tab-content-online" class="tab-pane">
       <div class="card mb16">
-        <div class="card-hd">
-          <h6><i class="bi bi-wifi"></i> Sesi Aktif RADIUS (Active Connections)</h6>
+        <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;">
+          <h6 style="margin:0;"><i class="bi bi-wifi"></i> Sesi Aktif RADIUS (Active Connections)</h6>
+          <% if (onlineSessions && onlineSessions.length > 0) { %>
+            <form action="/admin/radius/clear-stale" method="POST" onsubmit="return confirm('Bersihkan semua sesi aktif yang tidak ada pembaruan lebih dari 2 jam?')" style="margin:0;">
+              <button type="submit" class="btn btn-w btn-sm" title="Tandai sesi yang sudah tidak ada pembaruan > 2 jam sebagai stopped">
+                <i class="bi bi-clock-history"></i> Bersihkan Sesi Usang
+              </button>
+            </form>
+          <% } %>
         </div>
         <div class="card-bd" style="padding:0;">
           <div class="tbl-wrap">
@@ -707,6 +719,13 @@
     document.getElementById('edit_nas_description').value = nas.description || '';
     document.getElementById('edit_nas_is_active').value = nas.is_active ? '1' : '0';
     showModal('editNasModal');
+  }
+
+  function updateScriptIp(newIp) {
+    const el = document.getElementById('mikrotik-script-area');
+    if (!el) return;
+    const cleanIp = String(newIp || '').trim() || '192.168.8.88';
+    el.value = el.value.replace(/address=\S+ secret=/, 'address=' + cleanIp + ' secret=');
   }
 
   function copyMikrotikScript() {

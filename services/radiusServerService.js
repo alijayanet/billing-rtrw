@@ -12,7 +12,8 @@ const {
   MIKROTIK_VENDOR_ID,
   MIKROTIK_VSAS,
   decodePacket,
-  encodeResponsePacket
+  encodeResponsePacket,
+  verifyChapPassword
 } = require('../utils/radiusPacket');
 
 let authSocket = null;
@@ -24,12 +25,13 @@ let isRunning = false;
  */
 function getNasSecret(nasIp) {
   const defaultSecret = getSetting('radius_secret', 'secret123');
+  const cleanIp = String(nasIp || '').replace(/^::ffff:/, '').trim();
   try {
     const nasRow = db.prepare(`
       SELECT secret FROM radius_nas
       WHERE is_active = 1 AND (nasname = ? OR nasname = '0.0.0.0' OR nasname = '0.0.0.0/0')
-      ORDER BY id DESC LIMIT 1
-    `).get(nasIp);
+      ORDER BY CASE WHEN nasname = ? THEN 1 ELSE 2 END ASC, id DESC LIMIT 1
+    `).get(cleanIp, cleanIp);
 
     if (nasRow && nasRow.secret) {
       return nasRow.secret;
@@ -47,26 +49,35 @@ function findUserCredentials(username) {
   const cleanUsername = String(username || '').trim();
   if (!cleanUsername) return null;
 
-  // 1. Cek tabel customers (pppoe_username atau name atau phone)
+  // 1. Cek tabel customers (pppoe_username atau hotspot_username atau name atau phone)
   try {
     const cust = db.prepare(`
-      SELECT c.id, c.name, c.pppoe_username, c.pppoe_password, c.status, c.static_ip, c.package_id,
+      SELECT c.id, c.name, c.pppoe_username, c.pppoe_password, c.status, c.static_ip, c.pppoe_remote_address, c.package_id,
+             c.hotspot_username, c.hotspot_password,
              p.name as package_name, p.speed_up, p.speed_down, p.speed_up_upto, p.speed_down_upto
       FROM customers c
       LEFT JOIN packages p ON p.id = c.package_id
-      WHERE c.pppoe_username = ? OR c.name = ? OR c.phone = ?
+      WHERE c.pppoe_username = ? OR c.hotspot_username = ? OR c.name = ? OR c.phone = ?
+      ORDER BY 
+        CASE 
+          WHEN c.pppoe_username = ? THEN 1 
+          WHEN c.hotspot_username = ? THEN 2
+          ELSE 3 
+        END ASC
       LIMIT 1
-    `).get(cleanUsername, cleanUsername, cleanUsername);
+    `).get(cleanUsername, cleanUsername, cleanUsername, cleanUsername, cleanUsername, cleanUsername);
 
     if (cust) {
-      // Prioritaskan pppoe_password, fallback ke pppoe_users table — JANGAN gunakan username sebagai password
-      let secret = cust.pppoe_password || '';
-      if (!secret) {
-        try {
-          const pppoeUser = db.prepare(`SELECT secret FROM pppoe_users WHERE username = ? LIMIT 1`).get(cleanUsername);
-          if (pppoeUser) secret = pppoeUser.secret || '';
-        } catch (e) {}
+      let secret = '';
+      if (cust.pppoe_username === cleanUsername) {
+        secret = cust.pppoe_password || '';
+      } else if (cust.hotspot_username === cleanUsername) {
+        secret = cust.hotspot_password || '';
+      } else {
+        secret = cust.pppoe_password || cust.hotspot_password || '';
       }
+
+      const staticIp = (cust.static_ip && cust.static_ip.trim()) || (cust.pppoe_remote_address && cust.pppoe_remote_address.trim()) || '';
 
       return {
         type: 'customer',
@@ -74,7 +85,7 @@ function findUserCredentials(username) {
         username: cleanUsername,
         secret: secret,
         status: cust.status,
-        staticIp: cust.static_ip,
+        staticIp: staticIp,
         speedUp: cust.speed_up || 0,
         speedDown: cust.speed_down || 0,
         speedUpUpto: cust.speed_up_upto || 0,
@@ -86,39 +97,7 @@ function findUserCredentials(username) {
     logger.error(`[RADIUS] Error findUserCredentials customers: ${err.message}`);
   }
 
-  // 2. Cek tabel pppoe_users (jika ada)
-  try {
-    const pppoe = db.prepare(`
-      SELECT pu.id, pu.customer_id, pu.username, pu.secret, pu.status, pu.profile_name,
-             c.status as customer_status, c.static_ip,
-             p.speed_up, p.speed_down, p.speed_up_upto, p.speed_down_upto
-      FROM pppoe_users pu
-      LEFT JOIN customers c ON c.id = pu.customer_id
-      LEFT JOIN packages p ON p.id = c.package_id
-      WHERE pu.username = ? LIMIT 1
-    `).get(cleanUsername);
-
-    if (pppoe) {
-      const finalStatus = (pppoe.customer_status === 'suspended' || pppoe.status === 'disabled') ? 'suspended' : 'active';
-      return {
-        type: 'pppoe',
-        id: pppoe.id,
-        username: pppoe.username,
-        secret: pppoe.secret,
-        status: finalStatus,
-        staticIp: pppoe.static_ip,
-        speedUp: pppoe.speed_up || 0,
-        speedDown: pppoe.speed_down || 0,
-        speedUpUpto: pppoe.speed_up_upto || 0,
-        speedDownUpto: pppoe.speed_down_upto || 0,
-        packageName: pppoe.profile_name || ''
-      };
-    }
-  } catch (err) {
-    // Tabel pppoe_users mungkin tidak ada di skema tertentu
-  }
-
-  // 3. Cek tabel vouchers (Voucher Hotspot/PPPoE)
+  // 2. Cek tabel vouchers (Voucher Hotspot/PPPoE)
   try {
     const voucher = db.prepare(`
       SELECT code, password, profile_name, status FROM vouchers WHERE code = ? LIMIT 1
@@ -129,7 +108,7 @@ function findUserCredentials(username) {
         type: 'voucher',
         id: voucher.code,
         username: voucher.code,
-        secret: voucher.password,
+        secret: voucher.password || voucher.code,
         status: voucher.status === 'used' || voucher.status === 'expired' ? 'suspended' : 'active',
         speedUp: 0,
         speedDown: 0,
@@ -176,9 +155,24 @@ function handleAuthMessage(msg, rinfo) {
     return;
   }
 
-  // Verifikasi Password
-  if (inputPassword !== '' && user.secret != null && user.secret !== '' && user.secret !== inputPassword) {
-    logger.warn(`[RADIUS Auth] Reject '${username}' - Password salah (input: '${inputPassword}', expected: '${user.secret}')`);
+  // Verifikasi Password (Mendukung PAP dan CHAP RFC 2865)
+  if (reqPacket.parsedAttrs.chapPassword) {
+    const challenge = reqPacket.parsedAttrs.chapChallenge || reqPacket.authenticator;
+    const isChapValid = verifyChapPassword(reqPacket.parsedAttrs.chapPassword, user.secret, challenge);
+    if (!isChapValid) {
+      logger.warn(`[RADIUS Auth] Reject '${username}' - Password CHAP salah`);
+      sendAuthResponse(CODES.ACCESS_REJECT, reqPacket, [], secret, rinfo);
+      return;
+    }
+  } else if (reqPacket.parsedAttrs.password !== undefined) {
+    const inputPassword = reqPacket.parsedAttrs.password;
+    if (inputPassword !== user.secret) {
+      logger.warn(`[RADIUS Auth] Reject '${username}' - Password PAP salah (input: '${inputPassword}', expected: '${user.secret}')`);
+      sendAuthResponse(CODES.ACCESS_REJECT, reqPacket, [], secret, rinfo);
+      return;
+    }
+  } else {
+    logger.warn(`[RADIUS Auth] Reject '${username}' - Tidak ada atribut Password (PAP/CHAP) pada request`);
     sendAuthResponse(CODES.ACCESS_REJECT, reqPacket, [], secret, rinfo);
     return;
   }
@@ -437,9 +431,14 @@ function handleAcctMessage(msg, rinfo) {
           acctSessionId
         );
       } else {
-        // Hapus entri auth-* lama untuk user ini ketika sesi accounting asli dimulai
+        // Hapus entri auth-* dummy lama dan tutup sesi aktif lama untuk user ini
         try {
           db.prepare(`DELETE FROM radius_accounting WHERE username = ? AND session_id LIKE 'auth-%'`).run(username);
+          db.prepare(`
+            UPDATE radius_accounting 
+            SET status_type = 2, terminate_cause = 1, updated_at = NOW_LOCAL() 
+            WHERE username = ? AND session_id != ? AND status_type IN (1, 3)
+          `).run(username, acctSessionId);
         } catch (e) {}
 
         stmt.run(
@@ -452,17 +451,6 @@ function handleAcctMessage(msg, rinfo) {
       // Hitung total bytes termasuk Gigawords (untuk sesi > 4GB)
       const totalBytesIn = (acctInputGigawords * 4294967296) + acctInputOctets;
       const totalBytesOut = (acctOutputGigawords * 4294967296) + acctOutputOctets;
-
-      // Catat sampel trafik ke pppoe_traffic_samples jika tabel pppoe_users ada
-      try {
-        const pppoeUser = db.prepare(`SELECT id FROM pppoe_users WHERE username = ? LIMIT 1`).get(username);
-        if (pppoeUser) {
-          db.prepare(`
-            INSERT INTO pppoe_traffic_samples (pppoe_user_id, bytes_in, bytes_out)
-            VALUES (?, ?, ?)
-          `).run(pppoeUser.id, totalBytesIn, totalBytesOut);
-        }
-      } catch (e) {}
 
       // Catat sampel pemakaian ke customer_usage jika terdaftar di customers
       try {
@@ -583,34 +571,33 @@ function formatRateLimit(upVal, downVal, defaultVal = '5M/10M', uptoUp = 0, upto
     return `${kbps}k`;
   }
 
-  const upKbps = parseSpeed(upVal);      // TX (Upload)
-  const downKbps = parseSpeed(downVal);  // RX (Download)
+  const upKbps = parseSpeed(upVal);      // Client Upload -> Router RX
+  const downKbps = parseSpeed(downVal);  // Client Download -> Router TX
 
   if (upKbps <= 0 || downKbps <= 0) {
     return defaultVal;
   }
 
-  // MikroTik format: RX/TX (Download/Upload)
-  const rxStr = kbpsToStr(downKbps);  // RX = Download
-  const txStr = kbpsToStr(upKbps);    // TX = Upload
+  // Format MikroTik RouterOS: rx-rate/tx-rate (Upload/Download)
+  const rxStr = kbpsToStr(upKbps);    // rx-rate = Upload (client to router)
+  const txStr = kbpsToStr(downKbps);  // tx-rate = Download (router to client)
 
-  // Tambahkan burst rate jika tersedia (Mikrotik-Rate-Limit format: rx/tx rx-burst/tx-burst rx-threshold/tx-threshold burst-time)
-  const uptoUpKbps = parseSpeed(uptoUp);      // TX-burst
-  const uptoDownKbps = parseSpeed(uptoDown);  // RX-burst
+  // Tambahkan burst rate jika tersedia (format: rx/tx rx-burst/tx-burst rx-threshold/tx-threshold burst-time)
+  const uptoUpKbps = parseSpeed(uptoUp);      // Burst Upload
+  const uptoDownKbps = parseSpeed(uptoDown);  // Burst Download
 
   if (uptoUpKbps > 0 && uptoDownKbps > 0 && (uptoUpKbps > upKbps || uptoDownKbps > downKbps)) {
-    const rxBurstStr = kbpsToStr(uptoDownKbps);  // RX-burst = Download burst
-    const txBurstStr = kbpsToStr(uptoUpKbps);    // TX-burst = Upload burst
+    const rxBurstStr = kbpsToStr(uptoUpKbps);
+    const txBurstStr = kbpsToStr(uptoDownKbps);
     
-    // Format MikroTik: "rx/tx rx-burst/tx-burst rx-threshold/tx-threshold burst-time"
     // Threshold default 50% dari burst, waktu burst 8 detik
-    const rxThresholdStr = kbpsToStr(Math.round(uptoDownKbps * 0.5));
-    const txThresholdStr = kbpsToStr(Math.round(uptoUpKbps * 0.5));
+    const rxThresholdStr = kbpsToStr(Math.round(uptoUpKbps * 0.5));
+    const txThresholdStr = kbpsToStr(Math.round(uptoDownKbps * 0.5));
     
     return `${rxStr}/${txStr} ${rxBurstStr}/${txBurstStr} ${rxThresholdStr}/${txThresholdStr} 8`;
   }
 
-  // Format standar: rx/tx (Download/Upload)
+  // Format standar: rx/tx (Upload/Download)
   return `${rxStr}/${txStr}`;
 }
 
@@ -634,14 +621,17 @@ function allocateDynamicIp(username, startIpStr, endIpStr, nasIp) {
     const endInt = ipToInt(endIpStr);
     if (!startInt || !endInt || startInt > endInt) return null;
 
-    // Direct check if user has active session with framed_ip
+    // Direct check if user has active session with framed_ip within requested pool range
     const userSession = db.prepare(`
       SELECT framed_ip FROM radius_accounting
       WHERE username = ? AND status_type IN (1, 3) AND framed_ip IS NOT NULL AND framed_ip != ''
       ORDER BY id DESC LIMIT 1
     `).get(username);
     if (userSession && userSession.framed_ip) {
-      return userSession.framed_ip;
+      const sessInt = ipToInt(userSession.framed_ip);
+      if (sessInt >= startInt && sessInt <= endInt) {
+        return userSession.framed_ip;
+      }
     }
 
     const assignedRows = db.prepare(`
@@ -703,7 +693,8 @@ function getOnlineSessions() {
       FROM radius_accounting ra
       LEFT JOIN customers c ON (c.pppoe_username = ra.username OR c.name = ra.username)
       WHERE ra.status_type IN (1, 3)
-      ORDER BY ra.updated_at DESC LIMIT 100
+        AND ra.updated_at >= datetime('now', '-24 hours')
+      ORDER BY ra.updated_at DESC LIMIT 200
     `).all();
   } catch (e) {
     return [];
