@@ -1523,33 +1523,120 @@ router.get('/agents/reports', requireAdminSession, requireSidebarMenuAccess('age
   });
 });
 
-router.get('/api/agents/:id/prices', requireAdmin, restrictToAdmin, (req, res) => {
+// Middleware auth khusus JSON API Agen
+function requireAdminForAgentApi(req, res, next) {
+  if (req.session?.isAdmin) return next();
+  const adminKey = getSetting('admin_api_key', '');
+  const providedKey = req.headers['x-admin-key'] || req.query.key;
+  if (adminKey && providedKey === adminKey) return next();
+  return res.status(403).json({ success: false, error: 'Akses ditolak: Hanya Admin yang dapat mengelola harga agent.' });
+}
+
+router.get('/api/agents/:id/prices', requireAdminForAgentApi, (req, res) => {
   try {
-    const rows = agentSvc.getAgentPrices(Number(req.params.id));
-    res.json(rows);
+    const agentId = Number(req.params.id);
+    const agent = agentSvc.getAgentById(agentId);
+    if (!agent) {
+      return res.status(404).json({ success: false, error: 'Agent tidak ditemukan' });
+    }
+    const rows = agentSvc.getAgentPrices(agentId, { includeInactive: true });
+    res.json({
+      success: true,
+      agent: {
+        id: agent.id,
+        name: agent.name,
+        username: agent.username,
+        phone: agent.phone,
+        balance: agent.balance,
+        billing_fee: agent.billing_fee,
+        router_id: agent.router_id,
+        router_name: agent.router_name
+      },
+      prices: rows
+    });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
-router.post('/api/agents/:id/prices', requireAdmin, restrictToAdmin, express.json(), (req, res) => {
+router.post('/api/agents/:id/prices', requireAdminForAgentApi, express.json(), (req, res) => {
   try {
     const agentId = Number(req.params.id);
     const result = agentSvc.upsertAgentHotspotPrice(agentId, req.body);
-    res.json({ success: true, result });
+    res.json({ success: true, message: 'Harga paket berhasil disimpan', result });
   } catch (e) {
-    res.status(400).json({ error: e.message });
+    res.status(400).json({ success: false, error: e.message });
   }
 });
 
-router.post('/api/agents/:id/prices/:priceId/delete', requireAdmin, restrictToAdmin, (req, res) => {
+router.post('/api/agents/:id/prices/batch', requireAdminForAgentApi, express.json(), (req, res) => {
+  try {
+    const agentId = Number(req.params.id);
+    const agent = agentSvc.getAgentById(agentId);
+    if (!agent) {
+      return res.status(404).json({ success: false, error: 'Agent tidak ditemukan' });
+    }
+
+    const { billing_fee, items } = req.body || {};
+
+    if (billing_fee !== undefined && billing_fee !== null && billing_fee !== '') {
+      const feeNum = Math.max(0, Number(billing_fee) || 0);
+      agentSvc.updateAgent(agentId, { billing_fee: feeNum });
+    }
+
+    let updatedCount = 0;
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        if (!item || !item.profile_name) continue;
+        agentSvc.upsertAgentHotspotPrice(agentId, item);
+        updatedCount++;
+      }
+    }
+
+    const updatedAgent = agentSvc.getAgentById(agentId);
+    const updatedPrices = agentSvc.getAgentPrices(agentId, { includeInactive: true });
+
+    res.json({
+      success: true,
+      message: 'Semua pengaturan harga dan fee agen berhasil disimpan',
+      updatedCount,
+      agent: updatedAgent,
+      prices: updatedPrices
+    });
+  } catch (e) {
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+router.post('/api/agents/:id/prices/reset', requireAdminForAgentApi, express.json(), (req, res) => {
+  try {
+    const agentId = Number(req.params.id);
+    const agent = agentSvc.getAgentById(agentId);
+    if (!agent) {
+      return res.status(404).json({ success: false, error: 'Agent tidak ditemukan' });
+    }
+
+    agentSvc.resetAgentHotspotPrices(agentId);
+    const updatedPrices = agentSvc.getAgentPrices(agentId, { includeInactive: true });
+
+    res.json({
+      success: true,
+      message: 'Harga voucher hotspot agen berhasil dikembalikan ke master default',
+      prices: updatedPrices
+    });
+  } catch (e) {
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+router.post('/api/agents/:id/prices/:priceId/delete', requireAdminForAgentApi, (req, res) => {
   try {
     const agentId = Number(req.params.id);
     const priceId = Number(req.params.priceId);
     const result = agentSvc.deleteAgentHotspotPrice(agentId, priceId);
-    res.json({ success: true, result });
+    res.json({ success: true, message: 'Kustomisasi harga berhasil dihapus', result });
   } catch (e) {
-    res.status(400).json({ error: e.message });
+    res.status(400).json({ success: false, error: e.message });
   }
 });
 

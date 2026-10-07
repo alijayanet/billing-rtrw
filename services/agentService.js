@@ -266,7 +266,7 @@ function deleteAgent(id) {
   return db.prepare('DELETE FROM agents WHERE id = ?').run(id);
 }
 
-function getAgentPrices(agentId) {
+function getAgentPrices(agentId, { includeInactive = false } = {}) {
   const agent = getAgentById(agentId);
   const agentFee = Math.max(0, Number(agent?.billing_fee || 0));
 
@@ -327,7 +327,7 @@ function getAgentPrices(agentId) {
       const custom = customMap.get(key);
 
       if (custom) {
-        if (custom.is_active) {
+        if (custom.is_active || includeInactive) {
           result.push({
             id: custom.id,
             package_id: mp.id,
@@ -337,7 +337,8 @@ function getAgentPrices(agentId) {
             validity: custom.validity || mp.validity,
             buy_price: Math.max(0, Number(custom.buy_price || 0)),
             sell_price: Math.max(0, Number(custom.sell_price || mp.price)),
-            is_active: 1,
+            is_active: custom.is_active ? 1 : 0,
+            has_custom: true,
             router_name: mp.router_name || custom.router_name || 'Hotspot',
             prefix: mp.prefix || '',
             code_length: mp.code_length || 6,
@@ -359,6 +360,7 @@ function getAgentPrices(agentId) {
           buy_price: buyPrice,
           sell_price: sellPrice,
           is_active: 1,
+          has_custom: false,
           router_name: mp.router_name || 'Hotspot',
           prefix: mp.prefix || '',
           code_length: mp.code_length || 6,
@@ -370,7 +372,11 @@ function getAgentPrices(agentId) {
   }
 
   // Fallback jika voucher_packages masih kosong: kembalikan customPrices yang aktif
-  return (customPrices || []).filter(cp => cp && cp.is_active);
+  return (customPrices || []).filter(cp => cp && (includeInactive || cp.is_active)).map(cp => ({ ...cp, has_custom: true }));
+}
+
+function resetAgentHotspotPrices(agentId) {
+  return db.prepare('DELETE FROM agent_hotspot_prices WHERE agent_id = ?').run(agentId);
 }
 
 function upsertAgentHotspotPrice(agentId, data) {
@@ -1022,6 +1028,7 @@ module.exports = {
   deleteAgent,
   topupAgent,
   getAgentPrices,
+  resetAgentHotspotPrices,
   upsertAgentHotspotPrice,
   deleteAgentHotspotPrice,
   listAgentTransactions,

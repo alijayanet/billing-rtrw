@@ -66,6 +66,7 @@
                     <div class="d-flex gap-2" style="flex-wrap:wrap">
                       <button class="btn btn-p btn-sm" onclick='openTopup(<%- JSON.stringify(a) %>)' title="Topup Saldo"><i class="bi bi-cash-stack"></i></button>
                       <% if (typeof session !== 'undefined' && session.isAdmin) { %>
+                        <button class="btn btn-sm" style="background:#0284c7;color:#fff;border-color:#0284c7" onclick='openPriceModal(<%- JSON.stringify(a) %>)' title="Atur Harga Jual & Potong Saldo"><i class="bi bi-tags-fill"></i> Atur Harga</button>
                         <button class="btn btn-g btn-sm" onclick='editAgent(<%- JSON.stringify(a) %>)' title="Edit Agen"><i class="bi bi-pencil"></i></button>
                         <form action="/admin/agents/<%= a.id %>/delete" method="POST" onsubmit="return confirm(I18N.confirmDeleteAgent)" style="display:inline">
                           <button type="submit" class="btn btn-d btn-sm" title="Hapus Agen"><i class="bi bi-trash"></i></button>
@@ -177,6 +178,108 @@
   </div>
 </div>
 
+<!-- Modal Atur Harga Jual & Potong Saldo Agen -->
+<div class="mo" id="agentPriceModal">
+  <div class="mb" style="max-width:920px;width:95%">
+    <div class="mh">
+      <div>
+        <span class="mt" style="display:flex;align-items:center;gap:8px">
+          <i class="bi bi-tags-fill" style="color:#0284c7;font-size:18px"></i>
+          <span>Atur Harga Jual & Potong Saldo Agent</span>
+        </span>
+        <div id="ap-agent-info" style="font-size:12px;color:var(--muted);margin-top:4px">
+          Memuat data agent...
+        </div>
+      </div>
+      <button type="button" class="mc" onclick="closeModal('agentPriceModal')">&times;</button>
+    </div>
+    <div class="mbody">
+      <!-- Panduan Skema Margin & Saldo -->
+      <div class="alert" style="background:rgba(2,132,199,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--text,#e2e8f0);margin-bottom:14px;padding:10px 14px;border-radius:8px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:3px;color:#38bdf8">
+          <i class="bi bi-info-circle-fill"></i> Panduan Alur Saldo & Keuntungan Agen:
+        </div>
+        <div style="font-size:12px;line-height:1.5;color:var(--text,#e2e8f0)">
+          • <strong>Voucher Hotspot:</strong> Saat agen menjual voucher, <strong>Saldo Agen</strong> otomatis terpotong sebesar <strong>Potong Saldo (Harga Beli)</strong>. Pelanggan membayar sebesar <strong>Harga Jual</strong>. Selisihnya adalah <strong>Keuntungan Agen</strong>.<br>
+          • <strong>Tagihan Bulanan (PPPoE):</strong> Saldo agen terpotong <em>(Total Tagihan - Fee Tagihan)</em>. Agen otomatis mendapatkan keuntungan sebesar <strong>Fee Tagihan</strong>.
+        </div>
+      </div>
+
+      <!-- Setting Fee Tagihan Bulanan (PPPoE) -->
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
+              <i class="bi bi-receipt-cutoff" style="color:#38bdf8"></i> Komisi / Fee Pembayaran Tagihan Internet (PPPoE)
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">
+              Nominal komisi agen per invoice tagihan yang dilunasi lewat web/aplikasi agen.
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--muted);font-weight:600">Rp</span>
+            <input type="number" id="ap-billing-fee" class="fc" style="width:130px;text-align:right;font-weight:700" min="0" step="500" placeholder="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- Hotspot Voucher Pricing Table Section -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
+          <i class="bi bi-wifi" style="color:#0284c7"></i> Pengaturan Harga Voucher Hotspot
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:11px;color:var(--muted)">Diskon Massal:</span>
+            <select id="ap-quick-discount" class="fs" style="padding:4px 8px;font-size:11px;width:auto">
+              <option value="10">Potong Saldo 90% (Profit 10%)</option>
+              <option value="15">Potong Saldo 85% (Profit 15%)</option>
+              <option value="20">Potong Saldo 80% (Profit 20%)</option>
+              <option value="fixed-500">Untung Tetap Rp 500</option>
+              <option value="fixed-1000">Untung Tetap Rp 1.000</option>
+            </select>
+            <button type="button" class="btn btn-g btn-sm" style="padding:4px 8px;font-size:11px" onclick="applyQuickDiscount()" title="Terapkan kalkulasi cepat ke semua baris"><i class="bi bi-magic"></i> Terapkan</button>
+          </div>
+          <button type="button" class="btn btn-g btn-sm" style="padding:4px 8px;font-size:11px" onclick="resetToMasterPrices()" title="Kembalikan semua ke harga master"><i class="bi bi-arrow-counterclockwise"></i> Reset Default</button>
+        </div>
+      </div>
+
+      <div class="tbl-wrap" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+        <table class="dtbl" id="ap-table" style="margin:0">
+          <thead>
+            <tr>
+              <th style="min-width:130px">Paket Hotspot</th>
+              <th style="min-width:90px">Harga Master</th>
+              <th style="min-width:140px">Harga Jual (Rp)<br><span style="font-weight:400;text-transform:none;font-size:10px;color:var(--muted)">(Dibayar Pelanggan)</span></th>
+              <th style="min-width:140px">Potong Saldo (Rp)<br><span style="font-weight:400;text-transform:none;font-size:10px;color:var(--muted)">(Modal / Beli Agen)</span></th>
+              <th class="num" style="min-width:110px">Profit Agen</th>
+              <th class="text-center" style="width:70px">Status</th>
+              <th class="text-center" style="width:70px">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="ap-table-body">
+            <tr><td colspan="7" class="text-center text-muted" style="padding:24px"><i class="bi bi-arrow-repeat"></i> Memuat daftar harga...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--muted);flex-wrap:wrap;gap:6px">
+        <div>
+          <span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 6px">Custom</span> = Khusus agen ini.
+          <span class="badge" style="background:rgba(148,163,184,0.15);color:var(--muted);padding:2px 6px;margin-left:4px">Master</span> = Otomatis mengikuti paket master.
+        </div>
+        <div id="ap-status-msg" style="font-weight:600"></div>
+      </div>
+    </div>
+    <div class="mf" style="justify-content:space-between">
+      <button type="button" class="btn btn-g" onclick="closeModal('agentPriceModal')">Tutup</button>
+      <button type="button" class="btn btn-p" id="ap-btn-save-all" onclick="saveAllAgentPrices()">
+        <i class="bi bi-check2-circle"></i> Simpan Semua Pengaturan
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 const I18N = {
   confirmDeleteAgent: "<%= t('admin.agents.confirm_delete', 'Hapus agent ini?') %>"
@@ -203,7 +306,282 @@ function openTopup(a) {
   openModal('topupModal');
 }
 
+// ── LOGIKA ATUR HARGA & SALDO AGEN ──
+let currentAgent = null;
+let currentPrices = [];
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function openPriceModal(agent) {
+  currentAgent = agent;
+  const infoEl = document.getElementById('ap-agent-info');
+  infoEl.innerHTML = `Agent: <strong>${escapeHtml(agent.name)}</strong> (@${escapeHtml(agent.username)}) | Saldo: <strong>Rp ${Number(agent.balance || 0).toLocaleString('id-ID')}</strong> | Router: <strong>${escapeHtml(agent.router_name || 'Semua/Default')}</strong>`;
+  document.getElementById('ap-billing-fee').value = Number(agent.billing_fee || 0);
+  document.getElementById('ap-status-msg').innerText = '';
+  document.getElementById('ap-table-body').innerHTML = `<tr><td colspan="7" class="text-center text-muted" style="padding:24px"><i class="bi bi-arrow-repeat spin"></i> Memuat daftar harga...</td></tr>`;
+
+  openModal('agentPriceModal');
+  loadAgentPrices(agent.id);
+}
+
+function loadAgentPrices(agentId) {
+  fetch('/admin/api/agents/' + agentId + '/prices')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success && data.error) {
+        throw new Error(data.error);
+      }
+      if (data.agent) {
+        currentAgent = { ...currentAgent, ...data.agent };
+        document.getElementById('ap-billing-fee').value = Number(data.agent.billing_fee || 0);
+      }
+      currentPrices = data.prices || [];
+      renderAgentPricesTable();
+    })
+    .catch(err => {
+      document.getElementById('ap-table-body').innerHTML = `<tr><td colspan="7" class="text-center text-danger" style="padding:24px"><i class="bi bi-exclamation-triangle"></i> Gagal memuat data: ${escapeHtml(err.message)}</td></tr>`;
+    });
+}
+
+function renderAgentPricesTable() {
+  const tbody = document.getElementById('ap-table-body');
+  if (!currentPrices || currentPrices.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted" style="padding:24px">Tidak ada paket hotspot yang terdaftar. Tambahkan paket di menu Master Paket Hotspot terlebih dahulu.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = currentPrices.map((p, idx) => {
+    const sellPrice = Number(p.sell_price || 0);
+    const buyPrice = Number(p.buy_price || 0);
+    const masterPrice = Number(p.price || p.master_price || sellPrice);
+    const profit = sellPrice - buyPrice;
+    const profitClass = profit > 0 ? 'color:#22c55e' : (profit === 0 ? 'color:var(--muted)' : 'color:#ef4444');
+    const profitText = profit > 0 ? `+Rp ${profit.toLocaleString('id-ID')}` : (profit === 0 ? 'Rp 0' : `-Rp ${Math.abs(profit).toLocaleString('id-ID')}`);
+    const badgeType = p.has_custom ? `<span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 5px;font-size:10px">Custom</span>` : `<span class="badge" style="background:rgba(148,163,184,0.15);color:var(--muted);padding:2px 5px;font-size:10px">Master</span>`;
+
+    return `
+      <tr id="ap-row-${idx}">
+        <td>
+          <div style="font-weight:600;display:flex;align-items:center;gap:6px">
+            ${escapeHtml(p.profile_name)}
+            ${badgeType}
+          </div>
+          <div style="font-size:11px;color:var(--muted)">Masa aktif: ${escapeHtml(p.validity || '-')}</div>
+        </td>
+        <td>
+          <span style="font-size:12px;color:var(--muted)">Rp ${Number(masterPrice).toLocaleString('id-ID')}</span>
+        </td>
+        <td>
+          <input type="number" id="ap-sell-${idx}" class="fc" style="font-weight:600;font-size:13px;padding:6px 8px" value="${sellPrice}" min="0" step="500" oninput="onPriceInputChanged(${idx})">
+        </td>
+        <td>
+          <input type="number" id="ap-buy-${idx}" class="fc" style="font-weight:600;font-size:13px;padding:6px 8px" value="${buyPrice}" min="0" step="500" oninput="onPriceInputChanged(${idx})">
+        </td>
+        <td class="num">
+          <div id="ap-profit-${idx}" style="font-weight:700;font-size:12px;${profitClass}">
+            ${profitText}
+          </div>
+        </td>
+        <td class="text-center">
+          <input type="checkbox" id="ap-active-${idx}" ${p.is_active ? 'checked' : ''} style="transform:scale(1.2);cursor:pointer">
+        </td>
+        <td class="text-center">
+          <button type="button" class="btn btn-sm btn-g" id="ap-btn-save-${idx}" onclick="saveSingleAgentPrice(${idx})" title="Simpan baris ini" style="padding:5px 8px">
+            <i class="bi bi-check-lg"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function onPriceInputChanged(idx) {
+  const sellEl = document.getElementById(`ap-sell-${idx}`);
+  const buyEl = document.getElementById(`ap-buy-${idx}`);
+  if (!sellEl || !buyEl) return;
+
+  const sellVal = Number(sellEl.value || 0);
+  const buyVal = Number(buyEl.value || 0);
+  const profit = sellVal - buyVal;
+  const profitEl = document.getElementById(`ap-profit-${idx}`);
+  if (profitEl) {
+    profitEl.style.color = profit > 0 ? '#22c55e' : (profit === 0 ? 'var(--muted)' : '#ef4444');
+    profitEl.innerText = profit > 0 ? `+Rp ${profit.toLocaleString('id-ID')}` : (profit === 0 ? 'Rp 0' : `-Rp ${Math.abs(profit).toLocaleString('id-ID')}`);
+  }
+}
+
+function applyQuickDiscount() {
+  const mode = document.getElementById('ap-quick-discount').value;
+  if (!currentPrices || currentPrices.length === 0) return;
+
+  currentPrices.forEach((_, idx) => {
+    const sellEl = document.getElementById(`ap-sell-${idx}`);
+    const buyEl = document.getElementById(`ap-buy-${idx}`);
+    if (!sellEl || !buyEl) return;
+
+    const sellPrice = Number(sellEl.value || 0);
+    let newBuy = sellPrice;
+
+    if (mode === '10') {
+      newBuy = Math.round((sellPrice * 0.90) / 100) * 100;
+    } else if (mode === '15') {
+      newBuy = Math.round((sellPrice * 0.85) / 100) * 100;
+    } else if (mode === '20') {
+      newBuy = Math.round((sellPrice * 0.80) / 100) * 100;
+    } else if (mode === 'fixed-500') {
+      newBuy = Math.max(0, sellPrice - 500);
+    } else if (mode === 'fixed-1000') {
+      newBuy = Math.max(0, sellPrice - 1000);
+    }
+
+    buyEl.value = Math.max(0, newBuy);
+    onPriceInputChanged(idx);
+  });
+
+  const msgEl = document.getElementById('ap-status-msg');
+  msgEl.style.color = '#38bdf8';
+  msgEl.innerText = 'Diskon diterapkan ke form. Klik "Simpan Semua" untuk menerapkan permanen.';
+}
+
+function saveSingleAgentPrice(idx) {
+  if (!currentAgent || !currentPrices[idx]) return;
+  const p = currentPrices[idx];
+  const sellVal = Number(document.getElementById(`ap-sell-${idx}`).value || 0);
+  const buyVal = Number(document.getElementById(`ap-buy-${idx}`).value || 0);
+  const isActive = document.getElementById(`ap-active-${idx}`).checked ? 1 : 0;
+  const btn = document.getElementById(`ap-btn-save-${idx}`);
+
+  btn.disabled = true;
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = `<i class="bi bi-hourglass-split"></i>`;
+
+  const payload = {
+    router_id: p.router_id || null,
+    profile_name: p.profile_name,
+    validity: p.validity || '',
+    sell_price: sellVal,
+    buy_price: buyVal,
+    is_active: isActive
+  };
+
+  fetch(`/admin/api/agents/${currentAgent.id}/prices`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(r => r.json())
+    .then(res => {
+      btn.disabled = false;
+      if (res.success) {
+        btn.innerHTML = `<i class="bi bi-check-circle-fill" style="color:#22c55e"></i>`;
+        setTimeout(() => { btn.innerHTML = originalHtml; }, 1500);
+        loadAgentPrices(currentAgent.id);
+      } else {
+        alert('Gagal menyimpan: ' + (res.error || 'Terjadi kesalahan'));
+        btn.innerHTML = originalHtml;
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+      alert('Gagal menyimpan: ' + err.message);
+    });
+}
+
+function saveAllAgentPrices() {
+  if (!currentAgent) return;
+  const btnAll = document.getElementById('ap-btn-save-all');
+  const msgEl = document.getElementById('ap-status-msg');
+  const billingFee = Number(document.getElementById('ap-billing-fee').value || 0);
+
+  const items = [];
+  (currentPrices || []).forEach((p, idx) => {
+    const sellEl = document.getElementById(`ap-sell-${idx}`);
+    const buyEl = document.getElementById(`ap-buy-${idx}`);
+    const activeEl = document.getElementById(`ap-active-${idx}`);
+    if (sellEl && buyEl) {
+      items.push({
+        router_id: p.router_id || null,
+        profile_name: p.profile_name,
+        validity: p.validity || '',
+        sell_price: Number(sellEl.value || 0),
+        buy_price: Number(buyEl.value || 0),
+        is_active: activeEl && activeEl.checked ? 1 : 0
+      });
+    }
+  });
+
+  btnAll.disabled = true;
+  btnAll.innerHTML = `<i class="bi bi-arrow-repeat spin"></i> Menyimpan...`;
+  msgEl.style.color = 'var(--muted)';
+  msgEl.innerText = 'Menyimpan semua perubahan...';
+
+  fetch(`/admin/api/agents/${currentAgent.id}/prices/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ billing_fee: billingFee, items })
+  })
+    .then(r => r.json())
+    .then(res => {
+      btnAll.disabled = false;
+      btnAll.innerHTML = `<i class="bi bi-check2-circle"></i> Simpan Semua Pengaturan`;
+      if (res.success) {
+        msgEl.style.color = '#22c55e';
+        msgEl.innerText = '✓ Pengaturan harga dan fee tagihan berhasil disimpan.';
+        setTimeout(() => {
+          location.reload();
+        }, 800);
+      } else {
+        msgEl.style.color = '#ef4444';
+        msgEl.innerText = 'Gagal: ' + (res.error || 'Terjadi kesalahan');
+      }
+    })
+    .catch(err => {
+      btnAll.disabled = false;
+      btnAll.innerHTML = `<i class="bi bi-check2-circle"></i> Simpan Semua Pengaturan`;
+      msgEl.style.color = '#ef4444';
+      msgEl.innerText = 'Error: ' + err.message;
+    });
+}
+
+function resetToMasterPrices() {
+  if (!currentAgent) return;
+  if (!confirm(`Kembalikan semua harga voucher hotspot untuk agent "${currentAgent.name}" ke harga master default?`)) {
+    return;
+  }
+
+  const msgEl = document.getElementById('ap-status-msg');
+  msgEl.style.color = 'var(--muted)';
+  msgEl.innerText = 'Mereset ke harga master...';
+
+  fetch(`/admin/api/agents/${currentAgent.id}/prices/reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        msgEl.style.color = '#22c55e';
+        msgEl.innerText = '✓ Berhasil di-reset ke master paket.';
+        loadAgentPrices(currentAgent.id);
+      } else {
+        msgEl.style.color = '#ef4444';
+        msgEl.innerText = 'Gagal reset: ' + (res.error || 'Terjadi kesalahan');
+      }
+    })
+    .catch(err => {
+      msgEl.style.color = '#ef4444';
+      msgEl.innerText = 'Error reset: ' + err.message;
+    });
+}
 </script>
 </body>
 </html>
