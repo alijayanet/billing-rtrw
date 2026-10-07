@@ -270,10 +270,13 @@ async function sendPaymentSuccessWA(customerPhone, customerName, periodText, amo
       periodYear = p[1];
     }
 
+    const custId = extraOpts.customerId || extraOpts.customer_id;
+
     const formattedMsg = whatsappService.formatPaymentSuccessMessage({
+      customerId: custId || null,
       customerName: customerName || 'Pelanggan',
       invoiceId: extraOpts.invoiceId || '',
-      customerUsername: extraOpts.username || extraOpts.customerId || '-',
+      customerUsername: extraOpts.username || custId || '-',
       packageName: extraOpts.packageName || '-',
       periodMonth: periodMonth || periodText,
       periodYear: periodYear || '',
@@ -283,7 +286,8 @@ async function sendPaymentSuccessWA(customerPhone, customerName, periodText, amo
       companyName: company(),
       companyPhone: settings.company_phone || '',
       portalUrl,
-      customTemplate: template
+      customTemplate: template,
+      remainingUnpaidInvoices: extraOpts.remainingUnpaidInvoices || null
     });
 
     return await trySendWhatsappPayment(customerPhone, formattedMsg);
@@ -1147,6 +1151,7 @@ router.post('/collector-payments/:id/approve', requireAdminSession, express.urle
         Number(inv.amount || 0).toLocaleString('id-ID'),
         collectorLabel,
         {
+          customerId: customer.id,
           invoiceId: inv.id,
           username: customer.pppoe_username || customer.id,
           packageName: pkg?.name || customer.package_name || '-',
@@ -2451,6 +2456,7 @@ router.post('/customers/:id/billing/pay', requireAdminSession, express.urlencode
           Number(total || 0).toLocaleString('id-ID'),
           paidBy,
           {
+            customerId: customer.id,
             invoiceId: '',
             username: customer.pppoe_username || customer.id,
             packageName: pkg?.name || customer.package_name || '-',
@@ -2479,6 +2485,7 @@ router.post('/customers/:id/billing/pay', requireAdminSession, express.urlencode
             amount.toLocaleString('id-ID'),
             paidBy,
             {
+              customerId: customer.id,
               invoiceId: inv ? inv.id : '',
               username: customer.pppoe_username || customer.id,
               packageName: pkg?.name || customer.package_name || '-',
@@ -2820,7 +2827,7 @@ router.post('/billing/pay-bulk', requireAdminSession, express.urlencoded({ exten
       if (customer && customer.phone) {
         const total = paidInvoices.reduce((a, b) => a + Number(b.amount || 0), 0);
         const periods = paidInvoices
-          .map(x => `${x.period_month}/${x.period_year}`)
+          .map(x => whatsappService.formatIndonesianPeriod(x.period_month, x.period_year))
           .slice(0, 10)
           .join(', ') + (paidInvoices.length > 10 ? `, +${paidInvoices.length - 10} lainnya` : '');
         const pkg = customer.package_id ? customerSvc.getPackageById(customer.package_id) : null;
@@ -2831,6 +2838,7 @@ router.post('/billing/pay-bulk', requireAdminSession, express.urlencoded({ exten
           Number(total || 0).toLocaleString('id-ID'),
           paidBy,
           {
+            customerId: customer.id,
             invoiceId: paidInvoices.map(x => x.id).join(', '),
             username: customer.pppoe_username || customer.id,
             packageName: pkg?.name || customer.package_name || '-',
@@ -2893,6 +2901,7 @@ router.post('/billing/:id/pay', requireAdminSession, express.urlencoded({ extend
         Number(inv.amount || 0).toLocaleString('id-ID'),
         paidBy,
         {
+          customerId: customer.id,
           invoiceId: inv.id,
           username: customer.pppoe_username || customer.id,
           packageName: pkg?.name || customer.package_name || '-',
@@ -3019,12 +3028,12 @@ router.post('/billing/:id/whatsapp', requireAdminSession, async (req, res) => {
     }
 
     const unpaidInvoices = billingSvc.getUnpaidInvoicesByCustomerId(customer.id);
-    const totalTagihan = (unpaidInvoices && unpaidInvoices.length > 0)
-      ? unpaidInvoices.reduce((sum, i) => sum + (Number(i.amount) || 0), 0)
-      : Number(inv.amount || 0);
-    const rincianBulan = (unpaidInvoices && unpaidInvoices.length > 0)
-      ? unpaidInvoices.map(i => `${i.period_month}/${i.period_year}`).join(', ')
-      : `${inv.period_month}/${inv.period_year}`;
+    const summary = whatsappService.formatUnpaidInvoicesSummary(
+      (unpaidInvoices && unpaidInvoices.length > 0) ? unpaidInvoices : [inv]
+    );
+    const totalTagihan = summary.totalAmount > 0 ? summary.totalAmount : Number(inv.amount || 0);
+    const rincianBulan = summary.periodText;
+    const rincianDetail = summary.isMultiple ? `📋 *Rincian Tunggakan:*\n${summary.breakdownText}\n` : '';
 
     let qrisAmountUnique = Number(inv.qris_amount_unique || 0) || 0;
     let qrisCode = Number(inv.qris_unique_code || 0) || 0;
@@ -3234,12 +3243,16 @@ router.post('/billing/:id/whatsapp', requireAdminSession, async (req, res) => {
     const finalNominal = qrisAmountUnique > 0 ? qrisAmountUnique : totalTagihan;
     const finalNominalStr = Number(finalNominal).toLocaleString('id-ID');
 
-    const qrisJpgLink = `${baseUrl}/customer/qris/static.jpg?amount=${encodeURIComponent(String(finalNominal))}`;
+    const displayPeriode = summary.isMultiple
+      ? `${rincianBulan}\n\n${rincianDetail}`.trim()
+      : rincianBulan;
+
     const qrisJpgCaption = isQrisCase
       ? templateQris
           .replace(/{{nama}}/gi, customer.name || 'Pelanggan')
-          .replace(/{{periode}}/gi, rincianBulan)
-          .replace(/{{rincian}}/gi, rincianBulan)
+          .replace(/{{rincian_detail}}/gi, rincianDetail)
+          .replace(/{{periode}}/gi, displayPeriode)
+          .replace(/{{rincian}}/gi, displayPeriode)
           .replace(/{{paket}}/gi, inv.package_name || customer.package_name || '-')
           .replace(/{{qris_nominal}}/gi, finalNominalStr)
           .replace(/{{tagihan}}/gi, finalNominalStr)
@@ -3250,8 +3263,9 @@ router.post('/billing/:id/whatsapp', requireAdminSession, async (req, res) => {
     const formattedMsg = isQrisCase
       ? templateQris
           .replace(/{{nama}}/gi, customer.name || 'Pelanggan')
-          .replace(/{{periode}}/gi, rincianBulan)
-          .replace(/{{rincian}}/gi, rincianBulan)
+          .replace(/{{rincian_detail}}/gi, rincianDetail)
+          .replace(/{{periode}}/gi, displayPeriode)
+          .replace(/{{rincian}}/gi, displayPeriode)
           .replace(/{{paket}}/gi, inv.package_name || customer.package_name || '-')
           .replace(/{{qris_nominal}}/gi, finalNominalStr)
           .replace(/{{tagihan}}/gi, finalNominalStr)
@@ -3261,8 +3275,9 @@ router.post('/billing/:id/whatsapp', requireAdminSession, async (req, res) => {
           .replace(/{{nama}}/gi, customer.name || 'Pelanggan')
           .replace(/{{tagihan}}/gi, finalNominalStr)
           .replace(/{{qris_nominal}}/gi, finalNominalStr)
-          .replace(/{{periode}}/gi, rincianBulan)
-          .replace(/{{rincian}}/gi, rincianBulan)
+          .replace(/{{rincian_detail}}/gi, rincianDetail)
+          .replace(/{{periode}}/gi, displayPeriode)
+          .replace(/{{rincian}}/gi, displayPeriode)
           .replace(/{{paket}}/gi, inv.package_name || customer.package_name || '-')
           .replace(/{{link}}/gi, loginLink);
 

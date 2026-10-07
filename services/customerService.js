@@ -594,8 +594,13 @@ async function suspendCustomer(id) {
 
           // Get unpaid invoices & calculate total amount
           const billingSvc = require('./billingService');
+          const { formatUnpaidInvoicesSummary } = require('./whatsappService');
           const unpaidInvoices = billingSvc.getUnpaidInvoicesByCustomerId(customer.id);
-          const totalTagihan = unpaidInvoices.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0);
+          const summary = formatUnpaidInvoicesSummary(unpaidInvoices);
+          const totalTagihan = summary.totalAmount;
+          const displayPeriode = summary.isMultiple
+            ? `${summary.periodText}\n\n📋 *Rincian Tunggakan:*\n${summary.breakdownText}`
+            : summary.periodText;
 
           // Generate Login Link
           const explicitBaseUrl = String(getSetting('public_base_url', '') || '').trim();
@@ -609,11 +614,23 @@ async function suspendCustomer(id) {
           }
           const loginLink = `${baseUrl}/customer/login`;
 
-          const formattedMsg = template
+          let formattedMsg = template
             .replace(/{{nama}}/gi, customer.name || 'Pelanggan')
             .replace(/{{paket}}/gi, customer.package_name || '-')
-            .replace(/{{tagihan}}/gi, totalTagihan.toLocaleString('id-ID'))
+            .replace(/{{tagihan}}/gi, summary.totalAmountStr || totalTagihan.toLocaleString('id-ID'))
+            .replace(/{{rincian_detail}}/gi, summary.isMultiple ? `📋 *Rincian Tunggakan:*\n${summary.breakdownText}` : '')
+            .replace(/{{rincian}}/gi, displayPeriode || '-')
+            .replace(/{{periode}}/gi, displayPeriode || '-')
             .replace(/{{link}}/gi, loginLink);
+
+          if (summary.isMultiple && !template.includes('{{periode}}') && !template.includes('{{rincian}}')) {
+            const extraInfo = `\n\n📌 *Periode Tunggakan:* ${summary.periodText}\n📋 *Rincian Tunggakan:*\n${summary.breakdownText}`;
+            if (formattedMsg.includes('Silakan lakukan pembayaran')) {
+              formattedMsg = formattedMsg.replace('Silakan lakukan pembayaran', `${extraInfo}\n\nSilakan lakukan pembayaran`);
+            } else {
+              formattedMsg += extraInfo;
+            }
+          }
 
           await sendWA(customer.phone, formattedMsg);
         }

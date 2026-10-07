@@ -11,6 +11,7 @@ const usageSvc = require('./usageService');
 const { getSetting } = require('../config/settingsManager');
 const db = require('../config/database');
 const qrisUtil = require('../utils/qrisUtil');
+const { formatUnpaidInvoicesSummary } = require('./whatsappService');
 
 // Helper: Random delay generator untuk smart rate limiting
 function getRandomDelay(baseDelayMs, varianceMs = 3000) {
@@ -271,8 +272,12 @@ function startCronJobs() {
           await new Promise(r => setTimeout(r, randomDelay));
 
           const unpaidInvoices = billingSvc.getUnpaidInvoicesByCustomerId(c.id);
-          const totalTagihan = unpaidInvoices.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0);
-          const rincianBulan = unpaidInvoices.map(inv => `${inv.period_month}/${inv.period_year}`).join(', ');
+          const summary = formatUnpaidInvoicesSummary(unpaidInvoices);
+          const totalTagihan = summary.totalAmount;
+          const rincianBulan = summary.periodText;
+          const displayPeriode = summary.isMultiple
+            ? `${summary.periodText}\n\n📋 *Rincian Tunggakan:*\n${summary.breakdownText}`
+            : summary.periodText;
 
           // Process Dynamic QRIS if enabled & available
           let qrisImageBuffer = null;
@@ -347,7 +352,9 @@ function startCronJobs() {
           let formattedMsg = template
             .replace(/{{nama}}/gi, c.name || 'Pelanggan')
             .replace(/{{tagihan}}/gi, finalTagihanStr)
-            .replace(/{{rincian}}/gi, rincianBulan || '-')
+            .replace(/{{rincian_detail}}/gi, summary.isMultiple ? `📋 *Rincian Tunggakan:*\n${summary.breakdownText}` : '')
+            .replace(/{{rincian}}/gi, displayPeriode || '-')
+            .replace(/{{periode}}/gi, displayPeriode || '-')
             .replace(/{{paket}}/gi, c.package_name || '-')
             .replace(/{{link}}/gi, loginLink);
 

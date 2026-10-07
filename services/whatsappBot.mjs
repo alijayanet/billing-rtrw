@@ -17,6 +17,7 @@ const billingSvc = require('./billingService.js');
 const mikrotikSvc = require('./mikrotikService.js');
 const customerSvc = require('./customerService.js');
 const agentSvc = require('./agentService.js');
+const { formatIndonesianPeriod, formatUnpaidInvoicesSummary } = require('./whatsappService.js');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
@@ -477,16 +478,36 @@ function formatBillingSummary(stats) {
 
 function formatCustomerInvoices(invoices, name) {
   const title = `🧾 *STATUS TAGIHAN*\n👤 *${name}*`;
-  if (!invoices || invoices.length === 0) return waWrap(title, "✅ Tidak ada tagihan. Terima kasih!");
+  if (!invoices || invoices.length === 0) return waWrap(title, "✅ Tidak ada data tagihan. Terima kasih!");
 
   const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
+  const unpaid = invoices.filter(inv => inv.status !== 'paid');
+
+  let summaryHeader = '';
+  if (unpaid.length > 0) {
+    const summary = formatUnpaidInvoicesSummary(unpaid);
+    if (summary.isMultiple) {
+      summaryHeader = `⚠️ *TOTAL TUNGGAKAN:* *Rp ${summary.totalAmountStr}*\n📌 *Tunggakan:* ${summary.periodText}\n\n`;
+    } else {
+      summaryHeader = `⚠️ *TOTAL BELUM BAYAR:* *Rp ${summary.totalAmountStr}*\n📌 *Periode:* ${summary.periodText}\n\n`;
+    }
+  } else {
+    summaryHeader = `🟢 *STATUS:* Semua tagihan sudah *LUNAS* ✅\n\n`;
+  }
+
   const list = invoices.map(inv => {
-    const status = inv.status === 'paid' ? '✅ LUNAS' : '❌ BELUM BAYAR';
-    return `📅 *Periode:* ${inv.period_month}/${inv.period_year}\n💰 *Total:* ${formatter.format(inv.amount)}\n📌 *Status:* ${status}\n🆔 *ID:* ${inv.id}`;
+    const isPaid = inv.status === 'paid';
+    const status = isPaid ? '✅ LUNAS' : '❌ BELUM BAYAR';
+    const periodStr = formatIndonesianPeriod(inv.period_month, inv.period_year);
+    return `📅 *Periode:* ${periodStr}\n💰 *Total:* ${formatter.format(Number(inv.amount || 0))}\n📌 *Status:* ${status}\n🆔 *No. Invoice:* #${inv.id}`;
   }).join('\n\n');
 
-  return waWrap(title, list + `\n\n💡 _Gunakan ID Tagihan saat konfirmasi pembayaran_`);
+  const footer = unpaid.length > 0
+    ? `\n\n💡 _Gunakan No. Invoice saat melakukan pembayaran._`
+    : `\n\nTerima kasih telah setia menggunakan layanan internet kami!`;
+
+  return waWrap(title, summaryHeader + list + footer);
 }
 
 function formatActiveMikrotik(pppoe, hotspot) {
@@ -1657,68 +1678,87 @@ export async function processIncomingCommand({
 
             const customer = customerSvc.getCustomerById(targetInv.customer_id);
             const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
-            const customerName = String(targetInv.customer_name || customer?.name || targetInv.customer_name || '-');
+            const customerName = String(targetInv.customer_name || customer?.name || '-');
             const notifyTag = customer?.genieacs_tag || customer?.pppoe_username || customer?.phone || targetInv.customer_phone || targetInv.genieacs_tag || '';
-            logger.info(`[WA lunas] Detail: customerName="${customerName}", notifyTag="${notifyTag}", status="${customer?.status}"`);
+            const custIdDisplay = customer?.id || targetInv.customer_id || '-';
+            const packageName = customer?.package_name || targetInv.package_name || '-';
+            const periodStr = formatIndonesianPeriod(targetInv.period_month, targetInv.period_year);
+            const totalBayarStr = formatter.format(Number(targetInv.amount || 0));
 
-            if (customer && customer.status === 'suspended') {
-              const freshCustomer = customerSvc.getAllCustomers().find(c => c.id === targetInv.customer_id);
-              const unpaidCount = freshCustomer && Number.isFinite(Number(freshCustomer.unpaid_count)) ? Number(freshCustomer.unpaid_count) : 1;
-              logger.info(`[WA lunas] Customer status suspended, sisa unpaidCount: ${unpaidCount}`);
-              if (unpaidCount === 0) {
+            const tz = getSetting('timezone', 'Asia/Jakarta');
+            let tzSuffix = 'WIB';
+            if (/Makassar|Ujung_Pandang|Bali|Pontianak|Banjarmasin|Manado|Mataram|Kupang/i.test(tz)) tzSuffix = 'WITA';
+            else if (/Jayapura|Ambon|Papua|Maluku/i.test(tz)) tzSuffix = 'WIT';
+
+            const nowTimeStr = `${formatDateLocal(new Date())} ${tzSuffix}`;
+
+            // Ambil seluruh sisa invoice yang belum dibayar untuk pelanggan ini
+            const remainingUnpaid = (billingSvc.getUnpaidInvoicesByCustomerId(targetInv.customer_id) || [])
+              .filter(inv => Number(inv.id) !== Number(targetInvId));
+            const remainingSummary = formatUnpaidInvoicesSummary(remainingUnpaid);
+
+            const isSuspended = customer && customer.status === 'suspended';
+            let serviceStatusText = '';
+            let adminReplyNote = '';
+
+            if (isSuspended) {
+              if (remainingSummary.count === 0) {
                 logger.info(`[WA lunas] Mengaktifkan customer ID ${targetInv.customer_id}...`);
                 await customerSvc.activateCustomer(targetInv.customer_id);
-                logger.info(`[WA lunas] Customer berhasil diaktifkan. Mengirim notifikasi lunas...`);
-                const ok = await notifyCustomer(
-                  currentSockInstance,
-                  currentLidStore,
-                  notifyTag,
-                  waWrap(
-                    '✅ *PEMBAYARAN BERHASIL*',
-                    `Invoice *#${targetInvId}* sudah *LUNAS*.\n` +
-                      `👤 *Nama:* ${customerName}\n` +
-                      `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
-                      `💰 *Total:* ${formatter.format(Number(targetInv.amount || 0))}\n\n` +
-                      `🟢 Layanan internet Anda sudah aktif kembali.\n\n` +
-                      `Terima kasih.`
-                  )
-                );
-                await reply(`✅ Invoice *#${targetInvId}* LUNAS. Pelanggan *${customerName}* otomatis diaktifkan kembali.\n📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`);
+                serviceStatusText = `🟢 *Status Layanan:* AKTIF KEMBALI\n_Layanan internet Anda telah otomatis diaktifkan kembali._\n\n`;
+                adminReplyNote = `Pelanggan *${customerName}* otomatis diaktifkan kembali.`;
               } else {
-                logger.info(`[WA lunas] Customer masih memiliki ${unpaidCount} invoice unpaid, notif dikirim...`);
-                const ok = await notifyCustomer(
-                  currentSockInstance,
-                  currentLidStore,
-                  notifyTag,
-                  waWrap(
-                    '✅ *PEMBAYARAN BERHASIL*',
-                    `Invoice *#${targetInvId}* sudah *LUNAS*.\n` +
-                      `👤 *Nama:* ${customerName}\n` +
-                      `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
-                      `💰 *Total:* ${formatter.format(Number(targetInv.amount || 0))}\n\n` +
-                      `⚠️ Masih ada ${unpaidCount} tagihan lain yang belum dibayar.\n\n` +
-                      `Terima kasih.`
-                  )
-                );
-                await reply(`✅ Invoice *#${targetInvId}* LUNAS. (Masih ada ${unpaidCount} tagihan lain, isolir tetap aktif)\n📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`);
+                serviceStatusText = `⚠️ *Status Layanan:* TERISOLIR (Menunggu pelunasan sisa tunggakan)\n\n`;
+                adminReplyNote = `(Masih ada ${remainingSummary.count} tunggakan lain, isolir tetap aktif)`;
               }
             } else {
-              logger.info(`[WA lunas] Customer tidak suspended atau null, mengirim notifikasi lunas...`);
-              const ok = await notifyCustomer(
-                currentSockInstance,
-                currentLidStore,
-                notifyTag,
-                waWrap(
-                  '✅ *PEMBAYARAN BERHASIL*',
-                  `Invoice *#${targetInvId}* sudah *LUNAS*.\n` +
-                    `👤 *Nama:* ${customerName}\n` +
-                    `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
-                    `💰 *Total:* ${formatter.format(Number(targetInv.amount || 0))}\n\n` +
-                    `Terima kasih.`
-                )
-              );
-              await reply(`✅ Invoice *#${targetInvId}* (a.n ${customerName}) berhasil ditandai LUNAS.\n📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`);
+              if (remainingSummary.count === 0) {
+                serviceStatusText = `🟢 *Status Layanan:* AKTIF\n_Semua tagihan internet Anda telah lunas. Terima kasih atas kerja samanya._\n\n`;
+              } else {
+                serviceStatusText = `🟢 *Status Layanan:* AKTIF\n\n`;
+              }
             }
+
+            let tunggakanBlock = '';
+            if (remainingSummary.count > 0) {
+              tunggakanBlock = `⚠️ *SISA TUNGGAKAN LAIN:*\n` +
+                `Masih terdapat *${remainingSummary.count} tagihan* yang belum dibayar:\n` +
+                `${remainingSummary.breakdownText}\n` +
+                `💰 *Total Sisa Tunggakan:* *Rp ${remainingSummary.totalAmountStr}*\n` +
+                `_Mohon segera diselesaikan agar layanan tidak terisolir._\n\n`;
+            }
+
+            const receiptMsg = waWrap(
+              '✅ *PEMBAYARAN BERHASIL*',
+              `Terima kasih, pembayaran tagihan Anda telah kami terima:\n\n` +
+              `🧾 *No. Invoice:* #${targetInvId}\n` +
+              `👤 *Nama:* ${customerName}\n` +
+              `🆔 *ID Pelanggan:* #${custIdDisplay}\n` +
+              `📦 *Paket:* ${packageName}\n` +
+              `📅 *Periode:* ${periodStr}\n` +
+              `💰 *Total Bayar:* ${totalBayarStr}\n` +
+              `💳 *Metode:* WhatsApp Admin\n` +
+              `🕒 *Waktu:* ${nowTimeStr}\n` +
+              `📌 *Status:* *LUNAS* ✅\n\n` +
+              tunggakanBlock +
+              serviceStatusText +
+              `Terima kasih.`
+            );
+
+            logger.info(`[WA lunas] Mengirim notifikasi lunas ke ${notifyTag}...`);
+            const ok = await notifyCustomer(
+              currentSockInstance,
+              currentLidStore,
+              notifyTag,
+              receiptMsg
+            );
+
+            await reply(
+              `✅ Invoice *#${targetInvId}* (Periode: *${periodStr}* a.n *${customerName}*) berhasil ditandai LUNAS.\n` +
+              (adminReplyNote ? `${adminReplyNote}\n` : '') +
+              (remainingSummary.count > 0 ? `⚠️ Sisa tunggakan: ${remainingSummary.count} bulan (Rp ${remainingSummary.totalAmountStr})\n` : '') +
+              `📩 Notif pelanggan: ${ok ? 'terkirim' : 'gagal'}`
+            );
           } catch (e) {
             logger.error('[WA lunas] Gagal update status: ' + e.message);
             await reply('❌ Gagal update status: ' + e.message);
@@ -1981,13 +2021,14 @@ export async function processIncomingCommand({
             const remainingBalance = Number(result?.agent?.balance ?? result?.tx?.after ?? (currentBalance - cost));
 
             const { sep } = waBrand();
+            const periodStr = formatIndonesianPeriod(targetInv.period_month, targetInv.period_year);
             const receiptMsg =
               `✅ *PEMBAYARAN TAGIHAN BERHASIL*\n` +
               `${sep}\n` +
               `👤 Pelanggan: *${customerName}* (ID: ${targetInv.customer_id})\n` +
-              `🧾 No Invoice: *#${targetInv.id}*\n` +
+              `🧾 No. Invoice: *#${targetInv.id}*\n` +
               `📦 Paket: *${targetInv.package_name || customer?.package_name || '-'}*\n` +
-              `📅 Periode: *${targetInv.period_month}/${targetInv.period_year}*\n` +
+              `📅 Periode: *${periodStr}*\n` +
               `💵 Total Tagihan: Rp ${invoiceAmount.toLocaleString('id-ID')}\n` +
               `🎁 Komisi Agent: Rp ${fee.toLocaleString('id-ID')}\n` +
               `${sep}\n` +
@@ -2002,17 +2043,42 @@ export async function processIncomingCommand({
             const notifyTag = customer?.genieacs_tag || customer?.pppoe_username || customer?.phone || targetInv.customer_phone || '';
             if (notifyTag) {
               const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+              const tz = getSetting('timezone', 'Asia/Jakarta');
+              let tzSuffix = 'WIB';
+              if (/Makassar|Ujung_Pandang|Bali|Pontianak|Banjarmasin|Manado|Mataram|Kupang/i.test(tz)) tzSuffix = 'WITA';
+              else if (/Jayapura|Ambon|Papua|Maluku/i.test(tz)) tzSuffix = 'WIT';
+              const nowTimeStr = `${formatDateLocal(new Date())} ${tzSuffix}`;
+
+              const remainingUnpaid = (billingSvc.getUnpaidInvoicesByCustomerId(targetInv.customer_id) || [])
+                .filter(inv => Number(inv.id) !== Number(targetInv.id));
+              const remainingSummary = formatUnpaidInvoicesSummary(remainingUnpaid);
+
+              let tunggakanBlock = '';
+              if (remainingSummary.count > 0) {
+                tunggakanBlock = `⚠️ *SISA TUNGGAKAN LAIN:*\n` +
+                  `Masih terdapat *${remainingSummary.count} tagihan* yang belum dibayar:\n` +
+                  `${remainingSummary.breakdownText}\n` +
+                  `💰 *Total Sisa Tunggakan:* *Rp ${remainingSummary.totalAmountStr}*\n` +
+                  `_Mohon segera diselesaikan agar layanan tidak terisolir._\n\n`;
+              }
+
               notifyCustomer(
                 currentSockInstance,
                 currentLidStore,
                 notifyTag,
                 waWrap(
                   '✅ *PEMBAYARAN BERHASIL*',
-                  `Tagihan internet Anda telah *LUNAS* dibayarkan via Agent *${agent.name}*.\n\n` +
-                  `🧾 *No Invoice:* #${targetInv.id}\n` +
+                  `Tagihan internet Anda telah *LUNAS* dibayarkan via Agen *${agent.name}*.\n\n` +
+                  `🧾 *No. Invoice:* #${targetInv.id}\n` +
                   `👤 *Nama:* ${customerName}\n` +
-                  `📅 *Periode:* ${targetInv.period_month}/${targetInv.period_year}\n` +
-                  `💰 *Total:* ${formatter.format(invoiceAmount)}\n\n` +
+                  `🆔 *ID Pelanggan:* #${customer?.id || targetInv.customer_id || '-'}\n` +
+                  `📦 *Paket:* ${targetInv.package_name || customer?.package_name || '-'}\n` +
+                  `📅 *Periode:* ${periodStr}\n` +
+                  `💰 *Total Bayar:* ${formatter.format(invoiceAmount)}\n` +
+                  `💳 *Metode:* Agen / Kasir (${agent.name})\n` +
+                  `🕒 *Waktu:* ${nowTimeStr}\n` +
+                  `📌 *Status:* *LUNAS* ✅\n\n` +
+                  tunggakanBlock +
                   `🟢 Layanan internet Anda aktif.\n\n` +
                   `Terima kasih.`
                 )
