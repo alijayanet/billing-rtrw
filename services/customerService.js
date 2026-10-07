@@ -294,44 +294,12 @@ async function deleteCustomer(id) {
     }
   }
   
-  // Remove PPPoE secret if connection type is pppoe and username exists
-  if (customer && customer.connection_type === 'pppoe' && customer.pppoe_username && customer.router_id) {
-    try {
-      console.log(`[DELETE] Attempting to remove PPPoE secret: ${customer.pppoe_username} from router ${customer.router_id}`);
-      
-      // Get PPPoE secrets to find the ID
-      const secrets = await mikrotikSvc.getPppoeSecrets(customer.router_id);
-      console.log(`[DELETE] Found ${secrets.length} PPPoE secrets in MikroTik`);
-      
-      // Try to find by exact name match
-      let secret = secrets.find(s => s.name === customer.pppoe_username);
-      
-      // If not found, try case-insensitive match
-      if (!secret) {
-        const username = String(customer.pppoe_username || '').toLowerCase();
-        secret = secrets.find(s => String(s.name || '').toLowerCase() === username);
-      }
-      
-      if (secret) {
-        // Check both .id and id fields
-        const secretId = secret['.id'] || secret.id;
-        console.log(`[DELETE] Found secret with ID: ${secretId}, name: ${secret.name}`);
-        
-        if (secretId) {
-          await mikrotikSvc.deletePppoeSecret(secretId, customer.router_id);
-          console.log(`[DELETE] Successfully removed PPPoE secret for ${customer.pppoe_username} from MikroTik`);
-        } else {
-          console.warn(`[DELETE] Secret found but no ID available for ${customer.pppoe_username}`);
-        }
-      } else {
-        console.warn(`[DELETE] PPPoE secret for ${customer.pppoe_username} not found in MikroTik`);
-        console.log(`[DELETE] Available usernames: ${secrets.map(s => s.name).join(', ')}`);
-      }
-    } catch (e) {
-      console.error('[DELETE] Failed to remove PPPoE secret from MikroTik during customer deletion:', e);
-    }
+  // CATATAN: Sesuai permintaan, akun/secret PPPoE di MikroTik TIDAK dihapus saat pelanggan dihapus
+  // agar data user PPPoE di MikroTik tetap aman dan tidak terhapus.
+  if (customer && customer.connection_type === 'pppoe' && customer.pppoe_username) {
+    logger.info(`[deleteCustomer] Pelanggan "${customer.name}" dihapus dari billing. Akun PPPoE "${customer.pppoe_username}" di MikroTik dipertahankan.`);
   }
-  
+
   // Remove Hotspot user if connection type is hotspot and username exists
   if (customer && customer.connection_type === 'hotspot' && customer.hotspot_username && customer.router_id) {
     try {
@@ -350,6 +318,22 @@ async function deleteCustomer(id) {
   }
   
   return db.prepare('DELETE FROM customers WHERE id=?').run(id);
+}
+
+async function bulkDeleteCustomers(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return 0;
+  let deleted = 0;
+  for (const id of ids) {
+    const numId = Number(id);
+    if (!Number.isFinite(numId) || numId <= 0) continue;
+    try {
+      await deleteCustomer(numId);
+      deleted++;
+    } catch (e) {
+      logger.error(`[bulkDeleteCustomers] Gagal menghapus pelanggan ${numId}: ${e.message}`);
+    }
+  }
+  return deleted;
 }
 
 function getCustomerStats() {
@@ -829,7 +813,7 @@ async function topupCustomerBalance(customerId, amount, note = '', actorName = '
 }
 
 module.exports = {
-  getAllCustomers, getAllCustomerAreas, getCustomerById, createCustomer, updateCustomer, deleteCustomer, getCustomerStats,
+  getAllCustomers, getAllCustomerAreas, getCustomerById, createCustomer, updateCustomer, deleteCustomer, bulkDeleteCustomers, getCustomerStats,
   getAllPackages, getPackageById, createPackage, updatePackage, deletePackage,
   suspendCustomer, activateCustomer, findCustomerByAny, updateCustomerCablePath,
   resetPromoCyclesUsed, getEffectiveRouterId, topupCustomerBalance

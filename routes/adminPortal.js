@@ -2146,6 +2146,23 @@ router.post('/customers/:id/update', requireAdminSession, express.urlencoded({ e
   res.redirect('/admin/customers');
 });
 
+router.post('/customers/delete-bulk', requireAdminSession, express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const { customer_ids } = req.body;
+    const ids = Array.isArray(customer_ids) ? customer_ids : [customer_ids];
+    const clean = ids
+      .map(x => Number(x))
+      .filter(n => Number.isFinite(n) && n > 0);
+    if (!clean || clean.length === 0) throw new Error('Tidak ada pelanggan yang dipilih.');
+
+    const deleted = await customerSvc.bulkDeleteCustomers(clean);
+    req.session._msg = { type: 'success', text: `${deleted} data pelanggan berhasil dihapus (Akun PPPoE di MikroTik tetap aman).` };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal hapus massal: ' + e.message };
+  }
+  res.redirect('/admin/customers');
+});
+
 router.post('/customers/:id/delete', requireAdminSession, async (req, res) => {
   try {
     await customerSvc.deleteCustomer(req.params.id);

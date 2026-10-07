@@ -109,7 +109,13 @@
     <!-- Search & Add -->
     <div class="card">
       <div class="card-hd">
-        <h6><i class="bi bi-people"></i> <%= t('admin.customers.list', 'Daftar Pelanggan') %> (<%= customers.length %>)</h6>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h6 style="margin:0;"><i class="bi bi-people"></i> <%= t('admin.customers.list', 'Daftar Pelanggan') %> (<%= customers.length %>)</h6>
+          <span id="bulkCustCount" class="badge" style="display:none;background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3);font-size:11px;padding:4px 8px;">0 dipilih</span>
+          <button type="button" class="btn btn-d btn-sm" id="bulkCustDeleteBtn" style="display:none;" title="Hapus Pelanggan Terpilih">
+            <i class="bi bi-trash"></i> Hapus Terpilih
+          </button>
+        </div>
         <div style="display:flex;gap:8px">
           <button type="button" class="btn btn-g btn-sm" onclick="window.print()" title="Cetak Data Pelanggan"><i class="bi bi-printer"></i> Cetak</button>
           <a href="/admin/onu-stickers" class="btn btn-g btn-sm" title="Cetak Stiker Modem / ONU"><i class="bi bi-qr-code-scan"></i> Stiker ONU</a>
@@ -154,6 +160,7 @@
         <table class="dtbl">
           <thead>
             <tr>
+              <th style="width:36px;text-align:center;"><input type="checkbox" id="cust_all" title="Pilih Semua" style="width:16px;height:16px;cursor:pointer;"></th>
               <th>#</th>
               <th><%= t('admin.customers.table.name', 'Nama') %></th>
               <th><%= t('admin.customers.table.phone_tag', 'Telepon / Tag ONU') %></th>
@@ -167,10 +174,13 @@
           </thead>
           <tbody>
           <% if (customers.length === 0) { %>
-            <tr><td colspan="8" class="text-center text-muted" style="padding:32px"><%= t('admin.customers.empty', 'Belum ada pelanggan') %></td></tr>
+            <tr><td colspan="10" class="text-center text-muted" style="padding:32px"><%= t('admin.customers.empty', 'Belum ada pelanggan') %></td></tr>
           <% } %>
           <% customers.forEach((c, i) => { %>
             <tr>
+              <td style="text-align:center;">
+                <input type="checkbox" class="cust_sel" value="<%= c.id %>" data-name="<%= c.name %>" style="width:16px;height:16px;cursor:pointer;">
+              </td>
               <td class="text-muted"><%= i+1 %></td>
               <td class="fw6">
                 <a href="javascript:void(0)" onclick="viewCustDetail(<%= i %>)" style="color:var(--primary);text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer;" title="Klik untuk lihat detail pelanggan & MikroTik">
@@ -289,6 +299,7 @@
           </tbody>
         </table>
       </div>
+      <form id="bulkDeleteCustForm" method="POST" action="/admin/customers/delete-bulk" style="display:none"></form>
     </div>
   </div>
 </div>
@@ -1966,6 +1977,66 @@ async function loadMikrotikProfiles(routerId = '') {
 }
 loadRouterLists('add');
 loadRouterLists('edit');
+
+// ─── BULK DELETE CUSTOMERS ──────────────────────────────
+function getSelectedCustomers() {
+  const selected = [];
+  document.querySelectorAll('.cust_sel:checked').forEach(cb => {
+    selected.push({ id: cb.value, name: cb.dataset.name || '' });
+  });
+  return selected;
+}
+
+function updateBulkCustUi() {
+  const list = getSelectedCustomers();
+  const countEl = document.getElementById('bulkCustCount');
+  const delBtn = document.getElementById('bulkCustDeleteBtn');
+  if (countEl) {
+    countEl.textContent = `${list.length} dipilih`;
+    countEl.style.display = list.length > 0 ? 'inline-block' : 'none';
+  }
+  if (delBtn) {
+    delBtn.style.display = list.length > 0 ? 'inline-block' : 'none';
+  }
+  const allCb = document.getElementById('cust_all');
+  const allRows = document.querySelectorAll('.cust_sel');
+  if (allCb && allRows.length > 0) {
+    allCb.checked = list.length === allRows.length;
+    allCb.indeterminate = list.length > 0 && list.length < allRows.length;
+  }
+}
+
+document.addEventListener('change', function(e) {
+  if (e.target && e.target.id === 'cust_all') {
+    const checked = Boolean(e.target.checked);
+    document.querySelectorAll('.cust_sel').forEach(cb => { cb.checked = checked; });
+    updateBulkCustUi();
+    return;
+  }
+  if (e.target && e.target.classList && e.target.classList.contains('cust_sel')) {
+    updateBulkCustUi();
+  }
+});
+
+document.getElementById('bulkCustDeleteBtn')?.addEventListener('click', function() {
+  const selected = getSelectedCustomers();
+  if (selected.length === 0) return alert('Pilih minimal 1 pelanggan untuk dihapus.');
+  
+  const confirmMsg = `Yakin ingin menghapus ${selected.length} data pelanggan terpilih?\n\nCATATAN: Data user / secret PPPoE di MikroTik TIDAK akan dihapus (tetap aman).`;
+  if (!confirm(confirmMsg)) return;
+
+  const form = document.getElementById('bulkDeleteCustForm');
+  if (!form) return;
+  form.innerHTML = '';
+  selected.forEach(cust => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'customer_ids';
+    input.value = cust.id;
+    form.appendChild(input);
+  });
+  form.submit();
+});
 
 setTimeout(()=>document.querySelectorAll('.alert').forEach(a=>a.style.display='none'),4000);
 </script>
