@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.88"
+        android:scaleY="0.88"
+        android:translateX="6.48"
+        android:translateY="6.48">
+
+        <!-- Outer WiFi / Fiber Optic Arc (Layer 1) -->
+        <path
+            android:fillColor="#38BDF8"
+            android:pathData="M31.2,34.8 C44.5,23.8 63.5,23.8 76.8,34.8 C78.2,36 78.4,38.1 77.2,39.5 C76,40.9 73.9,41.1 72.5,39.9 C61.2,30.5 46.8,30.5 35.5,39.9 C34.1,41.1 32,40.9 30.8,39.5 C29.6,38.1 29.8,36 31.2,34.8 Z" />
+
+        <!-- Middle WiFi / Speed Arc (Layer 2) -->
+        <path
+            android:fillColor="#60A5FA"
+            android:pathData="M37.8,42.8 C47.5,34.8 60.5,34.8 70.2,42.8 C71.6,44 71.8,46.1 70.6,47.5 C69.4,48.9 67.3,49.1 65.9,47.9 C58.2,41.5 49.8,41.5 42.1,47.9 C40.7,49.1 38.6,48.9 37.4,47.5 C36.2,46.1 36.4,44 37.8,42.8 Z" />
+
+        <!-- Inner WiFi Arc (Layer 3) -->
+        <path
+            android:fillColor="#93C5FD"
+            android:pathData="M44.4,50.8 C50.2,46 57.8,46 63.6,50.8 C65,52 65.2,54.1 64,55.5 C62.8,56.9 60.7,57.1 59.3,55.9 C55.5,52.7 52.5,52.7 48.7,55.9 C47.3,57.1 45.2,56.9 44,55.5 C42.8,54.1 43,52 44.4,50.8 Z" />
+
+        <!-- Stylized ISP Hexagonal Shield / Base Plate -->
+        <path
+            android:fillColor="#0F172A"
+            android:pathData="M54,58 L68,66 L68,82 L54,90 L40,82 L40,66 Z" />
+        <path
+            android:fillColor="#1E293B"
+            android:pathData="M54,60 L66,67 L66,81 L54,88 L42,81 L42,67 Z" />
+
+        <!-- Modern 'A' Emblem in Center -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54,64 L62,83 L57.5,83 L55.8,79 L52.2,79 L50.5,83 L46,83 Z M54,69.5 L52.8,76 L55.2,76 Z" />
+
+        <!-- Glowing Network Core Dot / Gigabit Accent -->
+        <path
+            android:fillColor="#38BDF8"
+            android:pathData="M54,55m-3,0a3,3 0 1,0 6,0a3,3 0 1,0 -6,0" />
+    </group>
+</vector>

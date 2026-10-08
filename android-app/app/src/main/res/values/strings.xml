@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">billing-rtrw</string>
+    <string name="title_home">Beranda</string>
+    <string name="title_invoices">Tagihan</string>
+    <string name="title_vouchers">Voucher</string>
+    <string name="title_tickets">Bantuan</string>
+    <string name="title_profile">Profil</string>
+</resources>
