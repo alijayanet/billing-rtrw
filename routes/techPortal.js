@@ -775,17 +775,23 @@ router.get('/api/attendance/history', requireTechSession, (req, res) => {
 
 // Helpers for GenieACS Server DB access inside Technician Portal
 function getACSServers(id = null) {
-    if (genieacsApi.isBuiltinAcsEnabled()) {
-        const builtinServer = {
-            id: 'builtin',
-            name: 'Built-in ACS',
-            url: 'local',
-            status: 'active'
-        };
-        if (id && id !== 'all') {
-            return id === 'builtin' ? [builtinServer] : [];
-        }
-        return [builtinServer];
+    const builtinServer = genieacsApi.isBuiltinAcsEnabled() ? {
+        id: 'builtin',
+        name: 'Built-in ACS',
+        url: 'local',
+        location: 'Built-in TR-069 Server',
+        status: 'active',
+        device_count: (() => {
+            try {
+                return db.prepare('SELECT count(*) as count FROM acs_devices').get()?.count || 0;
+            } catch (_) {
+                return 0;
+            }
+        })()
+    } : null;
+
+    if (id === 'builtin') {
+        return builtinServer ? [builtinServer] : [];
     }
 
     const legacyACS = getLegacyACS();
@@ -809,7 +815,11 @@ function getACSServers(id = null) {
     }
     
     const rows = db.prepare(query).all(params);
-    return legacyServer ? [legacyServer, ...rows] : rows;
+    const allServers = [];
+    if (builtinServer) allServers.push(builtinServer);
+    if (legacyServer) allServers.push(legacyServer);
+    allServers.push(...rows);
+    return allServers;
 }
 
 function getLegacyACS() {

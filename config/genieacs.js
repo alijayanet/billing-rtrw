@@ -272,21 +272,20 @@ const GENIEACS_PASSWORD = process.env.GENIEACS_PASSWORD;
 // Helper: Get all ACS servers from database
 function getAllACSServers() {
     try {
+        const servers = [];
+
         if (isBuiltinAcsEnabled()) {
-            return [{
+            servers.push({
                 id: 'builtin',
                 name: 'Built-in ACS',
                 url: 'local',
                 status: 'active'
-            }];
+            });
         }
 
         const legacyUrl = getSetting('genieacs_url', GENIEACS_URL);
         const legacyUser = getSetting('genieacs_username', GENIEACS_USERNAME);
         const legacyPass = getSetting('genieacs_password', GENIEACS_PASSWORD);
-        
-        const servers = [];
-        
         // Add legacy server if configured
         if (legacyUrl) {
             servers.push({
