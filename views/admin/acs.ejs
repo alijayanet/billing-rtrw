@@ -207,7 +207,11 @@
                                 <td><%= s.location %></td>
                                 <td><%= s.device_count %></td>
                                 <td>
-                                    <% if (String(s.id) !== 'legacy') { %>
+                                    <% if (String(s.id) === 'builtin') { %>
+                                        <div style="display:flex;align-items:center;gap:8px">
+                                            <span style="display:inline-flex;align-items:center;gap:4px;background:#e0e7ff;color:#3730a3;font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;"><i class="bi bi-shield-check"></i> Built-in (Aktif)</span>
+                                        </div>
+                                    <% } else if (String(s.id) !== 'legacy') { %>
                                         <div style="display:flex;align-items:center;gap:8px">
                                             <button
                                                 class="btn-action"
