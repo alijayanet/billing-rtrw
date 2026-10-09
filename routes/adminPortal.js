@@ -3373,7 +3373,11 @@ router.post('/billing/:id/whatsapp', requireAdminSession, async (req, res) => {
       try {
         const payloadNorm = await resolveQrisStaticPayload();
         if (payloadNorm) {
-          const jpg = await qrisUtil.buildDynamicQrisJpgBuffer(payloadNorm, qrisAmountUnique);
+          const jpg = await qrisUtil.buildDynamicQrisJpgBuffer(payloadNorm, qrisAmountUnique, {
+            customerName: customer.name,
+            invoiceNumber: inv.invoice_number,
+            packageName: inv.package_name || customer.package_name || '-'
+          });
           sent = await sendWAImage(customer.phone, jpg, qrisJpgCaption);
         }
       } catch (e) {

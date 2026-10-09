@@ -1168,6 +1168,16 @@ export async function simulateHumanTyping(sock, jid, text = '') {
 }
 
 export async function sendWA(to, text, options = {}) {
+  if (options && options.image) {
+    try {
+      const imgRes = await sendWAImage(to, options.image, text, options);
+      if (imgRes) return true;
+      logger.warn('[WA sendWA] Kirim gambar gagal, mencoba fallback kirim teks biasa...');
+    } catch (imgErr) {
+      logger.warn('[WA sendWA] Error kirim gambar:', imgErr.message);
+    }
+  }
+
   const gatewayType = getSetting('wa_gateway_type', 'baileys');
 
   let finalText = text;
