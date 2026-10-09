@@ -11,8 +11,8 @@ android {
         applicationId = "com.alijaya.customer"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.2.6"
+        versionCode = 9
+        versionName = "1.2.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -30,7 +30,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
