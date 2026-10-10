@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kebijakan Privasi | Alijaya Digital</title>
+  <title>Kebijakan Privasi | Alijaya Net - Billing RTRW</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <meta name="theme-color" content="#0f172a">
@@ -16,7 +16,7 @@
       --text-main: #f1f5f9;
       --text-muted: #cbd5e1;
       --bg: #0f172a;
-      --panel: rgba(30, 41, 59, 0.92);
+      --panel: rgba(30, 41, 59, 0.95);
       --border: #334155;
     }
 
@@ -41,7 +41,7 @@
     }
 
     .content-card {
-      max-width: 900px;
+      max-width: 920px;
       margin: 0 auto 50px;
       background: var(--panel);
       backdrop-filter: blur(10px);
@@ -51,13 +51,25 @@
       border: 1px solid var(--border);
     }
 
+    .badge-updated {
+      display: inline-block;
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 15px;
+    }
+
     h1 {
       font-weight: 800;
       letter-spacing: -0.02em;
     }
 
     h4 {
-      margin-top: 30px;
+      margin-top: 36px;
       color: #818cf8;
       font-weight: 700;
       display: flex;
@@ -67,20 +79,21 @@
     }
 
     h4 i {
-      font-size: 1.2rem;
+      font-size: 1.25rem;
       color: #818cf8;
     }
 
     p,
     li {
-      font-size: 16px;
-      color: var(--text-main);
+      font-size: 15.5px;
+      color: var(--text-muted);
       line-height: 1.8;
     }
 
     ul {
-      color: var(--text-main);
-      line-height: 1.9;
+      color: var(--text-muted);
+      line-height: 1.85;
+      padding-left: 24px;
     }
 
     ul li {
@@ -88,19 +101,20 @@
     }
 
     strong {
-      color: #f1f5f9;
-      font-weight: 700;
+      color: #f8fafc;
+      font-weight: 600;
     }
 
-    .lead {
-      color: #f1f5f9;
+    .info-box {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 14px;
+      padding: 20px;
+      margin: 20px 0;
     }
 
-    .footer {
-      text-align: center;
-      padding: 30px;
-      color: #cbd5e1;
-      font-size: 14px;
+    .info-box p {
+      margin-bottom: 6px;
     }
 
     .btn-back {
@@ -122,9 +136,16 @@
       transform: translateY(-2px);
     }
 
+    .footer {
+      text-align: center;
+      padding: 30px;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
     @media (max-width: 768px) {
       .content-card {
-        padding: 30px;
+        padding: 28px 20px;
         margin: 0 15px 30px;
       }
     }
@@ -134,46 +155,110 @@
 <body>
   <div class="hero-section text-center">
     <div class="container">
+      <div class="badge-updated"><i class="bi bi-clock-history me-1"></i> Terakhir Diperbarui: 10 Oktober 2026</div>
       <h1 class="display-5">Kebijakan Privasi</h1>
-      <p class="lead opacity-75">Bagaimana kami menjaga dan melindungi data pribadi Anda.</p>
+      <p class="lead opacity-75">Bagaimana kami mengumpulkan, menggunakan, dan melindungi data pribadi Anda.</p>
     </div>
   </div>
 
   <div class="container">
     <div class="content-card">
-      <p>Di <strong>Alijaya Digital</strong>, privasi pelanggan dan pengguna aplikasi kami adalah prioritas utama. Dokumen Kebijakan Privasi ini menjelaskan jenis informasi pribadi yang kami kumpulkan dan bagaimana kami menggunakannya.</p>
+      <p class="lead text-light mb-4">
+        Kebijakan Privasi ini berlaku untuk aplikasi mobile <strong>Alijaya Net - Billing RTRW</strong> ("Aplikasi") serta layanan portal billing web resmi yang dioperasikan oleh <strong>ALIJAYA-NET (Alijaya Digital)</strong> ("Kami", "Pengembang").
+      </p>
+      <p>
+        Kami berkomitmen penuh untuk melindungi privasi dan keamanan data pribadi pengguna kami (termasuk pelanggan layanan internet, teknisi jaringan, dan staf administrasi). Dokumen ini menjelaskan secara transparan informasi yang kami kumpulkan, tujuan pemrosesan, langkah-langkah perlindungan, serta hak penuh Anda atas data pribadi Anda.
+      </p>
 
       <h4><i class="bi bi-database-check"></i> 1. Informasi yang Kami Kumpulkan</h4>
-      <p>Kami mengumpulkan informasi terbatas yang diperlukan untuk penyediaan layanan, termasuk:</p>
+      <p>Kami hanya mengumpulkan informasi yang diperlukan untuk operasional penyediaan layanan internet dan fungsi aplikasi secara aman:</p>
       <ul>
-        <li><strong>Data Akun & Kontak:</strong> Nama lengkap, nomor telepon/WhatsApp, dan alamat pemasangan layanan internet.</li>
-        <li><strong>Izin Akses Lokasi (GPS):</strong> Data titik koordinat digunakan saat absensi kehadiran karyawan berbasis radius kantor (Geofencing), pemetaan lokasi ODP/tiang jaringan, dan navigasi penagihan kolektor lapangan.</li>
-        <li><strong>Izin Kamera & Foto:</strong> Digunakan untuk pengambilan foto selfie presensi kerja ber-watermark Geo-Tagging, pemindaian QR Code voucher/QRIS, serta lampiran foto bukti kendala pada pelaporan tiket gangguan pelanggan.</li>
-        <li><strong>Izin Bluetooth:</strong> Digunakan untuk menghubungkan aplikasi ke printer thermal Bluetooth portabel saat pencetakan struk pembayaran oleh petugas kolektor dan kasir.</li>
-        <li><strong>Data Transaksi:</strong> Rincian tagihan bulanan dan status pembayaran melalui saluran payment gateway resmi.</li>
+        <li><strong>Informasi Akun & Kontak:</strong> Nama lengkap pelanggan, nomor telepon/WhatsApp aktif, alamat pemasangan koneksi internet, ID pelanggan, dan username PPPoE/Hotspot.</li>
+        <li><strong>Informasi Penagihan & Transaksi:</strong> Rincian tagihan bulanan, nomor invoice, paket layanan yang dipilih, tanggal jatuh tempo, dan riwayat status transaksi pembayaran melalui mitra payment gateway resmi. Kami <em>tidak pernah</em> mengumpulkan atau menyimpan nomor kartu kredit/debit atau PIN perbankan Anda.</li>
+        <li><strong>Izin Akses Lokasi (Location - GPS):</strong>
+          <br>Izin <code>ACCESS_FINE_LOCATION</code> dan <code>ACCESS_COARSE_LOCATION</code> digunakan secara terbatas untuk:
+          <ul>
+            <li>Validasi presensi kerja digital karyawan dan teknisi lapangan berdasarkan radius kantor resmi (Geofencing).</li>
+            <li>Pemetaan titik koordinat tiang dan ODP (Optical Distribution Point) jaringan fiber optik saat pemasangan dan perbaikan.</li>
+            <li>Navigasi penugasan rute bagi petugas kolektor penagihan lapangan.</li>
+          </ul>
+          <em>Catatan:</em> Aplikasi tidak pernah melacak, mengumpulkan, atau membagikan riwayat lokasi pengguna di latar belakang (background location) tanpa izin aktif.
+        </li>
+        <li><strong>Izin Kamera (Camera):</strong>
+          <br>Izin <code>android.permission.CAMERA</code> digunakan saat pengguna membuka fitur kamera untuk:
+          <ul>
+            <li>Pengambilan foto presensi kerja ber-watermark waktu dan lokasi bagi petugas resmi.</li>
+            <li>Memindai QR Code voucher internet atau kode QRIS untuk memproses pembayaran tagihan secara cepat.</li>
+            <li>Mengunggah foto bukti kendala fisik perangkat/kabel saat pengajuan tiket bantuan teknis pelanggan.</li>
+          </ul>
+        </li>
+        <li><strong>Izin Bluetooth:</strong>
+          <br>Izin <code>BLUETOOTH_CONNECT</code> dan <code>BLUETOOTH_SCAN</code> (dengan flag <code>neverForLocation</code>) digunakan semata-mata untuk menghubungkan aplikasi ke printer thermal Bluetooth portabel guna mencetak struk bukti pembayaran fisik oleh petugas kasir dan kolektor lapangan. Izin ini sama sekali tidak digunakan untuk melacak posisi perangkat Anda.</li>
       </ul>
 
-      <h4><i class="bi bi-gear-wide-connected"></i> 2. Penggunaan Informasi</h4>
-      <p>Informasi yang kami kumpulkan digunakan untuk:</p>
+      <h4><i class="bi bi-gear-wide-connected"></i> 2. Tujuan Penggunaan Informasi</h4>
+      <p>Informasi yang dikumpulkan digunakan semata-mata untuk tujuan:</p>
       <ul>
-        <li>Memproses pendaftaran dan aktivasi layanan internet Anda.</li>
-        <li>Mengirimkan informasi tagihan dan pengingat pembayaran otomatis.</li>
-        <li>Memberikan dukungan teknis dan menanggapi keluhan gangguan Anda.</li>
-        <li>Memvalidasi presensi kerja resmi karyawan dan penugasan lapangan.</li>
-        <li>Meningkatkan kualitas jaringan dan pengalaman pengguna aplikasi.</li>
+        <li>Mengaktifkan, memelihara, dan mengelola langganan internet WiFi / Fiber Optik Anda.</li>
+        <li>Mengirimkan pemberitahuan tagihan resmi, konfirmasi pembayaran, serta status aktivasi otomatis layanan.</li>
+        <li>Menyediakan layanan bantuan pelanggan (Helpdesk) dan penanganan tiket keluhan teknis secara responsif.</li>
+        <li>Memvalidasi presensi kerja resmi karyawan dan penugasan tim lapangan.</li>
+        <li>Memastikan keamanan jaringan serta mencegah akses ilegal atau penyalahgunaan sistem.</li>
       </ul>
 
-      <h4><i class="bi bi-shield-check"></i> 3. Keamanan Data</h4>
-      <p>Kami menerapkan standar keamanan teknis dan enkripsi HTTPS/TLS untuk melindungi data Anda dari akses yang tidak sah. Data sensitif disimpan dengan enkripsi di server kami.</p>
+      <h4><i class="bi bi-shield-check"></i> 3. Keamanan dan Penyimpanan Data</h4>
+      <p>
+        Kami menerapkan standar pengamanan teknis dan organisasi yang ketat untuk melindungi data Anda dari akses tanpa hak, pengubahan, pengungkapan, atau pemusnahan yang tidak sah:
+      </p>
+      <ul>
+        <li>Seluruh transmisi data antara aplikasi Android dan server backend menggunakan enkripsi modern <strong>HTTPS / TLS 1.3</strong>.</li>
+        <li>Kata sandi dan kredensial sensitif disimpan menggunakan enkripsi hash satu arah (cryptographic hashing) di server berkeamanan tinggi.</li>
+        <li>Akses administratif ke data pengguna dibatasi hanya kepada petugas yang berwenang dengan sistem autentikasi bertingkat.</li>
+      </ul>
 
-      <h4><i class="bi bi-people"></i> 4. Pihak Ketiga</h4>
-      <p>Kami tidak pernah menjual atau menyewakan data pribadi Anda kepada pihak ketiga mana pun. Kami hanya berbagi data transaksi dengan mitra payment gateway resmi (seperti Tripay/Xendit/Midtrans/Duitku) untuk memproses pembayaran Anda secara aman.</p>
+      <h4><i class="bi bi-people"></i> 4. Pembagian Data kepada Pihak Ketiga</h4>
+      <p>
+        <strong>Kami TIDAK PERNAH menjual, menyewakan, meminjamkan, atau memperdagangkan data pribadi pengguna kepada pihak ketiga mana pun untuk tujuan komersial atau pemasaran.</strong>
+      </p>
+      <p>
+        Data transaksi hanya dibagikan secara terbatas dengan mitra penyedia layanan gerbang pembayaran (Payment Gateway) berizin resmi di Indonesia (seperti Tripay, Midtrans, Xendit, atau Duitku) semata-mata untuk memvalidasi dan memproses transaksi pembayaran tagihan internet yang Anda lakukan.
+      </p>
 
-      <h4><i class="bi bi-person-x"></i> 5. Hak Pengguna & Penghapusan Data</h4>
-      <p>Pengguna berhak meminta informasi mengenai data pribadi yang tersimpan atau mengajukan permohonan penghapusan akun beserta riwayat datanya dengan menghubungi kontak customer support resmi kami.</p>
+      <h4><i class="bi bi-person-x"></i> 5. Permohonan Penghapusan Akun & Data (Account & Data Deletion)</h4>
+      <p>
+        Sesuai dengan kebijakan Google Play mengenai Perlindungan Data Pengguna, Anda memiliki hak penuh untuk meminta penghapusan akun serta seluruh data pribadi Anda yang tersimpan di sistem kami kapan saja.
+      </p>
+      <div class="info-box">
+        <strong class="text-light d-block mb-2"><i class="bi bi-envelope-at me-2 text-primary"></i> Prosedur Pengajuan Penghapusan Akun & Data:</strong>
+        <p>1. Kirimkan permohonan melalui email resmi kami: <a href="mailto:alijayanet@gmail.com" class="text-info fw-bold">alijayanet@gmail.com</a></p>
+        <p>2. Gunakan subjek email: <code>Permohonan Hapus Akun &amp; Data - [Nama / ID Pelanggan]</code></p>
+        <p>3. Cantumkan nama lengkap, nomor telepon / WhatsApp terdaftar, dan alasan singkat penutupan akun.</p>
+        <p>4. Anda juga dapat mengajukan permohonan langsung melalui WhatsApp Customer Care kami di <strong>0878-2085-1413</strong> / <strong>0819-4721-5703</strong>.</p>
+      </div>
+      <p>
+        <strong>Jangka Waktu & Penghapusan:</strong> Tim kami akan memverifikasi permohonan Anda dan menghapus seluruh data identitas pribadi, foto, koordinat lokasi, dan kredensial akun secara permanen dalam waktu maksimal <strong>14 (empat belas) hari kerja</strong>. Data transaksi faktur pembayaran yang telah lunas disimpan secara terbatas hanya sejauh diwajibkan oleh ketentuan hukum dan peraturan pembukuan keuangan yang berlaku di Indonesia.
+      </p>
 
-      <h4><i class="bi bi-patch-check"></i> 6. Persetujuan</h4>
-      <p>Dengan menggunakan layanan dan aplikasi kami, Anda dengan ini menyetujui Kebijakan Privasi kami dan menyetujui ketentuan-ketentuannya.</p>
+      <h4><i class="bi bi-shield-slash"></i> 6. Privasi Anak-Anak (Children's Privacy - COPPA)</h4>
+      <p>
+        Aplikasi dan layanan kami ditujukan untuk pengguna umum dewasa dan pelanggan rumah tangga berpenghasilan. Kami tidak secara sengaja menargetkan, meminta, atau mengumpulkan data pribadi dari anak-anak di bawah usia 13 tahun. Jika Anda sebagai orang tua atau wali mengetahui bahwa anak Anda telah memberikan data pribadi kepada kami tanpa persetujuan, silakan hubungi kami agar kami dapat segera menghapus data tersebut dari server kami.
+      </p>
+
+      <h4><i class="bi bi-patch-check"></i> 7. Persetujuan dan Perubahan Ketentuan</h4>
+      <p>
+        Dengan mengunduh, menginstal, dan menggunakan aplikasi <strong>Alijaya Net - Billing RTRW</strong>, Anda menyatakan telah membaca, memahami, dan menyetujui seluruh ketentuan dalam Kebijakan Privasi ini. Kami berhak memperbarui dokumen ini sewaktu-waktu dan setiap perubahan signifikan akan diumumkan melalui aplikasi atau portal web kami.
+      </p>
+
+      <h4><i class="bi bi-building"></i> 8. Informasi Kontak Resmi Pengembang</h4>
+      <p>Jika Anda memiliki pertanyaan, klarifikasi, atau keluhan terkait Kebijakan Privasi ini, Anda dapat menghubungi kami melalui:</p>
+      <div class="info-box">
+        <p><strong>Nama Penyedia Layanan:</strong> ALIJAYA-NET (Alijaya Digital)</p>
+        <p><strong>Nama Aplikasi:</strong> Alijaya Net - Billing RTRW</p>
+        <p><strong>Alamat Kantor:</strong> Jl. Pantai Tanjungpura, Desa Ujunggebang, Kec. Sukra, Kab. Indramayu - Jawa Barat 45257, Indonesia</p>
+        <p><strong>Email Dukungan:</strong> <a href="mailto:alijayanet@gmail.com" class="text-info">alijayanet@gmail.com</a></p>
+        <p><strong>WhatsApp / Telepon CS:</strong> <a href="https://wa.me/6287820851413" class="text-info" target="_blank">0878-2085-1413</a> / <a href="https://wa.me/6281947215703" class="text-info" target="_blank">0819-4721-5703</a></p>
+        <p><strong>Jam Operasional CS:</strong> Setiap Hari, 08.00 - 22.00 WIB</p>
+      </div>
 
       <div class="mt-5 text-center">
         <a href="/" class="btn btn-back">
@@ -184,7 +269,8 @@
   </div>
 
   <div class="footer">
-    &copy; 2026 Alijaya Digital • Keamanan Data Anda adalah Komitmen Kami
+    &copy; 2026 ALIJAYA-NET (Alijaya Digital) • Keamanan Data Anda adalah Komitmen Kami
   </div>
 </body>
+
 </html>
