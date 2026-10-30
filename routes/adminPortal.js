@@ -76,6 +76,8 @@ const { MultiFormatReader, BarcodeFormat, DecodeHintType, BinaryBitmap, HybridBi
 const QRCode = require('qrcode');
 const acsPortal = require('./acsPortal');
 const { uploadAttendance, removeAttendanceFile } = require('../middleware/attendanceUpload');
+const telegramAi = require('../services/telegramAiService');
+const voiceTts = require('../services/voiceTtsService');
 
 const DIGIFLAZZ_URL = 'https://api.digiflazz.com/v1';
 const digiflazzApi = axios.create({
@@ -5994,6 +5996,75 @@ router.post('/api/whatsapp/send-direct', requireAdminSession, express.json(), as
   } catch (e) {
     const errorText = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
     res.status(500).json({ success: false, error: errorText });
+  }
+});
+
+// ==========================================
+// VOICE AI ASSISTANT (TALK-TO-SPEECH) ROUTES
+// ==========================================
+router.get('/voice-assistant', requireAdminSession, requireSidebarMenuAccess('voice_assistant'), (req, res) => {
+  res.render('admin/voice_assistant', {
+    title: 'Voice AI Assistant',
+    company: company(),
+    activePage: 'voice_assistant',
+    adminName: req.session.adminUser?.name || 'Administrator',
+    msg: flashMsg(req)
+  });
+});
+
+router.post('/api/voice-assistant/ask', requireAdminSession, express.json(), async (req, res) => {
+  try {
+    const rawQuestion = String(req.body.message || '').trim();
+    if (!rawQuestion) {
+      return res.status(400).json({ ok: false, error: 'Pesan suara atau teks tidak boleh kosong.' });
+    }
+
+    const senderName = req.session.adminUser?.name || 'Admin';
+    const answer = await telegramAi.askAi({
+      question: rawQuestion,
+      senderName,
+      isAdmin: true,
+      extraContext: {
+        phone: req.session.adminUser?.phone || '',
+        req
+      }
+    });
+
+    const cleanDisplay = typeof telegramAi.cleanAiResponse === 'function' ? telegramAi.cleanAiResponse(answer) : answer;
+    const speechText = voiceTts.cleanTextForSpeech(cleanDisplay);
+
+    res.json({
+      ok: true,
+      text: cleanDisplay,
+      speechText
+    });
+  } catch (err) {
+    logger.error('[VoiceAssistant] Error: ' + err.message);
+    res.status(500).json({ ok: false, error: err.message || 'Gagal memproses AI' });
+  }
+});
+
+router.get('/api/voice-assistant/tts', requireAdminSession, async (req, res) => {
+  try {
+    const text = String(req.query.text || '').trim();
+    if (!text) {
+      return res.status(400).send('Teks kosong');
+    }
+
+    const audioBuffer = await voiceTts.generateIndonesianSpeech(text);
+    if (!audioBuffer) {
+      return res.status(500).send('Gagal membuat audio');
+    }
+
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': audioBuffer.length,
+      'Cache-Control': 'public, max-age=86400'
+    });
+    res.send(audioBuffer);
+  } catch (err) {
+    logger.error('[VoiceTTS Route] Error: ' + err.message);
+    res.status(500).send('Error generate TTS: ' + err.message);
   }
 });
 

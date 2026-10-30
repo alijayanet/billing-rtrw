@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="<%= lang || 'id' %>">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice AI Assistant | <%= company %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    :root {
+      --voice-primary: #3b82f6;
+      --voice-accent: #8b5cf6;
+      --voice-emerald: #10b981;
+      --voice-rose: #f43f5e;
+      --voice-glow: rgba(59, 130, 246, 0.4);
+    }
+
+    body {
+      overflow-x: hidden;
+    }
+
+    .voice-wrapper {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+      min-height: calc(100vh - 120px);
+    }
+
+    @media (max-width: 992px) {
+      .voice-wrapper {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* KARTU PANGGILAN UTAMA (CALL STAGE) */
+    .call-stage {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 30px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(16px);
+      min-height: 580px;
+    }
+
+    .call-stage::before {
+      content: '';
+      position: absolute;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, var(--voice-glow) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      transition: background 0.5s ease;
+    }
+
+    /* STATUS BADGE */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 13px;
+      font-weight: 600;
+      color: #e2e8f0;
+      z-index: 2;
+      transition: all 0.3s ease;
+    }
+
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+      box-shadow: 0 0 10px #94a3b8;
+    }
+
+    .status-badge.listening {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+    .status-badge.listening .dot {
+      background: #10b981;
+      box-shadow: 0 0 12px #10b981;
+      animation: pulseDot 1.2s infinite;
+    }
+
+    .status-badge.thinking {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(139, 92, 246, 0.4);
+      color: #c4b5fd;
+    }
+    .status-badge.thinking .dot {
+      background: #8b5cf6;
+      box-shadow: 0 0 12px #8b5cf6;
+      animation: pulseDot 0.8s infinite;
+    }
+
+    .status-badge.speaking {
+      background: rgba(236, 72, 153, 0.15);
+      border-color: rgba(236, 72, 153, 0.4);
+      color: #f472b6;
+    }
+    .status-badge.speaking .dot {
+      background: #ec4899;
+      box-shadow: 0 0 12px #ec4899;
+      animation: pulseDot 0.6s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.3); }
+    }
+
+    /* THE VOICE ORB */
+    .orb-container {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 30px 0;
+      z-index: 2;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+
+    .orb-ring.r1 { width: 220px; height: 220px; }
+    .orb-ring.r2 { width: 280px; height: 280px; border-color: rgba(139, 92, 246, 0.15); }
+    .orb-ring.r3 { width: 340px; height: 340px; border-color: rgba(255, 255, 255, 0.05); }
+
+    .voice-orb {
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #60a5fa 0%, #3b82f6 35%, #1e3a8a 70%, #0f172a 100%);
+      box-shadow: 0 0 50px rgba(59, 130, 246, 0.6), inset 0 0 30px rgba(255, 255, 255, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.5s ease;
+      animation: orbFloat 4s ease-in-out infinite;
+    }
+
+    .voice-orb i {
+      font-size: 56px;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+      transition: transform 0.2s ease;
+    }
+
+    .voice-orb:hover {
+      transform: scale(1.05);
+    }
+
+    /* Orb States */
+    .voice-orb.listening {
+      background: radial-gradient(circle at 35% 35%, #34d399 0%, #10b981 35%, #064e3b 70%, #022c22 100%);
+      box-shadow: 0 0 65px rgba(16, 185, 129, 0.8), inset 0 0 35px rgba(255, 255, 255, 0.6);
+      animation: orbPulseListening 1.5s ease-in-out infinite;
+    }
+
+    .voice-orb.thinking {
+      background: radial-gradient(circle at 35% 35%, #c084fc 0%, #8b5cf6 35%, #4c1d95 70%, #1e1b4b 100%);
+      box-shadow: 0 0 65px rgba(139, 92, 246, 0.8), inset 0 0 35px rgba(255, 255, 255, 0.5);
+      animation: orbRotate 2s linear infinite;
+    }
+
+    .voice-orb.speaking {
+      background: radial-gradient(circle at 35% 35%, #f472b6 0%, #ec4899 35%, #831843 70%, #500724 100%);
+      box-shadow: 0 0 75px rgba(236, 72, 153, 0.9), inset 0 0 40px rgba(255, 255, 255, 0.6);
+      animation: orbPulseSpeaking 0.8s ease-in-out infinite alternate;
+    }
+
+    @keyframes orbFloat {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-8px) scale(1.02); }
+    }
+
+    @keyframes orbPulseListening {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 45px rgba(16, 185, 129, 0.6); }
+      50% { transform: scale(1.08); box-shadow: 0 0 85px rgba(16, 185, 129, 0.9); }
+    }
+
+    @keyframes orbRotate {
+      0% { transform: rotate(0deg) scale(1); }
+      50% { transform: rotate(180deg) scale(1.04); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    @keyframes orbPulseSpeaking {
+      0% { transform: scale(0.98); }
+      100% { transform: scale(1.09); box-shadow: 0 0 90px rgba(236, 72, 153, 1); }
+    }
+
+    /* WAVEFORM CANVAS */
+    #visualizerCanvas {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      height: 320px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* LIVE SUBTITLE / CAPTION HUD */
+    .caption-hud {
+      width: 100%;
+      max-width: 520px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 16px 20px;
+      text-align: center;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 2;
+      backdrop-filter: blur(10px);
+    }
+
+    .caption-hud .caption-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    .caption-hud .caption-text {
+      font-size: 15px;
+      line-height: 1.5;
+      color: #f8fafc;
+      font-weight: 500;
+    }
+
+    .caption-hud .caption-text.interim {
+      color: #93c5fd;
+      font-style: italic;
+    }
+
+    /* ACTION CONTROLS HUD (BOTTOM) */
+    .call-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 24px;
+      z-index: 2;
+      width: 100%;
+      max-width: 520px;
+      flex-wrap: wrap;
+    }
+
+    .btn-call-action {
+      height: 52px;
+      border-radius: 26px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-call-start {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #ffffff;
+    }
+    .btn-call-start:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-call-end {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #ffffff;
+    }
+    .btn-call-end:hover {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-call-sub {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-call-sub:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+    .btn-call-sub.active {
+      background: #3b82f6;
+      border-color: #60a5fa;
+      color: #ffffff;
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+    }
+
+    /* RIGHT PANEL: TRANSKRIP & PENGATURAN SUARA */
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .transcript-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      height: 380px;
+      box-shadow: var(--shadow);
+    }
+
+    .transcript-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+
+    .transcript-header h6 {
+      margin: 0;
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+    }
+
+    .transcript-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-right: 6px;
+    }
+
+    .chat-bubble {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      max-width: 90%;
+      word-wrap: break-word;
+    }
+
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: var(--primary);
+      color: #ffffff;
+      border-bottom-right-radius: 3px;
+    }
+
+    .chat-bubble.assistant {
+      align-self: flex-start;
+      background: var(--bg3);
+      color: var(--text);
+      border-bottom-left-radius: 3px;
+      border: 1px solid var(--border);
+    }
+
+    .chat-bubble .speaker-name {
+      font-size: 10px;
+      font-weight: 700;
+      opacity: 0.75;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+    }
+
+    /* SUGGESTION CHIPS */
+    .chips-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .chips-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chips-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip-item {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chip-item:hover {
+      background: var(--pdim);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    /* SETTINGS FOOTER */
+    .controls-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 16px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .select-voice {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    /* TEXT INPUT ROW */
+    .text-ask-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .text-ask-row input {
+      flex: 1;
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+<%- include('partials/sidebar', { activePage: 'voice_assistant', company }) %>
+<div class="mw">
+  <div class="topbar">
+    <div class="tb-title">
+      <button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+      <i class="bi bi-mic-fill" style="color: #3b82f6;"></i> Voice AI Assistant (Panggilan Suara)
+    </div>
+    <div class="tb-right">
+      <span class="adm-badge"><i class="bi bi-person-fill"></i> <%= adminName %></span>
+      <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>
+    </div>
+  </div>
+
+  <div class="page">
+    <% if (msg) { %>
+    <div class="alert alert-<%= msg.type==='success'?'s':'d' %> mb16">
+      <i class="bi bi-<%= msg.type==='success'?'check-circle':'exclamation-circle' %>"></i> <%= msg.text %>
+    </div>
+    <% } %>
+
+    <div class="voice-wrapper">
+      <!-- MAIN CALL STAGE -->
+      <div class="call-stage">
+        <!-- Live Status Pill -->
+        <div id="statusBadge" class="status-badge">
+          <span class="dot"></span>
+          <span id="statusText">Panggilan Siap Dimulai</span>
+        </div>
+
+        <!-- The Central Interactive Orb -->
+        <div class="orb-container">
+          <div class="orb-ring r1"></div>
+          <div class="orb-ring r2"></div>
+          <div class="orb-ring r3"></div>
+          <canvas id="visualizerCanvas" width="320" height="320"></canvas>
+          <div id="voiceOrb" class="voice-orb" onclick="toggleCall()" title="Klik untuk Mulai / Berbicara">
+            <i id="orbIcon" class="bi bi-mic-fill"></i>
+          </div>
+        </div>
+
+        <!-- Live Subtitle / Caption HUD -->
+        <div class="caption-hud">
+          <div id="captionLabel" class="caption-label">Asisten AI Siap</div>
+          <div id="captionText" class="caption-text">
+            Klik tombol hijau atau bola suara di atas untuk mulai berbicara.
+          </div>
+        </div>
+
+        <!-- Call Action HUD -->
+        <div class="call-controls">
+          <button id="btnMainCall" class="btn-call-action btn-call-start" onclick="toggleCall()">
+            <i class="bi bi-telephone-fill"></i>
+            <span id="btnCallLabel">Mulai Panggilan</span>
+          </button>
+
+          <button id="btnHandsfree" class="btn-call-sub active" onclick="toggleHandsfree()" title="Mode Telepon Otomatis (Handsfree Bicara)">
+            <i class="bi bi-arrow-repeat"></i>
+          </button>
+
+          <button id="btnMuteAudio" class="btn-call-sub" onclick="toggleAudioMute()" title="Bisukan Suara AI">
+            <i id="iconMute" class="bi bi-volume-up-fill"></i>
+          </button>
+
+          <button class="btn-call-sub" onclick="clearTranscript()" title="Bersihkan Catatan Percakapan">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE: TRANSCRIPT & PENGATURAN -->
+      <div class="side-panel">
+        <!-- Pengaturan Mode & Suara -->
+        <div class="controls-card">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="bi bi-soundwave" style="font-size: 18px; color: var(--primary);"></i>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--text);">Karakter Suara AI</div>
+              <div style="font-size: 11px; color: var(--muted);" id="handsfreeStatusLabel">Mode Telepon: Otomatis mendengarkan</div>
+            </div>
+          </div>
+
+          <select id="selectVoice" class="select-voice" onchange="changeVoicePreference(this.value)">
+            <option value="google-id" selected>🌸 Google ID (Server Jernih)</option>
+            <option value="gadis">👩 Microsoft Gadis (Natural AI)</option>
+            <option value="ardi">👨 Microsoft Ardi (Natural AI)</option>
+            <option value="browser">🤖 Suara Bawaan Perangkat</option>
+          </select>
+        </div>
+
+        <!-- Saran Pertanyaan Cepat -->
+        <div class="chips-card">
+          <div class="chips-title">
+            <i class="bi bi-stars" style="color: #f59e0b;"></i> Contoh Pertanyaan Cepat (Klik untuk coba)
+          </div>
+          <div class="chips-list">
+            <div class="chip-item" onclick="sendVoiceQuestion('Berapa pelanggan yang belum bayar bulan ini?')">
+              💰 Cek penunggak tagihan
+            </div>
+            <div class="chip-item" onclick="sendVoiceQuestion('Siapa saja pelanggan yang sedang terisolir?')">
+              🔒 Pelanggan terisolir
+            </div>
+            <div class="chip-item" onclick="sendVoiceQuestion('Bagaimana ringkasan total pelanggan aktif?')">
+              📊 Ringkasan pelanggan
+            </div>
+            <div class="chip-item" onclick="sendVoiceQuestion('Cek status router dan server saat ini')">
+              📡 Status router & server
+            </div>
+            <div class="chip-item" onclick="sendVoiceQuestion('Ceritakan tips agar sinyal wifi di rumah pelanggan kuat')">
+              💡 Tips wifi lancar
+            </div>
+          </div>
+
+          <!-- Opsi ketik manual darurat jika mic error / di tempat bising -->
+          <div class="text-ask-row">
+            <input type="text" id="manualTextInput" placeholder="Atau ketik pertanyaan di sini..." onkeypress="handleManualKey(event)">
+            <button class="btn btn-p btn-sm" onclick="sendManualText()"><i class="bi bi-send-fill"></i></button>
+          </div>
+        </div>
+
+        <!-- Live Conversation Transcript -->
+        <div class="transcript-card">
+          <div class="transcript-header">
+            <h6><i class="bi bi-chat-text-fill" style="color: var(--primary);"></i> Riwayat Percakapan</h6>
+            <button class="btn btn-g btn-sm" onclick="copyTranscript()" title="Salin Catatan Percakapan">
+              <i class="bi bi-clipboard"></i> Salin
+            </button>
+          </div>
+          <div id="transcriptList" class="transcript-list">
+            <div class="chat-bubble assistant">
+              <div class="speaker-name">Asisten AI</div>
+              Halo <%= adminName %>, selamat datang di layanan panggilan suara. Silakan bicara langsung, saya siap membantu mengecek tagihan, status isolir, ONU, atau pertanyaan umum apa pun!
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Audio Player Tersembunyi untuk Streaming MP3 Google TTS -->
+<audio id="ttsAudioPlayer" style="display:none;"></audio>
+
+<script>
+  // STATE MANAGEMENT
+  let isInCall = false;
+  let isHandsfree = true; // Mode telepon (auto bicara & auto mendengarkan kembali)
+  let isAudioMuted = false;
+  let selectedVoice = localStorage.getItem('voice_assistant_pref') || 'google-id';
+  let recognition = null;
+  let isAiSpeaking = false;
+  let isRecognizing = false;
+  let audioContext = null;
+  let analyser = null;
+  let micStream = null;
+  let animFrameId = null;
+
+  // DOM ELEMENTS
+  const statusBadge = document.getElementById('statusBadge');
+  const statusText = document.getElementById('statusText');
+  const voiceOrb = document.getElementById('voiceOrb');
+  const orbIcon = document.getElementById('orbIcon');
+  const captionLabel = document.getElementById('captionLabel');
+  const captionText = document.getElementById('captionText');
+  const btnMainCall = document.getElementById('btnMainCall');
+  const btnCallLabel = document.getElementById('btnCallLabel');
+  const btnHandsfree = document.getElementById('btnHandsfree');
+  const btnMuteAudio = document.getElementById('btnMuteAudio');
+  const iconMute = document.getElementById('iconMute');
+  const selectVoice = document.getElementById('selectVoice');
+  const transcriptList = document.getElementById('transcriptList');
+  const ttsAudioPlayer = document.getElementById('ttsAudioPlayer');
+  const canvas = document.getElementById('visualizerCanvas');
+  const ctx = canvas.getContext('2d');
+
+  selectVoice.value = selectedVoice;
+
+  // INISIALISASI SPEECH RECOGNITION (WEB SPEECH API)
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function initSpeechRecognition() {
+    if (!SpeechRecognition) {
+      updateStatus('error', 'Browser Anda belum mendukung input suara Web Speech API. Silakan gunakan Google Chrome atau Edge.');
+      return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = 'id-ID';
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false; // Gunakan false lalu restart manual untuk stabilitas browser
+
+    recognition.onstart = () => {
+      isRecognizing = true;
+      if (!isAiSpeaking) {
+        setOrbState('listening');
+        captionLabel.innerText = 'Mendengarkan Anda...';
+        captionText.classList.add('interim');
+        captionText.innerText = 'Silakan berbicara sekarang...';
+      }
+    };
+
+    recognition.onresult = (event) => {
+      let interim = '';
+      let final = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+
+      if (interim) {
+        captionLabel.innerText = 'Anda sedang berbicara...';
+        captionText.classList.add('interim');
+        captionText.innerText = `"${interim}"`;
+      }
+
+      if (final) {
+        captionText.classList.remove('interim');
+        captionText.innerText = `"${final}"`;
+        handleUserSpoken(final.trim());
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.warn('[VoiceRec Error]:', event.error);
+      if (event.error === 'no-speech') {
+        if (isInCall && isHandsfree && !isAiSpeaking) {
+          setTimeout(() => startListening(), 600);
+        }
+      } else if (event.error === 'not-allowed') {
+        alert('Izin mikrofon ditolak. Harap izinkan akses mikrofon di browser Anda untuk menggunakan panggilan suara.');
+        endCall();
+      }
+    };
+
+    recognition.onend = () => {
+      isRecognizing = false;
+      if (isInCall && !isAiSpeaking && voiceOrb.classList.contains('listening')) {
+        setOrbState('idle');
+      }
+    };
+  }
+
+  // AUDIO CONTEXT & VISUALIZER (ORB DANCE)
+  function setupVisualizer() {
+    if (audioContext) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      audioContext = new AudioCtx();
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+
+      // Hubungkan audio tag player ke visualizer
+      const source = audioContext.createMediaElementSource(ttsAudioPlayer);
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+
+      drawVisualizer();
+    } catch (e) {
+      console.warn('[Visualizer AudioContext Error]:', e);
+    }
+  }
+
+  function drawVisualizer() {
+    animFrameId = requestAnimationFrame(drawVisualizer);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!analyser) return;
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(dataArray);
+
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+      sum += dataArray[i];
+    }
+    const average = sum / dataArray.length;
+
+    // Gambar gelombang melingkar di sekeliling orb
+    if (isAiSpeaking || voiceOrb.classList.contains('listening')) {
+      const radius = 90 + (average * 0.45);
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = isAiSpeaking ? 'rgba(236, 72, 153, 0.4)' : 'rgba(16, 185, 129, 0.4)';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius + 15, 0, 2 * Math.PI);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = isAiSpeaking ? 'rgba(244, 114, 182, 0.2)' : 'rgba(52, 211, 153, 0.2)';
+      ctx.stroke();
+    }
+  }
+
+  // STATE CONTROLLER
+  function setOrbState(state) {
+    voiceOrb.className = 'voice-orb ' + state;
+    statusBadge.className = 'status-badge ' + state;
+
+    if (state === 'listening') {
+      statusText.innerText = 'Mendengarkan Suara...';
+      orbIcon.className = 'bi bi-mic-fill';
+    } else if (state === 'thinking') {
+      statusText.innerText = 'Memproses Data Billing...';
+      orbIcon.className = 'bi bi-gear-wide-connected';
+      captionLabel.innerText = 'AI Sedang Berpikir';
+      captionText.innerText = 'Menganalisis sistem dan mencari jawaban...';
+    } else if (state === 'speaking') {
+      statusText.innerText = 'AI Sedang Berbicara';
+      orbIcon.className = 'bi bi-soundwave';
+      captionLabel.innerText = 'Asisten AI Menjawab';
+    } else {
+      statusText.innerText = isInCall ? 'Menunggu Anda Bicara...' : 'Panggilan Berhenti';
+      orbIcon.className = 'bi bi-mic';
+    }
+  }
+
+  // CALL HANDLERS
+  function toggleCall() {
+    if (isInCall) {
+      endCall();
+    } else {
+      startCall();
+    }
+  }
+
+  async function startCall() {
+    isInCall = true;
+    setupVisualizer();
+    if (audioContext && audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+
+    btnMainCall.className = 'btn-call-action btn-call-end';
+    btnCallLabel.innerText = 'Akhiri Panggilan';
+    btnMainCall.querySelector('i').className = 'bi bi-telephone-x-fill';
+
+    playTone(440, 0.1); // Tone sambungan singkat
+    startListening();
+  }
+
+  function endCall() {
+    isInCall = false;
+    isAiSpeaking = false;
+    stopListening();
+    stopAudioPlayback();
+
+    btnMainCall.className = 'btn-call-action btn-call-start';
+    btnCallLabel.innerText = 'Mulai Panggilan';
+    btnMainCall.querySelector('i').className = 'bi bi-telephone-fill';
+
+    setOrbState('idle');
+    captionLabel.innerText = 'Panggilan Selesai';
+    captionText.innerText = 'Klik tombol hijau untuk memulai percakapan kembali.';
+  }
+
+  function startListening() {
+    if (!recognition || !isInCall || isAiSpeaking) return;
+    try {
+      if (!isRecognizing) {
+        recognition.start();
+      }
+    } catch (e) {
+      console.warn('[StartRec Warn]:', e.message);
+    }
+  }
+
+  function stopListening() {
+    if (recognition && isRecognizing) {
+      try {
+        recognition.stop();
+      } catch (e) {}
+    }
+    isRecognizing = false;
+  }
+
+  // PROSES PERTANYAAN USER
+  async function handleUserSpoken(questionText) {
+    if (!questionText) return;
+
+    // Hentikan mic selama AI berpikir & menjawab
+    stopListening();
+    setOrbState('thinking');
+
+    // Tampilkan di catatan percakapan
+    appendChatBubble('user', questionText);
+
+    try {
+      const res = await fetch('/admin/api/voice-assistant/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: questionText })
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        throw new Error(data.error || 'Gagal memproses AI');
+      }
+
+      // Tampilkan jawaban AI di riwayat
+      appendChatBubble('assistant', data.text);
+      captionText.innerText = data.text;
+
+      // Bacakan suara jawaban AI
+      await speakResponse(data.speechText || data.text);
+
+    } catch (err) {
+      console.error('[Ask Error]:', err);
+      const errMsg = 'Maaf, terjadi kendala saat memproses jawaban: ' + err.message;
+      appendChatBubble('assistant', errMsg);
+      captionText.innerText = errMsg;
+      await speakResponse(errMsg);
+    }
+  }
+
+  // PLAY AUDIO JAWABAN AI
+  async function speakResponse(speechText) {
+    if (isAudioMuted || !speechText) {
+      finishSpeaking();
+      return;
+    }
+
+    isAiSpeaking = true;
+    setOrbState('speaking');
+
+    if (selectedVoice === 'google-id') {
+      // Opsi 1: Google ID Server TTS (Sangat jernih & stabil)
+      const audioUrl = `/admin/api/voice-assistant/tts?text=${encodeURIComponent(speechText)}`;
+      ttsAudioPlayer.src = audioUrl;
+
+      ttsAudioPlayer.onended = () => {
+        finishSpeaking();
+      };
+
+      ttsAudioPlayer.onerror = (e) => {
+        console.warn('[Google TTS Error, Fallback ke Browser SpeechSynthesis]:', e);
+        speakWithBrowserSpeechSynthesis(speechText);
+      };
+
+      try {
+        await ttsAudioPlayer.play();
+      } catch (playErr) {
+        console.warn('[Audio Play Autoplay Blocked]:', playErr);
+        speakWithBrowserSpeechSynthesis(speechText);
+      }
+    } else {
+      // Opsi 2: Browser SpeechSynthesis (Gadis / Ardi Natural)
+      speakWithBrowserSpeechSynthesis(speechText);
+    }
+  }
+
+  function speakWithBrowserSpeechSynthesis(text) {
+    if (!window.speechSynthesis) {
+      finishSpeaking();
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'id-ID';
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    if (selectedVoice === 'gadis') {
+      const v = voices.find(v => v.lang.startsWith('id') && v.name.toLowerCase().includes('gadis'));
+      if (v) utterance.voice = v;
+    } else if (selectedVoice === 'ardi') {
+      const v = voices.find(v => v.lang.startsWith('id') && v.name.toLowerCase().includes('ardi'));
+      if (v) utterance.voice = v;
+    } else {
+      const v = voices.find(v => v.lang.startsWith('id'));
+      if (v) utterance.voice = v;
+    }
+
+    utterance.onend = () => {
+      finishSpeaking();
+    };
+
+    utterance.onerror = () => {
+      finishSpeaking();
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function finishSpeaking() {
+    isAiSpeaking = false;
+    setOrbState('idle');
+
+    // Jika mode Handsfree aktif dan panggilan masih ON, otomatis buka mikrofon kembali
+    if (isInCall && isHandsfree) {
+      captionLabel.innerText = 'Menunggu Suara Anda...';
+      captionText.innerText = 'Silakan lanjutkan berbicara...';
+      setTimeout(() => {
+        if (isInCall && !isAiSpeaking) {
+          startListening();
+        }
+      }, 500);
+    }
+  }
+
+  function stopAudioPlayback() {
+    try {
+      ttsAudioPlayer.pause();
+      ttsAudioPlayer.currentTime = 0;
+    } catch (e) {}
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  }
+
+  // CHAT BUBBLE HELPER
+  function appendChatBubble(role, text) {
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${role}`;
+
+    const speaker = document.createElement('div');
+    speaker.className = 'speaker-name';
+    speaker.innerText = role === 'user' ? 'Anda' : 'Asisten AI';
+
+    const content = document.createElement('div');
+    content.innerText = text;
+
+    bubble.appendChild(speaker);
+    bubble.appendChild(content);
+
+    transcriptList.appendChild(bubble);
+    transcriptList.scrollTop = transcriptList.scrollHeight;
+  }
+
+  function clearTranscript() {
+    if (confirm('Bersihkan seluruh catatan percakapan?')) {
+      transcriptList.innerHTML = '';
+      appendChatBubble('assistant', 'Catatan percakapan telah dibersihkan. Silakan mulai berbicara!');
+    }
+  }
+
+  function copyTranscript() {
+    let allText = '';
+    const bubbles = transcriptList.querySelectorAll('.chat-bubble');
+    bubbles.forEach(b => {
+      const speaker = b.querySelector('.speaker-name')?.innerText || '';
+      const text = b.querySelector('div:last-child')?.innerText || '';
+      allText += `[${speaker}]: ${text}\n\n`;
+    });
+
+    navigator.clipboard.writeText(allText).then(() => {
+      alert('✅ Catatan percakapan berhasil disalin ke clipboard!');
+    }).catch(() => {
+      alert('Gagal menyalin percakapan.');
+    });
+  }
+
+  // SETTINGS & MODES
+  function toggleHandsfree() {
+    isHandsfree = !isHandsfree;
+    btnHandsfree.className = isHandsfree ? 'btn-call-sub active' : 'btn-call-sub';
+    document.getElementById('handsfreeStatusLabel').innerText = isHandsfree 
+      ? 'Mode Telepon: Otomatis mendengarkan' 
+      : 'Mode Manual: Klik mic tiap ingin bicara';
+
+    if (isInCall && isHandsfree && !isAiSpeaking) {
+      startListening();
+    }
+  }
+
+  function toggleAudioMute() {
+    isAudioMuted = !isAudioMuted;
+    if (isAudioMuted) {
+      btnMuteAudio.classList.add('active');
+      iconMute.className = 'bi bi-volume-mute-fill';
+      stopAudioPlayback();
+    } else {
+      btnMuteAudio.classList.remove('active');
+      iconMute.className = 'bi bi-volume-up-fill';
+    }
+  }
+
+  function changeVoicePreference(val) {
+    selectedVoice = val;
+    localStorage.setItem('voice_assistant_pref', val);
+  }
+
+  // QUICK CHIPS & MANUAL TEXT
+  function sendVoiceQuestion(q) {
+    if (!isInCall) {
+      startCall();
+    }
+    handleUserSpoken(q);
+  }
+
+  function handleManualKey(e) {
+    if (e.key === 'Enter') {
+      sendManualText();
+    }
+  }
+
+  function sendManualText() {
+    const input = document.getElementById('manualTextInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    sendVoiceQuestion(text);
+  }
+
+  // TONE BEEP FEEDBACK
+  function playTone(freq, dur) {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      osc.start();
+      osc.stop(ctx.currentTime + dur);
+    } catch (e) {}
+  }
+
+  // INISIALISASI SAAT DOM SIAP
+  document.addEventListener('DOMContentLoaded', () => {
+    initSpeechRecognition();
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+  });
+</script>
+</body>
+</html>
