@@ -190,7 +190,7 @@ const selectInvoiceByUniqueAmount = db.prepare(`
          c.status as customer_status
   FROM invoices i
   JOIN customers c ON c.id = i.customer_id
-  WHERE i.status = 'unpaid' AND i.qris_amount_unique = ?
+  WHERE i.status = 'unpaid' AND (i.qris_amount_unique = ? OR (i.qris_amount_unique IS NULL AND i.amount = ?))
   ORDER BY i.id DESC
   LIMIT 2
 `);
@@ -198,7 +198,7 @@ const selectInvoiceByUniqueAmount = db.prepare(`
 const selectVoucherOrderByUniqueAmount = db.prepare(`
   SELECT id, status, profile_name, validity, buyer_phone
   FROM public_voucher_orders
-  WHERE status = 'pending' AND qris_amount_unique = ?
+  WHERE status = 'pending' AND (qris_amount_unique = ? OR (qris_amount_unique IS NULL AND price = ?))
   ORDER BY id DESC
   LIMIT 2
 `);
@@ -237,7 +237,7 @@ const markVoucherWaSentErr = db.prepare(`
 const selectDonationOrderByUniqueAmount = db.prepare(`
   SELECT id, status, donor_name, donor_phone, amount, qris_amount_unique, qris_unique_code, notes, activation_code
   FROM public_donation_orders
-  WHERE status = 'pending' AND qris_amount_unique = ?
+  WHERE status = 'pending' AND (qris_amount_unique = ? OR (qris_amount_unique IS NULL AND amount = ?))
   ORDER BY id DESC
   LIMIT 2
 `);
@@ -443,6 +443,27 @@ function parseRupiahAmountFromNotification(content) {
     return null;
   }
 
+  const outgoingHints = [
+    'mengirim', 'terkirim', 'telah dikirim', 'berhasil kirim', 'transfer ke',
+    'bayar ke', 'pembelian', 'belanja', 'purchase', 'kamu membayar',
+    'transaksi keluar', 'debit', 'dikenakan biaya', 'potongan'
+  ];
+
+  const isIncomingOverride = lower.includes('diterima') ||
+    lower.includes('masuk') ||
+    lower.includes('kamu menerima') ||
+    lower.includes('berhasil menerima') ||
+    lower.includes('terima transfer') ||
+    lower.includes('pembayaran berhasil diterima');
+
+  const hasOutgoingHint = outgoingHints.some((hint) => {
+    if (isIncomingOverride && (hint === 'pembayaran berhasil' || hint === 'berhasil bayar')) return false;
+    return lower.includes(hint);
+  });
+  if (hasOutgoingHint) {
+    return null;
+  }
+
   const incomingHints = [
     'pembayaran masuk', 'pembayaran diterima', 'uang masuk', 'transfer masuk',
     'dana masuk', 'saldo masuk', 'saldo bertambah', 'berhasil top up',
@@ -450,45 +471,40 @@ function parseRupiahAmountFromNotification(content) {
     'diterima dari', 'qris berhasil', 'qris sukses', 'qr berhasil', 'qr sukses',
     'payment received', 'kamu menerima', 'berhasil menerima', 'menambahkan',
     'telah diterima sebesar', 'uang diterima', 'diterima', 'terima transfer',
-    'transfer dari', 'kamu dapat', 'kamu dapet'
-  ];
-  const outgoingHints = [
-    'mengirim', 'terkirim', 'telah dikirim', 'berhasil kirim', 'transfer ke',
-    'bayar ke', 'pembelian', 'belanja', 'purchase', 'kamu membayar',
-    'transaksi keluar', 'debit', 'dikenakan biaya', 'potongan'
+    'transfer dari', 'kamu dapat', 'kamu dapet', 'masuk ke rekening', 'masuk'
   ];
 
-  const hasIncomingHint = incomingHints.some((hint) => lower.includes(hint)) ||
-    (lower.includes('qris') && lower.includes('berhasil')) ||
-    (lower.includes('m-transfer') && lower.includes('cr'));
+  const hasQrisIncoming = lower.includes('qris') && (
+    lower.includes('masuk') || lower.includes('diterima') || lower.includes('sukses') ||
+    lower.includes('berhasil') || lower.includes('payment') || lower.includes('transaksi') ||
+    lower.includes('rp') || lower.includes('cr') || lower.includes('dana') || lower.includes('uang')
+  );
 
-  const isIncomingOverride = lower.includes('diterima') ||
-    lower.includes('masuk') ||
-    lower.includes('kamu menerima') ||
-    lower.includes('berhasil menerima') ||
-    lower.includes('terima transfer');
+  const hasBcaIncoming = lower.includes('m-transfer') && (lower.includes('cr') || lower.includes('qris'));
 
-  const hasOutgoingHint = outgoingHints.some((hint) => {
-    if (isIncomingOverride && (hint === 'pembayaran berhasil' || hint === 'berhasil bayar')) return false;
-    return lower.includes(hint);
-  });
+  const hasIncomingHint = incomingHints.some((hint) => lower.includes(hint)) || hasQrisIncoming || hasBcaIncoming;
 
   // WAJIB: Harus ada indikator uang masuk dan TIDAK BOLEH ada indikator uang keluar
-  if (!hasIncomingHint || hasOutgoingHint) {
+  if (!hasIncomingHint) {
     return null;
   }
 
   const candidates = [
     /(?:\bRp\.?\s*|IDR\s*)([0-9][0-9\.\,\s]*)/i,
-    /(?:sebesar|senilai|nominal|masuk|transfer|top\s*up|topup|saldo\s+masuk)\s*(?:saldo\s*)?(?:\bRp\.?\s*)?([0-9][0-9\.\,\s]*)/i,
+    /(?:sebesar|senilai|nominal|masuk|transfer|top\s*up|topup|saldo\s+masuk|diterima)\s*(?:saldo\s*)?(?:\bRp\.?\s*)?([0-9][0-9\.\,\s]*)/i,
+    /(?:CR|QRIS)\s+(?:CR\s+)?([0-9][0-9\.\,]*)/i,
+    /([0-9][0-9\.\,]+)\s+CR\b/i
   ];
 
   let raw = null;
   for (const re of candidates) {
     const m = text.match(re);
     if (m && m[1]) {
-      raw = String(m[1]);
-      break;
+      const candidateRaw = String(m[1]).trim();
+      if (!candidateRaw.includes('/')) {
+        raw = candidateRaw;
+        break;
+      }
     }
   }
   if (!raw) return null;
@@ -957,9 +973,9 @@ app.post('/api/webhook/v1/payment-notif', multer().any(), async (req, res) => {
     let matchedTopupRequestId = null;
     if (amount != null) {
       try {
-        const invCandidates = selectInvoiceByUniqueAmount.all(amount);
-        const vCandidates = selectVoucherOrderByUniqueAmount.all(amount);
-        const dCandidates = selectDonationOrderByUniqueAmount.all(amount);
+        const invCandidates = selectInvoiceByUniqueAmount.all(amount, amount);
+        const vCandidates = selectVoucherOrderByUniqueAmount.all(amount, amount);
+        const dCandidates = selectDonationOrderByUniqueAmount.all(amount, amount);
         const tCandidates = selectTopupOrderByUniqueAmount ? selectTopupOrderByUniqueAmount.all(amount, amount) : [];
         const totalCandidates = (Array.isArray(invCandidates) ? invCandidates.length : 0) + 
                                 (Array.isArray(vCandidates) ? vCandidates.length : 0) +
