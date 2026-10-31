@@ -111,7 +111,8 @@ app.use((req, res, next) => {
     // Kecualikan webhook eksternal, ACS server TR-069, atau payment gateway callback
     const isWebhook = req.path.startsWith('/api/webhook') || req.path.startsWith('/webhook') || req.path === '/customer/payment/callback';
     const isAcs = req.path.startsWith('/acs');
-    if (isWebhook || isAcs) {
+    const isVoiceAi = req.path.includes('/voice-assistant') || req.headers['x-api-token'] === 'alijaya-voice-ai-2026';
+    if (isWebhook || isAcs || isVoiceAi) {
       return next();
     }
 
