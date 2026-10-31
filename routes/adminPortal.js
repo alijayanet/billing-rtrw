@@ -6068,6 +6068,37 @@ router.get('/api/voice-assistant/tts', requireAdminSession, async (req, res) => 
   }
 });
 
+router.get('/api/soundbox/poll', requireAdminSession, (req, res) => {
+  try {
+    const soundboxSvc = require('../services/soundboxService');
+    const afterId = Number(req.query.afterId || 0);
+    const events = soundboxSvc.getLatestEvents(afterId, 15);
+    res.json({ success: true, events });
+  } catch (err) {
+    logger.error('[Soundbox Route] Poll error: ' + err.message);
+    res.status(500).json({ success: false, message: err.message, events: [] });
+  }
+});
+
+router.post('/api/soundbox/test', requireAdminSession, (req, res) => {
+  try {
+    const soundboxSvc = require('../services/soundboxService');
+    const customText = req.body?.speechText;
+    const amount = Number(req.body?.amount || 50000);
+    const id = soundboxSvc.queueSoundboxEvent({
+      type: 'test',
+      title: 'Uji Suara Kasir',
+      speechText: customText || ('Uji coba speaker kasir berhasil. Pembayaran sebesar ' + soundboxSvc.formatRupiahSpoken(amount) + ' diterima.'),
+      amount,
+      customerName: 'Admin Soundbox'
+    });
+    res.json({ success: true, eventId: id });
+  } catch (err) {
+    logger.error('[Soundbox Route] Test error: ' + err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 router.get('/whatsapp/templates', requireAdminSession, requireSidebarMenuAccess('whatsapp'), async (req, res) => {
   const comp = company();
   const defaultAutoBilling = `Yth. Pelanggan {{nama}},\n\nIni adalah pengingat sebelum tanggal jatuh tempo/isolir.\n\n📦 *Paket:* {{paket}}\n💰 *Total Tagihan:* Rp {{tagihan}}\n📅 *Periode:* {{rincian}}\n\nMohon segera melakukan pembayaran melalui portal pelanggan: {{link}}\n\nTerima kasih atas kerja samanya.\nSalam,\nAdmin ${comp}`;

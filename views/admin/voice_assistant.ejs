@@ -628,6 +628,40 @@
           </div>
         </div>
 
+        <!-- Live Soundbox Kasir (Speaker Real-Time Transaksi) -->
+        <div class="soundbox-live-card" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 16px; padding: 18px 20px; margin-bottom: 20px; backdrop-filter: blur(10px);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center;">
+                <i class="bi bi-speaker-fill" style="color: #10b981; font-size: 16px;"></i>
+              </div>
+              <div>
+                <div style="font-size: 13px; font-weight: 700; color: #ffffff;">Soundbox Kasir Otomatis</div>
+                <div style="font-size: 11px; color: #94a3b8;" id="soundboxStatusPill">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;margin-right:6px;"></span> Aktif Siaga
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button class="btn btn-g btn-sm" onclick="testSoundboxVoice()" style="font-size: 11px; padding: 4px 8px;" title="Uji speaker kasir">
+                <i class="bi bi-volume-up"></i> Uji Suara
+              </button>
+              <button class="btn btn-g btn-sm" onclick="toggleAdminSoundbox()" style="font-size: 11px; padding: 4px 8px;" title="Hidupkan / Matikan Soundbox">
+                <i class="bi bi-power"></i> Saklar
+              </button>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 10px;">
+            Setiap ada transaksi QRIS, Voucher Hotspot, Tagihan, atau Donasi masuk, suara speaker kasir akan berbunyi otomatis secara instan.
+          </div>
+          <!-- Live Feed List -->
+          <div id="soundboxLiveFeed" style="max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+            <div id="soundboxEmptyPlaceholder" style="font-size: 11px; color: #64748b; font-style: italic; text-align: center; padding: 8px 0;">
+              Menunggu transaksi pembayaran masuk...
+            </div>
+          </div>
+        </div>
+
         <!-- Live Conversation Transcript -->
         <div class="transcript-card">
           <div class="transcript-header">
@@ -652,6 +686,39 @@
 <audio id="ttsAudioPlayer" style="display:none;"></audio>
 
 <script>
+  // SOUNDBOX EVENT LISTENER
+  window.addEventListener('soundbox:event', function(e) {
+    const ev = e.detail;
+    if (!ev) return;
+    const placeholder = document.getElementById('soundboxEmptyPlaceholder');
+    if (placeholder) placeholder.remove();
+
+    const feed = document.getElementById('soundboxLiveFeed');
+    if (feed) {
+      const item = document.createElement('div');
+      item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);padding:8px 12px;border-radius:10px;border-left:3px solid #10b981;font-size:12px;';
+      const icon = ev.type === 'voucher' ? 'bi-ticket-perforated' : ev.type === 'invoice' ? 'bi-receipt' : 'bi-cash-coin';
+      const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      item.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;">
+          <i class="bi ${icon}" style="color:#10b981;"></i>
+          <div>
+            <div style="font-weight:700;color:#ffffff;">${ev.title || 'Transaksi Masuk'}</div>
+            <div style="font-size:10px;color:#94a3b8;">${ev.customer_name || ev.speech_text || ''}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:700;color:#10b981;">Rp ${Number(ev.amount || 0).toLocaleString('id-ID')}</div>
+          <div style="font-size:9px;color:#64748b;">${timeStr}</div>
+        </div>
+      `;
+      feed.insertBefore(item, feed.firstChild);
+      while (feed.children.length > 10) {
+        feed.removeChild(feed.lastChild);
+      }
+    }
+  });
+
   // STATE MANAGEMENT
   let isInCall = false;
   let isHandsfree = true; // Mode telepon (auto bicara & auto mendengarkan kembali)

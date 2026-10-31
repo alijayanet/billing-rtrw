@@ -421,6 +421,18 @@ function markAsPaid(invoiceId, paidByName, notes, actor = null) {
 
   if (result.changes > 0 && existing.customer_id) {
     renewCustomerPrepaidValidity(existing.customer_id, 1);
+    try {
+      const cust = db.prepare('SELECT name FROM customers WHERE id=?').get(existing.customer_id);
+      const soundboxSvc = require('./soundboxService');
+      soundboxSvc.queueSoundboxEvent({
+        type: 'invoice',
+        title: 'Tagihan #' + invId,
+        amount: existing.amount,
+        customerName: cust?.name || 'Pelanggan'
+      });
+    } catch (e) {
+      logger.warn('[Soundbox] Billing invoice event error: ' + (e?.message || e));
+    }
   }
 
   // Catat audit trail jika berhasil

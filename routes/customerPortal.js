@@ -3277,6 +3277,18 @@ router.post('/payment/callback', express.json({
             WHERE id=?
           `).run(created.code, created.pass, created.comment, orderId);
 
+          try {
+            const soundboxSvc = require('../services/soundboxService');
+            soundboxSvc.queueSoundboxEvent({
+              type: 'voucher',
+              title: 'Voucher #' + orderId,
+              amount: fresh.price,
+              customerName: fresh.profile_name || 'Hotspot'
+            });
+          } catch (e) {
+            logger.warn('[Soundbox] CP voucher event error: ' + (e?.message || e));
+          }
+
           if (settings.whatsapp_enabled) {
             try {
               const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');

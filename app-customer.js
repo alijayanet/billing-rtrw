@@ -1035,6 +1035,19 @@ app.post('/api/webhook/v1/payment-notif', multer().any(), async (req, res) => {
                 `🧾 *No. Invoice:* #${invId}\n` +
                 `📌 *Status:* LUNAS ✅`
               ).catch((e) => logger.warn('[WEBHOOK TTS] Error sending voice: ' + e.message));
+
+              // Queue ke Soundbox Speaker Kasir Web
+              try {
+                const soundboxSvc = require('./services/soundboxService');
+                soundboxSvc.queueSoundboxEvent({
+                  type: 'invoice',
+                  title: 'Tagihan #' + invId,
+                  amount,
+                  customerName
+                });
+              } catch (e) {
+                logger.warn('[Soundbox] Webhook invoice event error: ' + (e?.message || e));
+              }
             } catch (ttsErr) {
               logger.warn('[WEBHOOK] TTS voice notification error: ' + ttsErr.message);
             }
@@ -1069,6 +1082,19 @@ app.post('/api/webhook/v1/payment-notif', multer().any(), async (req, res) => {
                   `🧾 *No. Order:* #${ordId}\n` +
                   `📌 *Status:* BERHASIL ✅`
                 ).catch((e) => logger.warn('[WEBHOOK TTS] Error sending voice: ' + e.message));
+
+                // Queue ke Soundbox Speaker Kasir Web
+                try {
+                  const soundboxSvc = require('./services/soundboxService');
+                  soundboxSvc.queueSoundboxEvent({
+                    type: 'voucher',
+                    title: 'Voucher #' + ordId,
+                    amount,
+                    customerName: pkgName
+                  });
+                } catch (e) {
+                  logger.warn('[Soundbox] Webhook voucher event error: ' + (e?.message || e));
+                }
               } catch (ttsErr) {
                 logger.warn('[WEBHOOK] TTS voucher voice notification error: ' + ttsErr.message);
               }
@@ -1102,6 +1128,19 @@ app.post('/api/webhook/v1/payment-notif', multer().any(), async (req, res) => {
                   `🏦 *Sumber Rekening:* ${service || 'E-Wallet'}\n` +
                   `📌 *Status:* DITERIMA ✅`
                 ).catch((e) => logger.warn('[WEBHOOK TTS] Error sending voice: ' + e.message));
+
+                // Queue ke Soundbox Speaker Kasir Web
+                try {
+                  const soundboxSvc = require('./services/soundboxService');
+                  soundboxSvc.queueSoundboxEvent({
+                    type: 'donation',
+                    title: 'Donasi #' + donId,
+                    amount,
+                    customerName: donorName
+                  });
+                } catch (e) {
+                  logger.warn('[Soundbox] Webhook donation event error: ' + (e?.message || e));
+                }
               } catch (ttsErr) {
                 logger.warn('[WEBHOOK] TTS donation voice notification error: ' + ttsErr.message);
               }
@@ -1181,6 +1220,19 @@ app.post('/api/webhook/v1/payment-notif', multer().any(), async (req, res) => {
                   `🆔 *ID Transaksi:* TOPUP-${topupId}\n` +
                   `📌 *Status:* BERHASIL ✅`
                 ).catch((e) => logger.warn('[WEBHOOK TTS] Error sending voice: ' + e.message));
+
+                // Queue ke Soundbox Speaker Kasir Web
+                try {
+                  const soundboxSvc = require('./services/soundboxService');
+                  soundboxSvc.queueSoundboxEvent({
+                    type: 'topup',
+                    title: 'Top-Up #' + topupId,
+                    amount: baseAmount,
+                    customerName: custName
+                  });
+                } catch (e) {
+                  logger.warn('[Soundbox] Webhook topup event error: ' + (e?.message || e));
+                }
               } catch (ttsErr) {
                 logger.warn('[WEBHOOK] TTS topup voice notification error: ' + ttsErr.message);
               }

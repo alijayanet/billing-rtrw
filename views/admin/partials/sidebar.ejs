@@ -55,9 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
         <%= company %>
       </div>
       <div class="sb-sub"><%= t('admin.panel', 'Admin Panel') %></div>
-      <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+      <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <a href="/lang/id" class="btn btn-g btn-sm" style="padding:4px 8px">ID</a>
         <a href="/lang/en" class="btn btn-g btn-sm" style="padding:4px 8px">EN</a>
+        <button type="button" id="btnSidebarSoundbox" class="btn btn-g btn-sm" onclick="toggleAdminSoundbox()" title="Soundbox Kasir: Suara Pembayaran Otomatis" style="padding:4px 8px">
+          <i class="bi bi-volume-up-fill" id="sidebarSoundboxIcon" style="color:#10b981"></i>
+        </button>
         <button type="button" class="btn btn-g btn-sm theme-toggle-btn" onclick="toggleAppTheme()" title="Ganti Tema Dark / Light" style="padding:4px 8px;margin-left:auto">
           <i class="bi bi-moon-stars-fill theme-toggle-icon" style="color:#fbbf24"></i> Tema
         </button>
@@ -191,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 </script>
 <script src="/js/theme.js"></script>
+<script src="/js/soundbox.js"></script>
 
 <!-- Bottom Navigation (Mobile Only) -->
 <nav class="bottom-nav" id="bottomNav">
