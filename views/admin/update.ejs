@@ -43,7 +43,7 @@
               <i class="bi bi-github"></i>
               <span style="font-weight:800"><%= info?.remoteVersion || '-' %></span>
               <% if (info?.needsUpdate) { %>
-                <span class="badge badge-d" style="margin-left:8px"><i class="bi bi-arrow-up-circle"></i> <%= t('admin.update.has_update', 'Ada update') %></span>
+                <span class="badge badge-d" style="margin-left:8px"><i class="bi bi-arrow-up-circle"></i> <%= info?.commitsBehind ? info.commitsBehind + ' update baru' : t('admin.update.has_update', 'Ada update') %></span>
               <% } else { %>
                 <span class="badge badge-s" style="margin-left:8px"><i class="bi bi-check2-circle"></i> <%= t('admin.update.latest', 'Terbaru') %></span>
               <% } %>

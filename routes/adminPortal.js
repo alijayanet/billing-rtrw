@@ -397,7 +397,7 @@ function getGitDefaultBranch(repoRoot) {
 
 function getUpdateInfo(repoRoot) {
   const localVersion = readTextFileSafe(path.join(repoRoot, 'version.txt')) || '-';
-  const info = { localVersion, remoteVersion: '-', branch: '-', needsUpdate: false, error: '' };
+  const info = { localVersion, remoteVersion: '-', branch: '-', needsUpdate: false, commitsBehind: 0, error: '' };
 
   const inside = runCmd('git', ['rev-parse', '--is-inside-work-tree'], repoRoot);
   if (!inside.ok) {
@@ -415,14 +415,18 @@ function getUpdateInfo(repoRoot) {
   }
 
   const remote = runCmd('git', ['show', `origin/${branch}:version.txt`], repoRoot);
-  if (!remote.ok) {
-    info.error = `Tidak bisa membaca version.txt dari GitHub (origin/${branch}).`;
-    return info;
-  }
-
-  const remoteVersion = String(remote.stdout || '').trim() || '-';
+  const remoteVersion = remote.ok ? (String(remote.stdout || '').trim() || '-') : '-';
   info.remoteVersion = remoteVersion;
-  info.needsUpdate = Boolean(remoteVersion && remoteVersion !== '-' && remoteVersion !== localVersion);
+
+  const revDiff = runCmd('git', ['rev-list', '--count', `HEAD..origin/${branch}`], repoRoot);
+  const commitsBehind = revDiff.ok ? parseInt(String(revDiff.stdout || '0').trim(), 10) || 0 : 0;
+  info.commitsBehind = commitsBehind;
+
+  info.needsUpdate = Boolean(
+    (remoteVersion && remoteVersion !== '-' && remoteVersion !== localVersion) ||
+    commitsBehind > 0
+  );
+
   return info;
 }
 
@@ -4042,6 +4046,8 @@ router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
     { label: 'settings.json', relativePath: 'settings.json', cleanExclude: 'settings.json' },
     { label: '.env', relativePath: '.env', cleanExclude: '.env' },
     { label: 'database', relativePath: 'database', cleanExclude: 'database' },
+    { label: 'database.sqlite', relativePath: 'database.sqlite', cleanExclude: 'database.sqlite' },
+    { label: 'backups', relativePath: 'backups', cleanExclude: 'backups' },
     { label: 'public/uploads', relativePath: 'public/uploads', cleanExclude: 'public/uploads' },
     { label: 'public/img', relativePath: 'public/img', cleanExclude: 'public/img' },
     { label: authFolder, relativePath: authFolder, cleanExclude: authFolder.replace(/\\/g, '/') },
@@ -4078,12 +4084,13 @@ router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
       if (!fs.existsSync(backupPath)) continue;
       const stat = fs.statSync(backupPath);
       if (stat.isDirectory()) {
-        fs.rmSync(targetPath, { recursive: true, force: true });
         fs.mkdirSync(targetPath, { recursive: true });
         copyDirSync(backupPath, targetPath);
       } else {
         fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-        fs.copyFileSync(backupPath, targetPath);
+        try {
+          fs.copyFileSync(backupPath, targetPath);
+        } catch (_) {}
       }
       restored.push(entry.label);
     }
@@ -4097,17 +4104,31 @@ router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
     pushCmd('git rev-parse --is-inside-work-tree', inside);
     if (!inside.ok) throw new Error('Folder ini belum menjadi git repository.');
 
+    // Bersihkan stale git lock jika ada
+    const gitLockPath = path.join(repoRoot, '.git', 'index.lock');
+    if (fs.existsSync(gitLockPath)) {
+      try {
+        const lockAgeMs = Date.now() - fs.statSync(gitLockPath).mtimeMs;
+        if (lockAgeMs > 60000) {
+          fs.unlinkSync(gitLockPath);
+          log.push('$ removed stale .git/index.lock');
+        }
+      } catch (_) {}
+    }
+
     const fetch = runCmd('git', ['fetch', '--prune'], repoRoot);
     pushCmd('git fetch --prune', fetch);
-    if (!fetch.ok) throw new Error('Gagal git fetch.');
+    if (!fetch.ok) throw new Error('Gagal git fetch: ' + (fetch.stderr || fetch.stdout));
 
     const remote = runCmd('git', ['show', `origin/${branch}:version.txt`], repoRoot);
     pushCmd(`git show origin/${branch}:version.txt`, remote);
-    if (!remote.ok) throw new Error('Tidak bisa membaca version.txt dari GitHub.');
-    const remoteVersion = String(remote.stdout || '').trim() || '-';
+    const remoteVersion = remote.ok ? (String(remote.stdout || '').trim() || '-') : '-';
 
-    if (remoteVersion !== '-' && remoteVersion === localBefore) {
-      req.session._msg = { type: 'success', text: 'Versi sudah terbaru: ' + localBefore };
+    const revDiff = runCmd('git', ['rev-list', '--count', `HEAD..origin/${branch}`], repoRoot);
+    const commitsBehind = revDiff.ok ? parseInt(String(revDiff.stdout || '0').trim(), 10) || 0 : 0;
+
+    if (commitsBehind === 0 && remoteVersion !== '-' && remoteVersion === localBefore) {
+      req.session._msg = { type: 'success', text: 'Versi sudah paling terbaru: ' + localBefore };
       req.session._updateLog = log.join('\n');
       return res.redirect('/admin/update');
     }
@@ -4162,7 +4183,23 @@ router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
     }
 
     const localAfter = readTextFileSafe(versionPath) || '-';
-    req.session._msg = { type: 'success', text: `Update selesai. Versi: ${localBefore} → ${localAfter}. Silakan restart aplikasi.` };
+
+    // Auto reload PM2 jika berjalan di server produksi
+    const isPm2 = process.env.pm_id !== undefined || process.env.PM2_HOME !== undefined;
+    if (isPm2) {
+      log.push('$ Menjadwalkan reload PM2 otomatis dalam 1.5 detik...');
+      setTimeout(() => {
+        try {
+          const { spawn } = require('child_process');
+          spawn('pm2', ['reload', 'billing'], { detached: true, stdio: 'ignore' }).unref();
+        } catch (_) {}
+      }, 1500);
+    }
+
+    req.session._msg = { 
+      type: 'success', 
+      text: `Update selesai. Versi: ${localBefore} → ${localAfter}.${isPm2 ? ' Layanan otomatis dimuat ulang oleh PM2.' : ' Silakan restart aplikasi.'}` 
+    };
     req.session._updateLog = log.join('\n');
   } catch (e) {
     if (repoChanged) {
@@ -6827,7 +6864,7 @@ router.post('/api/system/update', requireAdmin, async (req, res) => {
 
   const cmd = isWindows 
     ? 'git pull origin main || git pull' 
-    : 'nice -n 19 bash update.sh';
+    : 'export PATH="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:$PATH:/usr/local/bin:/usr/bin"; bash update.sh';
 
   logger.info(`[System Update] Admin initiated 1-Click System Update.`);
 
