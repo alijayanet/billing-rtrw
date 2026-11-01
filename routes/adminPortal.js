@@ -6014,7 +6014,7 @@ router.get('/voice-assistant', requireAdminSession, requireSidebarMenuAccess('vo
 
 function requireAdminOrVoiceToken(req, res, next) {
   if (req.session?.isAdmin || req.session?.isCashier) return next();
-  const token = req.headers['x-api-token'] || req.body?.apiToken || (req.headers['authorization'] ? req.headers['authorization'].replace('Bearer ', '') : null);
+  const token = req.headers['x-api-token'] || req.query?.token || req.body?.apiToken || (req.headers['authorization'] ? req.headers['authorization'].replace('Bearer ', '') : null);
   if (token === 'alijaya-voice-ai-2026' || req.body?.isAdmin === true) {
     req.session = req.session || {};
     req.session.isAdmin = true;

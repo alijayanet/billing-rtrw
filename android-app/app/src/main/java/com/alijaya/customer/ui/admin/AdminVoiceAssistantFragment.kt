@@ -163,6 +163,7 @@ class AdminVoiceAssistantFragment : Fragment() {
             isClickable = true
             isFocusable = true
             setOnClickListener {
+                SoundboxSpeakerHelper.stopCurrentPlayback()
                 launchSpeechInput()
             }
         }
@@ -345,6 +346,7 @@ class AdminVoiceAssistantFragment : Fragment() {
                 setMargins(0, 0, 10, 0)
             }
             setOnClickListener {
+                SoundboxSpeakerHelper.stopCurrentPlayback()
                 launchSpeechInput()
             }
         }
@@ -464,15 +466,18 @@ class AdminVoiceAssistantFragment : Fragment() {
             }
 
             progressBar.visibility = View.GONE
-            tvOrbStatus.text = "Ketuk bola untuk berbicara langsung"
 
             val isOk = response.optBoolean("ok", false)
             if (isOk) {
                 val answer = response.optString("text", "Jawaban kosong.")
                 val speech = response.optString("speechText", answer)
                 addMessageBubble(isUser = false, message = answer, speechText = speech)
-                SoundboxSpeakerHelper.speak(ctx, speech, withChime = false)
+                tvOrbStatus.text = "AI sedang berbicara..."
+                SoundboxSpeakerHelper.speak(ctx, speech, withChime = false) {
+                    tvOrbStatus.text = "Ketuk bola untuk berbicara langsung"
+                }
             } else {
+                tvOrbStatus.text = "Ketuk bola untuk berbicara langsung"
                 val err = response.optString("error", "Terjadi kesalahan saat memproses pertanyaan.")
                 addMessageBubble(isUser = false, message = "⚠️ $err")
             }
@@ -523,7 +528,10 @@ class AdminVoiceAssistantFragment : Fragment() {
                 setPadding(0, 10, 0, 0)
                 isClickable = true
                 setOnClickListener {
-                    SoundboxSpeakerHelper.speak(ctx, speechText, withChime = false)
+                    tvOrbStatus.text = "AI sedang berbicara..."
+                    SoundboxSpeakerHelper.speak(ctx, speechText, withChime = false) {
+                        tvOrbStatus.text = "Ketuk bola untuk berbicara langsung"
+                    }
                 }
             }
             inner.addView(btnReplay)

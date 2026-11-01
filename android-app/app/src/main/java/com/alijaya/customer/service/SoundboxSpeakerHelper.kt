@@ -4,18 +4,24 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.speech.tts.Voice
 import android.util.Log
+import com.alijaya.customer.CustomerApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 import java.util.Locale
 
 object SoundboxSpeakerHelper {
     private const val TAG = "SoundboxSpeaker"
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
+    private var currentMediaPlayer: MediaPlayer? = null
     private val scope = CoroutineScope(Dispatchers.Main)
 
     fun init(context: Context) {
@@ -23,10 +29,26 @@ object SoundboxSpeakerHelper {
         try {
             tts = TextToSpeech(context.applicationContext) { status ->
                 if (status == TextToSpeech.SUCCESS) {
-                    val result = tts?.setLanguage(Locale("id", "ID"))
+                    val localeId = Locale.forLanguageTag("id-ID")
+                    val result = tts?.setLanguage(localeId)
                     if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                         tts?.setLanguage(Locale.getDefault())
+                    } else {
+                        // Coba aktifkan suara Neural / High-Quality Indonesian jika tersedia di ponsel
+                        try {
+                            val voices = tts?.voices
+                            val neural = voices?.firstOrNull {
+                                it.locale.language == "id" && (it.quality >= Voice.QUALITY_VERY_HIGH || it.name.contains("network", ignoreCase = true))
+                            } ?: voices?.firstOrNull { it.locale.language == "id" && !it.name.contains("local", ignoreCase = true) }
+
+                            if (neural != null) {
+                                tts?.voice = neural
+                                Log.i(TAG, "Selected Neural/Network voice: ${neural.name}")
+                            }
+                        } catch (_: Exception) {}
                     }
+                    tts?.setSpeechRate(1.0f)
+                    tts?.setPitch(1.0f)
                     isTtsReady = true
                     Log.i(TAG, "Soundbox TTS Initialized successfully")
                 }
@@ -85,23 +107,135 @@ object SoundboxSpeakerHelper {
         }
     }
 
+    fun stopCurrentPlayback() {
+        try {
+            currentMediaPlayer?.stop()
+            currentMediaPlayer?.release()
+        } catch (_: Exception) {}
+        currentMediaPlayer = null
+
+        try {
+            tts?.stop()
+        } catch (_: Exception) {}
+    }
+
     /**
-     * Berbicara melalui speaker kasir (didahului bel kasir)
+     * Memainkan suara AI Neural Indonesia persis seperti yang digunakan di Web Admin.
+     * Mengalirkan audio langsung dari server Google ID TTS (/api/voice-assistant/tts).
+     * Jika koneksi offline/gagal, otomatis fallback ke TTS lokal dengan suara terbaik.
      */
-    fun speak(context: Context, text: String, withChime: Boolean = true) {
+    fun speak(
+        context: Context,
+        text: String,
+        withChime: Boolean = true,
+        onComplete: (() -> Unit)? = null
+    ) {
         init(context)
+        stopCurrentPlayback()
+
         scope.launch {
             if (withChime) {
                 playChime()
-                delay(400)
+                delay(380)
             }
-            if (isTtsReady && tts != null) {
-                tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "soundbox_" + System.currentTimeMillis())
+
+            val clean = cleanForSpeech(text)
+            if (clean.isBlank()) {
+                onComplete?.invoke()
+                return@launch
+            }
+
+            // Ambil Base URL server dari SessionManager
+            var baseUrl = ""
+            try {
+                baseUrl = CustomerApplication.sessionManager.getServerBaseUrl().trimEnd('/')
+            } catch (_: Exception) {}
+
+            if (baseUrl.isNotBlank()) {
+                playFromServerTts(context, clean, baseUrl, onComplete)
+            } else {
+                speakWithLocalTts(context, clean, onComplete)
             }
         }
     }
 
+    private fun playFromServerTts(
+        context: Context,
+        cleanText: String,
+        baseUrl: String,
+        onComplete: (() -> Unit)?
+    ) {
+        try {
+            val encoded = URLEncoder.encode(cleanText, "UTF-8")
+            val ttsUrl = "$baseUrl/api/voice-assistant/tts?token=alijaya-voice-ai-2026&text=$encoded"
+
+            val player = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                        .build()
+                )
+                setDataSource(ttsUrl)
+                setOnPreparedListener { mp ->
+                    mp.start()
+                }
+                setOnCompletionListener { mp ->
+                    mp.release()
+                    if (currentMediaPlayer == mp) currentMediaPlayer = null
+                    onComplete?.invoke()
+                }
+                setOnErrorListener { mp, what, extra ->
+                    Log.w(TAG, "Server TTS error (what=$what, extra=$extra). Falling back to local TTS.")
+                    mp.release()
+                    if (currentMediaPlayer == mp) currentMediaPlayer = null
+                    speakWithLocalTts(context, cleanText, onComplete)
+                    true
+                }
+                prepareAsync()
+            }
+            currentMediaPlayer = player
+        } catch (e: Exception) {
+            Log.w(TAG, "Stream server TTS failed: ${e.message}. Using local TTS.")
+            speakWithLocalTts(context, cleanText, onComplete)
+        }
+    }
+
+    private fun speakWithLocalTts(context: Context, text: String, onComplete: (() -> Unit)?) {
+        if (!isTtsReady || tts == null) {
+            onComplete?.invoke()
+            return
+        }
+
+        try {
+            val utteranceId = "soundbox_" + System.currentTimeMillis()
+            tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) {}
+                override fun onDone(utteranceId: String?) {
+                    scope.launch { onComplete?.invoke() }
+                }
+                override fun onError(utteranceId: String?) {
+                    scope.launch { onComplete?.invoke() }
+                }
+            })
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        } catch (e: Exception) {
+            Log.w(TAG, "Local TTS speak error: ${e.message}")
+            onComplete?.invoke()
+        }
+    }
+
+    private fun cleanForSpeech(raw: String): String {
+        return raw.replace(Regex("`[^`]*`"), "")
+            .replace(Regex("[*_~#•]"), " ")
+            .replace(Regex("\\[([^\\]]+)\\]\\([^)]+\\)"), "$1")
+            .replace(Regex("(?i)\\bRp\\.?\\s*([0-9.,]+)"), "$1 rupiah")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
     fun shutdown() {
+        stopCurrentPlayback()
         try {
             tts?.stop()
             tts?.shutdown()

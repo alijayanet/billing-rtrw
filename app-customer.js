@@ -2242,7 +2242,7 @@ const telegramAi = require('./services/telegramAiService');
 const voiceTts = require('./services/voiceTtsService');
 
 function requireVoiceApiAuth(req, res, next) {
-  const token = req.headers['x-api-token'] || req.body?.apiToken || (req.headers['authorization'] ? req.headers['authorization'].replace(/^Bearer\s+/i, '') : null);
+  const token = req.headers['x-api-token'] || req.query?.token || req.body?.apiToken || (req.headers['authorization'] ? req.headers['authorization'].replace(/^Bearer\s+/i, '') : null);
   if (token === 'alijaya-voice-ai-2026' || req.body?.isAdmin === true || req.session?.isAdmin) {
     req.session = req.session || {};
     req.session.isAdmin = true;
