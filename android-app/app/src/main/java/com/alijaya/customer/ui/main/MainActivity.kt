@@ -22,6 +22,7 @@ import com.alijaya.customer.bridge.AndroidBluetoothBridge
 import com.alijaya.customer.data.pref.SessionManager
 import com.alijaya.customer.databinding.ActivityMainBinding
 import com.alijaya.customer.ui.admin.AdminAllMenusFragment
+import com.alijaya.customer.ui.admin.AdminVoiceAssistantFragment
 import com.alijaya.customer.ui.admin.AdminBillingFragment
 import com.alijaya.customer.ui.admin.AdminCustomersFragment
 import com.alijaya.customer.ui.admin.AdminHomeFragment
@@ -111,6 +112,14 @@ class MainActivity : AppCompatActivity() {
             binding.btnPrinterStatus.contentDescription = "Printer: " + session.getPrinterName()
         } else {
             binding.btnPrinterStatus.setColorFilter(Color.parseColor("#94A3B8"))
+        }
+
+        binding.btnVoiceAssistant.setOnClickListener {
+            showNativeFragment(99, AdminVoiceAssistantFragment())
+        }
+
+        binding.fabVoiceAi.setOnClickListener {
+            showNativeFragment(99, AdminVoiceAssistantFragment())
         }
 
         binding.btnPrinterStatus.setOnClickListener {

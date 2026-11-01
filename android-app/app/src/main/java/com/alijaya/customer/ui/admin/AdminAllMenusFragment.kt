@@ -59,6 +59,7 @@ class AdminAllMenusFragment : Fragment() {
         // Server
         MenuItem("🖥️ Server Health", "SERVER & SISTEM", "#334155") { AdminMonitoringFragment() },
         MenuItem("⚡ Auto-Payment Gateway", "SERVER & SISTEM", "#F59E0B") { AdminWebhookGatewayFragment() },
+        MenuItem("🎙️ Voice AI & Soundbox", "SERVER & SISTEM", "#8B5CF6") { AdminVoiceAssistantFragment() },
         MenuItem("💬 WhatsApp Bot", "SERVER & SISTEM", "#15803D") { AdminWhatsAppFragment() },
         MenuItem("📱 Digiflazz PPOB", "SERVER & SISTEM", "#B45309") { AdminDigiflazzFragment() },
         MenuItem("⚙️ Pengaturan ISP", "SERVER & SISTEM", "#475569") { AdminSettingsFragment() },

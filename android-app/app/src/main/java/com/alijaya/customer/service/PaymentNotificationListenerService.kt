@@ -57,6 +57,9 @@ class PaymentNotificationListenerService : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.i(TAG, "NotificationListenerService Connected & Ready.")
+        try {
+            SoundboxSpeakerHelper.init(applicationContext)
+        } catch (_: Exception) {}
     }
 
     override fun onListenerDisconnected() {
@@ -258,6 +261,19 @@ class PaymentNotificationListenerService : NotificationListenerService() {
                 event.status = "✅ Sukses (HTTP $respCode)"
                 event.serverResponse = respBody.take(150)
                 Log.i(TAG, "Webhook dispatched successfully: HTTP $respCode - $respBody")
+
+                if (session.isSoundboxSpeakerEnabled()) {
+                    var spoken = "Pembayaran $service berhasil diterima."
+                    try {
+                        val respJson = JSONObject(respBody)
+                        val amt = respJson.optInt("amount", 0)
+                        if (amt > 0) {
+                            val formatted = amt.toString().replace(Regex("(\\d)(?=(\\d{3})+$)"), "$1.")
+                            spoken = "Pembayaran $service sebesar $formatted rupiah berhasil diterima."
+                        }
+                    } catch (_: Exception) {}
+                    SoundboxSpeakerHelper.speak(applicationContext, spoken)
+                }
             } else {
                 event.status = "❌ Gagal (HTTP $respCode)"
                 event.serverResponse = respBody.take(150)

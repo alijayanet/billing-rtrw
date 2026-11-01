@@ -26,6 +26,7 @@ class SessionManager(context: Context) {
         private const val KEY_GATEWAY_CUSTOM_URL = "key_gateway_custom_url"
         private const val KEY_GATEWAY_MONITOR_ALL = "key_gateway_monitor_all"
         private const val KEY_GATEWAY_PACKAGES = "key_gateway_packages"
+        private const val KEY_SOUNDBOX_SPEAKER_ENABLED = "key_soundbox_speaker_enabled"
 
         const val DEFAULT_SERVER_URL = "https://app.alijaya.com"
 
@@ -239,4 +240,8 @@ class SessionManager(context: Context) {
         return prefs.getStringSet(KEY_GATEWAY_PACKAGES, defaults) ?: defaults
     }
     fun setGatewaySelectedPackages(pkgs: Set<String>) = prefs.edit().putStringSet(KEY_GATEWAY_PACKAGES, pkgs).apply()
+
+    // ─── SOUNDBOX KASIR (SPEAKER REAL-TIME) ──────────────────────────────────
+    fun isSoundboxSpeakerEnabled(): Boolean = prefs.getBoolean(KEY_SOUNDBOX_SPEAKER_ENABLED, true)
+    fun setSoundboxSpeakerEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_SOUNDBOX_SPEAKER_ENABLED, enabled).apply()
 }

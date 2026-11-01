@@ -48,6 +48,17 @@
                 android:textSize="11sp" />
         </LinearLayout>
 
+        <!-- Voice AI Assistant Button -->
+        <ImageButton
+            android:id="@+id/btn_voice_assistant"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Asisten Suara AI"
+            android:padding="8dp"
+            android:src="@drawable/ic_voice_ai"
+            app:tint="#A78BFA" />
+
         <!-- Bluetooth Printer Status Button -->
         <ImageButton
             android:id="@+id/btn_printer_status"
@@ -343,5 +354,21 @@
             android:text=" Ganti Server / Portal"
             android:textColor="@color/text_white" />
     </LinearLayout>
+
+    <!-- Voice AI Floating Action Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_voice_ai"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="Asisten Suara AI"
+        app:backgroundTint="#8B5CF6"
+        app:tint="@color/text_white"
+        app:fabSize="normal"
+        app:elevation="8dp"
+        app:srcCompat="@drawable/ic_voice_ai"
+        app:layout_constraintBottom_toTopOf="@id/bottom_nav"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
