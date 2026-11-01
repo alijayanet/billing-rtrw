@@ -2235,6 +2235,79 @@ app.use('/agent', agentPortal);
 const collectorPortal = require('./routes/collectorPortal');
 app.use('/collector', collectorPortal);
 
+// ==========================================
+// VOICE AI ASSISTANT REST API (ANDROID & WEB)
+// ==========================================
+const telegramAi = require('./services/telegramAiService');
+const voiceTts = require('./services/voiceTtsService');
+
+function requireVoiceApiAuth(req, res, next) {
+  const token = req.headers['x-api-token'] || req.body?.apiToken || (req.headers['authorization'] ? req.headers['authorization'].replace(/^Bearer\s+/i, '') : null);
+  if (token === 'alijaya-voice-ai-2026' || req.body?.isAdmin === true || req.session?.isAdmin) {
+    req.session = req.session || {};
+    req.session.isAdmin = true;
+    req.session.adminUser = req.session.adminUser || { name: 'Alijaya Voice AI', role: 'admin' };
+    return next();
+  }
+  return res.status(401).json({ ok: false, error: 'Unauthorized Voice AI Token' });
+}
+
+app.post(['/api/voice-assistant/ask', '/admin/api/voice-assistant/ask'], requireVoiceApiAuth, express.json(), async (req, res) => {
+  try {
+    const rawQuestion = String(req.body.message || '').trim();
+    if (!rawQuestion) {
+      return res.status(400).json({ ok: false, error: 'Pesan suara atau teks tidak boleh kosong.' });
+    }
+
+    const senderName = req.session.adminUser?.name || 'Admin';
+    const answer = await telegramAi.askAi({
+      question: rawQuestion,
+      senderName,
+      isAdmin: true,
+      extraContext: {
+        phone: req.session.adminUser?.phone || '',
+        req
+      }
+    });
+
+    const cleanDisplay = typeof telegramAi.cleanAiResponse === 'function' ? telegramAi.cleanAiResponse(answer) : answer;
+    const speechText = voiceTts.cleanTextForSpeech ? voiceTts.cleanTextForSpeech(cleanDisplay) : cleanDisplay;
+
+    res.json({
+      ok: true,
+      text: cleanDisplay,
+      speechText
+    });
+  } catch (err) {
+    logger.error('[VoiceAssistant Root API] Error: ' + err.message);
+    res.status(500).json({ ok: false, error: err.message || 'Gagal memproses AI' });
+  }
+});
+
+app.get(['/api/voice-assistant/tts', '/admin/api/voice-assistant/tts'], requireVoiceApiAuth, async (req, res) => {
+  try {
+    const text = String(req.query.text || '').trim();
+    if (!text) {
+      return res.status(400).send('Teks kosong');
+    }
+
+    const audioBuffer = await voiceTts.generateIndonesianSpeech(text);
+    if (!audioBuffer) {
+      return res.status(500).send('Gagal membuat audio');
+    }
+
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': audioBuffer.length,
+      'Cache-Control': 'public, max-age=86400'
+    });
+    res.send(audioBuffer);
+  } catch (err) {
+    logger.error('[VoiceTTS Root API] Error: ' + err.message);
+    res.status(500).send('Error generate TTS: ' + err.message);
+  }
+});
+
 // Fungsi untuk memulai server dengan penanganan port yang sudah digunakan
 function startServer(portToUse) {
     logger.info(`Mencoba memulai server pada port ${portToUse}...`);

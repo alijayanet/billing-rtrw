@@ -411,29 +411,49 @@ class AdminVoiceAssistantFragment : Fragment() {
         lifecycleScope.launch {
             val response = withContext(Dispatchers.IO) {
                 try {
-                    val url = "${getBaseUrl()}/api/voice-assistant/ask"
-                    val payload = JSONObject().apply {
-                        put("message", question)
-                        put("isAdmin", true)
-                    }
-                    val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                    val request = Request.Builder()
-                        .url(url)
-                        .addHeader("Content-Type", "application/json")
-                        .addHeader("Authorization", "Bearer ${getToken()}")
-                        .addHeader("x-api-token", "alijaya-voice-ai-2026")
-                        .post(body)
-                        .build()
+                    val candidateUrls = listOf(
+                        "${getBaseUrl()}/api/voice-assistant/ask",
+                        "${getBaseUrl()}/admin/api/voice-assistant/ask"
+                    )
+                    var lastCode = 0
+                    var resultJson: JSONObject? = null
 
-                    val resp = httpClient().newCall(request).execute()
-                    val str = resp.body?.string() ?: ""
-                    if (resp.isSuccessful) {
-                        JSONObject(str)
-                    } else {
-                        JSONObject().apply {
-                            put("ok", false)
-                            put("error", "Gagal menghubungi server (HTTP ${resp.code})")
+                    for (url in candidateUrls) {
+                        try {
+                            val payload = JSONObject().apply {
+                                put("message", question)
+                                put("isAdmin", true)
+                            }
+                            val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                            val request = Request.Builder()
+                                .url(url)
+                                .addHeader("Content-Type", "application/json")
+                                .addHeader("Authorization", "Bearer ${getToken()}")
+                                .addHeader("x-api-token", "alijaya-voice-ai-2026")
+                                .post(body)
+                                .build()
+
+                            val resp = httpClient().newCall(request).execute()
+                            lastCode = resp.code
+                            val str = resp.body?.string() ?: ""
+                            if (resp.isSuccessful) {
+                                resultJson = JSONObject(str)
+                                break
+                            } else if (resp.code != 404) {
+                                resultJson = JSONObject().apply {
+                                    put("ok", false)
+                                    put("error", "Gagal menghubungi server (HTTP ${resp.code})")
+                                }
+                                break
+                            }
+                        } catch (e: Exception) {
+                            // try next endpoint if any
                         }
+                    }
+
+                    resultJson ?: JSONObject().apply {
+                        put("ok", false)
+                        put("error", if (lastCode > 0) "Gagal menghubungi server (HTTP $lastCode)" else "Koneksi terputus")
                     }
                 } catch (e: Exception) {
                     JSONObject().apply {
