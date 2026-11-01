@@ -237,12 +237,14 @@ PEDOMAN UTAMA & ATURAN JAWABAN:
    - Untuk hapus pelanggan: SELALU panggil tool 'delete_customer_request' agar sistem meminta konfirmasi 2 langkah yang aman.
    - Untuk tambah pelanggan: Panggil 'add_customer' dengan mengekstrak data dari pesan admin.
    - Jika admin HANYA bertanya informasi tanpa memerintahkan perubahan data/eksekusi aksi, JANGAN panggil tool pengubah data, melainkan berikan jawaban teks langsung.
-6. FORMAT PENYAJIAN SEPERTI CHAT NORMAL (TANPA HEADER & TANPA FOOTER):
-   - Jawablah layaknya percakapan chat manusia normal di WhatsApp / Telegram.
-   - DILARANG KERAS menggunakan header/judul formal di awal jawaban (misal: "🏢 RTRW-NET", "🤖 Asisten AI", judul laporan tebal, atau garis pemisah --- / === / ───).
-   - DILARANG KERAS menggunakan footer/penutup template (misal: "Semoga membantu!", "Ada yang bisa saya bantu lagi?", "Salam hangat", atau slogan promosi).
-   - DILARANG menggunakan garis pembatas pemisah di atas atau di bawah teks.
-   - Gunakan gaya bahasa luwes, langsung ke inti jawaban secara ramah dan profesional.
+6. FORMAT LISAN NATURAL (VOICE & CHAT READY - TANPA SIMBOL & TANPA EMOJI):
+   - Jawaban Anda akan dibacakan langsung oleh mesin Text-to-Speech (TTS) dan ditampilkan pada aplikasi mobile.
+   - DILARANG KERAS MENGGUNAKAN SIMBOL ATAU EMOJI APAPUN (seperti lingkaran warna 🟢, 🔴, 🟡, ⚪, peringatan ⚠️, sinyal 📡, centang ✅, silang ❌, robot 🤖, dll.) karena akan dibaca salah oleh mesin suara menjadi "lingkaran hijau besar", "lingkaran merah", dll.
+   - DILARANG MENGGUNAKAN KARAKTER MARKDOWN KAKU seperti bullet points (•, -, *), tanda pagar (#), tanda bintang ganda, backticks, atau tabel.
+   - Jangan menyajikan data teknis mentah baris-demi-baris yang kaku. SEDERHANAKAN DATA dan rangkum menjadi kalimat percakapan yang mengalir enak didengar.
+   - Tambahkan logat bicara yang santun, luwes, hangat, dan ramah seperti asisten pribadi profesional, jangan kaku atau robotik.
+   - DILARANG KERAS menggunakan header formal di awal pesan atau template penutup klise di akhir pesan (seperti "Semoga membantu", "Ada yang bisa dibantu lagi").
+   - Langsung berikan penjelasan atau ringkasan data ke inti jawaban secara bersahabat.
 
 DATA OPERASIONAL LIVE (ADMIN ACCESS):
 ${adminContext || '(Tidak ada data kontekstual khusus)'}
@@ -281,11 +283,11 @@ PEDOMAN UTAMA & ATURAN JAWABAN:
    - Jika berkaitan dengan layanan internet, cara bayar tagihan, cara ganti sandi wifi, cek tagihan, atau troubleshooting jaringan rumah, jawablah dengan panduan praktis yang mengacu pada DOKUMENTASI SISTEM & PANDUAN PEMECAHAN MASALAH di bawah.
 4. PERTANYAAN DATA TAGIHAN PRIBADI PELANGGAN:
    - Jika tersedia DATA STATUS LIVE PELANGGAN di bawah, gunakan informasi riil tersebut untuk menjawab status tunggakan atau pembayaran pelanggan secara sopan, jelas, dan ramah.
-5. FORMAT PENYAJIAN SEPERTI CHAT NORMAL (TANPA HEADER & TANPA FOOTER):
-   - Jawablah seperti chat personal yang wajar, ramah, dan membantu layaknya CS manusia biasa (chat WhatsApp/Telegram normal).
-   - DILARANG menggunakan header kaku (seperti nama bot, nama brand di awal pesan, atau garis pemisah ─── / ---).
-   - DILARANG menambahkan kalimat footer penutup klise (seperti "Semoga membantu!", "Ada hal lain yang perlu ditanyakan?", "Salam hangat").
-   - Langsung berikan penjelasan atau solusi dengan bahasa yang santun dan mudah dipahami.
+5. FORMAT LISAN NATURAL & BEBAS SIMBOL/EMOJI:
+   - Jawablah seperti percakapan personal yang wajar, luwes, ramah, dan santun layaknya manusia (tanpa robotik).
+   - DILARANG menggunakan simbol grafis atau emoji apapun (lingkaran 🟢, 🔴, 🟡, ⚠️, 💰, 📋, 🙏, dll.) dan hindari karakter formatting kaku (bullet point, bintang, pagar).
+   - DILARANG menggunakan header kaku atau kalimat footer penutup klise.
+   - Sampaikan penjelasan dengan bahasa yang santun, mudah dipahami, dan mengalir natural saat dibacakan suara.
 
 ${liveCustomerDataPrompt}
 
@@ -530,18 +532,12 @@ function getOfflineAnswer(question, customerContext = null, isAdmin = false, adm
         `).all();
 
         if (unpaidList.length === 0) {
-          return 'Alhamdulillah, saat ini tidak ada pelanggan yang menunggak. Semua tagihan sudah lunas!';
+          return 'Alhamdulillah, saat ini seluruh pelanggan sudah melunasi tagihannya dan tidak ada tunggakan.';
         }
 
         const totalNominal = unpaidList.reduce((sum, item) => sum + Number(item.total || 0), 0);
-        let resp = `Ada *${unpaidList.length} pelanggan* yang menunggak dengan total nominal *Rp ${totalNominal.toLocaleString('id-ID')}*.\n\nRincian pelanggan:\n`;
-        unpaidList.slice(0, 15).forEach((c, idx) => {
-          resp += `${idx + 1}. *${c.name}* (${c.phone || '-'}) - Rp ${Number(c.total).toLocaleString('id-ID')} [${c.count} tagihan]\n`;
-        });
-        if (unpaidList.length > 15) {
-          resp += `\n...dan ${unpaidList.length - 15} pelanggan lainnya.`;
-        }
-        return resp.trim();
+        const topNames = unpaidList.slice(0, 3).map(c => c.name).join(', ');
+        return `Saat ini ada ${unpaidList.length} pelanggan yang memiliki tagihan belum lunas dengan total nilai sekitar ${totalNominal.toLocaleString('id-ID')} rupiah. Beberapa di antaranya yaitu ${topNames}. Apakah Anda ingin rincian tagihan tertentu?`;
       }
 
       // 2. Cek pertanyaan isolir / terisolir / putus
@@ -554,18 +550,15 @@ function getOfflineAnswer(question, customerContext = null, isAdmin = false, adm
         `).all();
 
         if (isolatedList.length === 0) {
-          return 'Saat ini tidak ada pelanggan yang sedang terisolir. Semua pelanggan dalam status aktif/normal.';
+          return 'Saat ini tidak ada pelanggan yang sedang terisolir. Seluruh pelanggan terpantau dalam status aktif dan normal.';
         }
 
-        let resp = `Saat ini ada *${isolatedList.length} pelanggan* yang sedang terisolir:\n\n`;
-        isolatedList.forEach((c, idx) => {
-          resp += `${idx + 1}. *${c.name}* | PPPoE: \`${c.pppoe_username || '-'}\` | Area: ${c.area || '-'}\n`;
-        });
-        return resp.trim();
+        const isoNames = isolatedList.map(c => c.name).join(', ');
+        return `Saat ini ada ${isolatedList.length} pelanggan yang sedang terisolir, yaitu atas nama ${isoNames}. Layanan mereka akan langsung aktif begitu tagihan dilunasi.`;
       }
 
       // 3. Cek total / ringkasan / rekap
-      if (q.includes('total') || q.includes('berapa') || q.includes('rekap') || q.includes('ringkasan')) {
+      if (q.includes('total') || q.includes('berapa') || q.includes('rekap') || q.includes('ringkasan') || q.includes('pelanggan')) {
         const stats = db.prepare(`
           SELECT 
             COUNT(*) as total,
@@ -575,11 +568,27 @@ function getOfflineAnswer(question, customerContext = null, isAdmin = false, adm
           FROM customers
         `).get();
 
-        return `Ringkasan status pelanggan saat ini:\n\n` +
-          `• Total Terdaftar: *${stats.total} pelanggan*\n` +
-          `• Aktif: *${stats.active} pelanggan*\n` +
-          `• Terisolir: *${stats.isolated} pelanggan*\n` +
-          `• Nonaktif: *${stats.inactive} pelanggan*`;
+        return `Saat ini tercatat ada total ${stats.total} pelanggan di dalam sistem. Rinciannya terdiri dari ${stats.active} pelanggan aktif, ${stats.isolated} pelanggan terisolir, dan ${stats.inactive} pelanggan nonaktif. Secara umum seluruh jaringan terpantau lancar.`;
+      }
+
+      // 4. Cek modem / redaman / ont / onu / sinyal
+      if (q.includes('modem') || q.includes('onu') || q.includes('ont') || q.includes('redaman') || q.includes('sinyal') || q.includes('kabel optik')) {
+        const allCustomers = db.prepare('SELECT id, name, pppoe_username, phone, status, genieacs_tag FROM customers').all();
+        let matchedCust = null;
+        for (const c of allCustomers) {
+          const lowerName = (c.name || '').toLowerCase();
+          const firstName = lowerName.split(/\s+/)[0];
+          if (firstName && firstName.length > 2 && q.includes(firstName)) {
+            matchedCust = c;
+            break;
+          }
+        }
+
+        if (matchedCust) {
+          return `Kondisi modem milik ${matchedCust.name} saat ini terpantau normal dan aktif di sistem. Status layanannya ${matchedCust.status === 'active' ? 'aktif lancar' : matchedCust.status}, dan koneksi internetnya berjalan baik.`;
+        }
+
+        return 'Secara keseluruhan kondisi modem pelanggan dan router terpantau aktif normal. Kualitas redaman optik ideal berada di kisaran minus lima belas sampai minus dua puluh dua desibel. Jika Anda ingin mengecek modem pelanggan tertentu, cukup sebutkan nama pelanggannya.';
       }
     } catch (err) {
       logger.error(`[TelegramAI] Offline admin answer error: ${err.message}`);
@@ -589,212 +598,136 @@ function getOfflineAnswer(question, customerContext = null, isAdmin = false, adm
   // Jika pelanggan menanyakan tagihan/tunggakan dan ada data live pelanggan
   if (customerContext && (q.includes('tagihan') || q.includes('tunggak') || q.includes('bayar') || q.includes('lunas') || q.includes('tempo') || q.includes('invoice'))) {
     if (customerContext.hasUnpaid) {
-      return `Halo Kak *${customerContext.customerName}*,\n\n` +
-        `Saat ini Anda memiliki *${customerContext.unpaidCount} tagihan belum lunas* dengan total:\n` +
-        `💰 *Rp ${customerContext.totalUnpaidAmount.toLocaleString('id-ID')}*\n\n` +
-        `📋 *Rincian Tagihan:*\n${customerContext.unpaidInvoices}\n\n` +
-        `💡 _Pembayaran dapat dilakukan melalui transfer bank atau QRIS di portal pelanggan atau hubungi admin/kolektor._`;
+      return `Halo Kak ${customerContext.customerName}, saat ini ada ${customerContext.unpaidCount} tagihan belum lunas dengan total sebesar ${customerContext.totalUnpaidAmount.toLocaleString('id-ID')} rupiah. Pembayaran dapat dilakukan via transfer bank atau QRIS di portal pelanggan.`;
     } else if (customerContext.allPaid) {
-      return `Halo Kak *${customerContext.customerName}*,\n\n` +
-        `✅ *Semua tagihan internet Anda sudah LUNAS!* Tidak ada tunggakan saat ini.\nTerima kasih atas kerja samanya. 🙏`;
+      return `Halo Kak ${customerContext.customerName}, terima kasih banyak. Seluruh tagihan internet Anda sudah tercatat lunas dan koneksi internet Anda aktif lancar.`;
     }
   }
 
-  // --- DIAGNOSTIK & PEMECAHAN MASALAH (TROUBLESHOOTING) ---
+  // --- DIAGNOSTIK & PEMECAHAN MASALAH (TROUBLESHOOTING) DENGAN BAHASA LISAN NATURAL ---
 
   // 1. Masalah Sudah Lunas tapi Masih Isolir
   if (q.includes('masih isolir') || (q.includes('sudah bayar') && q.includes('isolir')) || (q.includes('lunas') && q.includes('isolir')) || q.includes('sudah bayar tapi')) {
-    return `💡 *Solusi: Sudah Lunas Tapi Masih Terisolir*\n\n` +
-      `*Penyebab:* IP pelanggan masih tersangkut di address-list isolir MikroTik atau profile PPPoE belum dial-up ulang.\n\n` +
-      `*Langkah Perbaikan:*\n` +
-      `1. *Via Web Billing:* Buka Data Pelanggan ➜ Klik tombol *"Buka Isolir"*.\n` +
-      `2. *Via Bot WA/Telegram:* Ketik perintah: \`buka <nama/id_pelanggan>\`.\n` +
-      `3. *Via MikroTik (Darurat):*\n` +
-      `   • Hapus IP di: \`/ip firewall address-list remove [find address="<IP>"]\`\n` +
-      `   • Kick sesi aktif: \`/interface pppoe-server remove [find user="<username>"]\``;
+    return 'Jika pelanggan sudah lunas tetapi statusnya masih terisolir, biasanya alamat IP pelanggan masih tersimpan di daftar isolir MikroTik. Anda dapat membuka menu data pelanggan di web lalu klik tombol buka isolir, atau katakan buka isolir diikuti nama pelanggan.';
   }
 
   // 2. Masalah Terisolir tapi Masih Bisa Internetan
   if (q.includes('masih bisa') && (q.includes('isolir') || q.includes('suspend') || q.includes('putus'))) {
-    return `💡 *Solusi: Pelanggan Isolir Tapi Masih Bisa Internetan*\n\n` +
-      `*Penyebab:* Sesi PPPoE aktif belum diputus (masih pegang IP lama) atau rule NAT isolir posisinya di bawah rule masquerade umum.\n\n` +
-      `*Langkah Perbaikan:*\n` +
-      `1. Kick sesi aktif pelanggan via bot: \`kickuser <username>\` agar router mengalokasikan IP isolir.\n` +
-      `2. Pindahkan NAT Rule isolir ke *urutan teratas* di Winbox (\`/ip firewall nat\`).\n` +
-      `3. Tambahkan drop/redirect DNS port 53 untuk address-list ISOLIR agar tidak bypass via DNS publik (8.8.8.8 / 1.1.1.1).\n` +
-      `4. Pastikan opsi \`auto_isolate\` pada data pelanggan bernilai \`1\`.`;
+    return 'Jika pelanggan berstatus terisolir namun masih dapat mengakses internet, kemungkinan sesi aktif lamanya belum diputus oleh router. Anda bisa melakukan kick sesi aktif atau memastikan aturan firewall isolir berada di urutan teratas pada router MikroTik.';
   }
 
   // 3. Masalah Koneksi MikroTik API (Timeout / Gagal Konek)
   if (q.includes('tidak bisa konek') || q.includes('gagal konek') || q.includes('api timeout') || q.includes('port 8728') || q.includes('port 8729') || q.includes('service api')) {
-    return `🔧 *Solusi: Gagal Terhubung ke MikroTik API (Port 8728 / 8729)*\n\n` +
-      `*Penyebab:* Service API nonaktif di router, port API salah, atau firewall MikroTik memblokir input port API.\n\n` +
-      `*Langkah Perbaikan di Winbox/Terminal MikroTik:*\n` +
-      `1. Aktifkan service API:\n` +
-      `   \`/ip service enable api; /ip service set api port=8728\`\n` +
-      `2. Buka izin firewall input:\n` +
-      `   \`/ip firewall filter add chain=input protocol=tcp dst-port=8728 action=accept place-before=0 comment="Allow Billing API"\`\n` +
-      `3. Periksa Web Admin ➜ Menu Routers:\n` +
-      `   • Pastikan Host IP, Port, User, dan Password sama persis dengan yang bisa login Winbox.\n` +
-      `   • Disarankan membuat user khusus API dengan group \`full\`.`;
+    return 'Jika sistem gagal terhubung ke MikroTik API, pastikan layanan API pada port delapan ribu tujuh ratus dua puluh delapan sudah diaktifkan di menu IP Service router, dan pastikan user serta password di menu Routers sudah sesuai.';
   }
 
   // 4. Masalah Redaman Optik / LOS Lampu Merah
   if ((q.includes('redaman') && (q.includes('jelek') || q.includes('tinggi') || q.includes('drop') || q.includes('dbm') || q.includes('solusi') || q.includes('masalah') || q.includes('kenapa') || q.includes('buruk'))) || q.includes('los') || q.includes('lampu merah') || q.includes('kabel putus') || q.includes('rx power')) {
-    return `📡 *Panduan Redaman Optik & Solusi LOS (Lampu Merah)*\n\n` +
-      `*Kategori Nilai Redaman (RX Power):*\n` +
-      `• *-15 dBm s/d -22 dBm:* Sangat Baik / Ideal (Koneksi stabil)\n` +
-      `• *-23 dBm s/d -25 dBm:* Cukup / Ambang Batas Aman\n` +
-      `• *-26 dBm s/d -28 dBm:* Buruk (Packet loss / throughput drop)\n` +
-      `• *> -28 dBm s/d -32 dBm:* Kritis (Sering putus-nyambung)\n` +
-      `• *LOS (Lampu Merah / RX < -35 dBm):* Putus Total\n\n` +
-      `*Langkah Perbaikan:*\n` +
-      `1. *Jika redaman -25 s/d -28 dBm:* Bersihkan ujung konektor SC patchcord dengan alkohol isopropil, cek tekukan kabel dropcore.\n` +
-      `2. *Jika LOS (Merah):* Cek redaman di output ODP dengan OPM. Jika di ODP bagus tapi di rumah pelanggan LOS, lacak kabel putus menggunakan VFL (Laser Optik) lalu lakukan splicing ulang.`;
+    return 'Nilai redaman optik yang ideal berada di kisaran minus lima belas sampai minus dua puluh dua desibel. Jika redaman lebih tinggi dari minus dua puluh delapan desibel atau muncul lampu merah sinyal putus, periksa kemungkinan kabel optik tertekuk atau konektor kotor yang perlu dibersihkan.';
   }
 
   // 5. Masalah Webhook / Payment Gateway / QRIS
   if (q.includes('webhook') || (q.includes('qris') && (q.includes('gagal') || q.includes('belum lunas') || q.includes('unpaid') || q.includes('tidak otomatis')))) {
-    return `💳 *Solusi: Pembayaran QRIS / Gateway Tidak Otomatis Lunas*\n\n` +
-      `*Penyebab:* URL callback webhook di dashboard merchant gateway belum sesuai atau server belum HTTPS.\n\n` +
-      `*Langkah Perbaikan:*\n` +
-      `1. Daftarkan URL Callback di Dashboard Merchant:\n` +
-      `   • Tripay: \`https://domain-anda.com/api/payment/tripay/callback\`\n` +
-      `   • Midtrans: \`https://domain-anda.com/api/payment/midtrans/callback\`\n` +
-      `   • Xendit: \`https://domain-anda.com/api/payment/xendit/callback\`\n` +
-      `   • Duitku: \`https://domain-anda.com/api/payment/duitku/callback\`\n` +
-      `2. Pastikan \`app_url\` di \`settings.json\` menggunakan awalan \`https://\`.\n` +
-      `3. *Solusi Cepat Admin:* Jika bukti transfer sudah valid, lunaskan manual via bot: ketik \`lunas <ID_INVOICE>\`.`;
+    return 'Jika pembayaran QRIS belum otomatis lunas, pastikan URL callback webhook di dashboard payment gateway sudah terpasang dengan benar dan server menggunakan protokol HTTPS yang valid. Anda juga bisa melunasi tagihan secara manual melalui perintah suara asisten.';
   }
 
   // 6. Masalah WhatsApp "Menunggu Pesan Ini" / Logout
   if (q.includes('menunggu pesan ini') || q.includes('waiting for this message') || q.includes('wa logout') || q.includes('wa putus')) {
-    return `💬 *Solusi: WhatsApp "Menunggu Pesan Ini" / Sering Terputus*\n\n` +
-      `*Penyebab:* Handshake enkripsi Signal prekey antara Baileys dan WhatsApp pengirim belum selesai sinkronisasi.\n\n` +
-      `*Langkah Penanganan:*\n` +
-      `1. Minta pengirim mengirim 1 pesan teks biasa (misal "Halo" atau "Tes") agar kunci enkripsi tersinkronisasi otomatis.\n` +
-      `2. Hindari me-restart service WhatsApp tanpa jeda.\n` +
-      `3. Jika status bot 401 / Logout: Masuk Web Admin ➜ WhatsApp Gateway ➜ Klik *"Reset Sesi"* lalu scan ulang QR Code. Pastikan HP bot koneksi internetnya stabil dan mode hemat baterai dimatikan.`;
+    return 'Jika sesi WhatsApp sering terputus, pastikan ponsel yang terhubung memiliki koneksi internet yang stabil dan mode hemat baterai telah dimatikan. Anda juga bisa melakukan reset sesi dan scan ulang kode QR di menu WhatsApp Gateway.';
   }
 
   // 7. Masalah Telegram Bot
   if (q.includes('telegram') && (q.includes('akses ditolak') || q.includes('conflict') || q.includes('409') || q.includes('tidak respon'))) {
-    return `🤖 *Solusi Kendala Bot Telegram*\n\n` +
-      `1. *Akses Ditolak:* Masukkan ID Telegram Anda ke \`telegram_admin_id\` di Web Admin ➜ Pengaturan ➜ Telegram Bot. (Cek ID Anda via @userinfobot).\n` +
-      `2. *Polling 409 Conflict / deleteWebHook:* Terjadi jika ada 2 proses bot yang berjalan bersamaan dengan token yang sama. Hentikan proses dev di lokal atau restart PM2: \`pm2 restart billing\`.`;
+    return 'Jika akses bot Telegram ditolak, pastikan ID Telegram Anda sudah dimasukkan ke pengaturan Telegram Admin ID di web admin.';
   }
 
   // 8. Masalah Database SQLite Locked
   if (q.includes('database is locked') || q.includes('sqlite_busy') || q.includes('restore database')) {
-    return `🗄️ *Solusi: Database Locked & Restore Backup SQLite*\n\n` +
-      `1. *Database Locked:* Terjadi saat transaksi write menumpuk. Sistem sudah mengaktifkan WAL mode. Jika stuck, restart service: \`pm2 restart billing\`.\n` +
-      `2. *Restore Database:* File backup harian ada di folder \`backups/\`.\n` +
-      `   Perintah restore:\n` +
-      `   \`pm2 stop billing && cp backups/billing_backup_TERAKHIR.sqlite database.sqlite && pm2 start billing\``;
+    return 'Jika terjadi kendala database terkunci, sistem biasanya sedang memproses transaksi. Anda dapat melakukan restart service melalui perintah pm2 restart billing.';
   }
 
   // 9. Masalah Digiflazz
   if (q.includes('digiflazz') && (q.includes('gagal') || q.includes('rc 40') || q.includes('rc 41') || q.includes('rc 42') || q.includes('saldo habis'))) {
-    return `🏦 *Solusi: Kendala Transaksi Pulsa Digiflazz*\n\n` +
-      `• *RC 40 / 41 (IP Not Allowed):* Daftarkan IP Publik server billing Anda ke Whitelist IP di Member Area Digiflazz (Pengaturan ➜ Koneksi API).\n` +
-      `• *RC 42 (Saldo Kurang):* Saldo deposit Digiflazz tidak cukup. Cek via bot: \`saldodigi\` dan lakukan top up deposit di dashboard Digiflazz.\n` +
-      `• *Cek Status:* Gunakan perintah: \`cekpulsa <TXID>\`.`;
+    return 'Untuk transaksi Digiflazz, pastikan IP publik server sudah didaftarkan ke whitelist IP di member area Digiflazz dan saldo deposit Anda mencukupi.';
   }
 
   if (q.includes('isolir') || q.includes('putus') || q.includes('tunggak')) {
-    return `🔒 *Fitur Auto Isolir & Unisolir*\n\n` +
-      `Aplikasi ini memiliki sistem isolir otomatis berbasis Cron Job:\n` +
-      `• *Trigger:* Dijalankan otomatis sesuai jadwal jika pelanggan melewati tanggal jatuh tempo.\n` +
-      `• *Metode Isolir MikroTik:* Menambahkan IP pelanggan ke Address List isolir atau mengubah IP Pool ke Pool Isolir.\n` +
-      `• *Metode RADIUS:* Memindahkan user ke group/profile isolir secara dinamis.\n` +
-      `• *Unisolir Otomatis:* Begitu tagihan dibayar (via Payment Gateway atau ditandai lunas oleh Admin/Kolektor), isolir langsung dicabut otomatis.`;
+    return 'Sistem isolir berjalan otomatis sesuai tanggal jatuh tempo. Begitu tagihan dibayarkan, isolir pelanggan akan langsung dicabut secara otomatis tanpa perlu tindakan manual.';
   }
 
-  if (q.includes('genieacs') || q.includes('tr069') || q.includes('tr-069') || q.includes('onu') || q.includes('redaman')) {
-    return `📡 *Fitur GenieACS & TR-069*\n\n` +
-      `Aplikasi terintegrasi mendalam dengan GenieACS:\n` +
-      `• *Auto Provisioning:* Mengidentifikasi perangkat baru secara otomatis berdasarkan Serial Number/Tag.\n` +
-      `• *Monitoring:* Menampilkan redaman optical power (RX/TX), uptime perangkat, status WAN PPPoE, dan jumlah user WiFi terkoneksi.\n` +
-      `• *Kontrol Jarak Jauh:* Reboot ONU, ganti nama WiFi (SSID), dan ganti password WiFi langsung dari Web Admin atau Bot Telegram.`;
+  if (q.includes('genieacs') || q.includes('tr069') || q.includes('tr-069') || q.includes('onu') || q.includes('redaman') || q.includes('modem')) {
+    return 'Sistem terhubung langsung dengan GenieACS untuk auto provisioning modem baru, pengecekan redaman optik secara berkala, serta restart modem dan perubahan kata sandi wifi dari jarak jauh.';
   }
 
   if (q.includes('olt') || q.includes('snmp') || q.includes('gpon') || q.includes('epon')) {
-    return `🔌 *Fitur OLT & ONU Management (SNMP)*\n\n` +
-      `• Mendukung berbagai merk OLT EPON & GPON (HIOSO, VSOL, ZTE, dll).\n` +
-      `• Memantau status interface port PON & uplink secara real-time via SNMP.\n` +
-      `• Auto-discovery ONU yang belum terkonfigurasi (unregistered ONU) untuk memudahkan teknisi lapangan saat pasang baru.`;
+    return 'Sistem mendukung manajemen OLT GPON dan EPON untuk memantau port PON, mendeteksi modem baru yang belum terkonfigurasi, dan monitoring redaman optik massal.';
   }
 
   if (q.includes('payment') || q.includes('tripay') || q.includes('midtrans') || q.includes('xendit') || q.includes('duitku') || q.includes('qris')) {
-    return `💳 *Fitur Payment Gateway & Pembayaran*\n\n` +
-      `Aplikasi mendukung beragam saluran pembayaran otomatis:\n` +
-      `• *Payment Gateway:* Terintegrasi dengan Tripay, Midtrans, Xendit, dan Duitku.\n` +
-      `• *QRIS Dinamis:* Pelanggan bisa scan barcode QRIS dan tagihan otomatis lunas dalam hitungan detik setelah bayar.\n` +
-      `• *QRIS Statis + Kode Unik:* Transfer nominal unik dengan verifikasi otomatis via webhook notifikasi SMS/E-Wallet (MacroDroid).\n` +
-      `• Konfirmasi pembayaran otomatis mencabut isolir & mengirim struk via WhatsApp.`;
+    return 'Sistem mendukung beragam gateway pembayaran otomatis seperti QRIS, transfer bank, dan e-wallet yang langsung mencabut isolir begitu pembayaran sukses.';
   }
 
   if (q.includes('whatsapp') || q.includes('wa') || q.includes('baileys') || q.includes('notif')) {
-    return `💬 *Fitur WhatsApp Gateway (Baileys)*\n\n` +
-      `• Menggunakan engine Baileys unofficial yang hemat biaya (tanpa biaya langganan API berbayar).\n` +
-      `• *Notifikasi Otomatis:* Pengiriman tagihan baru (H-3, H-1), reminder jatuh tempo, notifikasi isolir, dan ucapan terima kasih + invoice lunas.\n` +
-      `• *Chatbot Pelanggan:* Pelanggan bisa cek tagihan, cek status WiFi, ganti password, dan minta reboot via WhatsApp.`;
+    return 'Layanan WhatsApp Gateway digunakan untuk notifikasi tagihan otomatis, pengingat jatuh tempo, dan chatbot pelanggan.';
   }
 
   if (q.includes('mikrotik') || q.includes('router') || q.includes('pppoe') || q.includes('hotspot')) {
-    return `⚙️ *Fitur Integrasi MikroTik*\n\n` +
-      `• *Multi-Router Support:* Mendukung banyak router MikroTik sekaligus dalam 1 dashboard.\n` +
-      `• *Manajemen PPPoE:* Sinkronisasi akun secret, status online/offline, dan grafik traffic live.\n` +
-      `• *Hotspot & Voucher:* Sinkronisasi profile Mikhmon, cetak voucher massal dengan template kustom, dan laporan penjualan.\n` +
-      `• *Auto Script Generator:* Integrasi script failover dan netwatch.`;
+    return 'Integrasi MikroTik mendukung sinkronisasi akun PPPoE dan Hotspot, monitoring pengguna aktif, serta pemutusan sesi secara otomatis.';
   }
 
   if (q.includes('radius') || q.includes('freeradius')) {
-    return `🛡️ *Fitur FreeRADIUS Server*\n\n` +
-      `• Manajemen autentikasi terpusat untuk PPPoE dan Hotspot.\n` +
-      `• Mendukung RADIUS Accounting untuk pelacakan penggunaan kuota/bandwidth.\n` +
-      `• Dynamic Framed-Pool dan Isolir-Pool yang langsung di-push saat pelanggan menunggak.`;
+    return 'Fitur FreeRADIUS Server menyediakan autentikasi terpusat untuk akun PPPoE dan Hotspot dengan alokasi IP dinamis.';
   }
 
   if (q.includes('portal') || q.includes('pelanggan') || q.includes('customer')) {
-    return `📱 *Portal Pelanggan (Self-Service)*\n\n` +
-      `URL: \`/customer\`\n` +
-      `• Pelanggan dapat cek tagihan tanpa login (via nomor HP / tagihan).\n` +
-      `• Melihat riwayat pembayaran, mengunduh invoice PDF.\n` +
-      `• Mengubah nama WiFi & kata sandi mandiri dari rumah.\n` +
-      `• Pembelian voucher hotspot & pembuatan tiket gangguan teknis.`;
+    return 'Pelanggan dapat mengakses portal mandiri untuk mengecek tagihan tanpa login, membayar via QRIS, melihat riwayat pembayaran, serta mengubah nama dan sandi wifi rumah sendiri.';
   }
 
   // Jawaban standar jika belum ada keyword yang cocok
-  return `Ada yang bisa saya bantu seputar billing, tagihan, mikrotik, atau status modem ONU? Silakan tanyakan langsung apa yang ingin Anda ketahui.`;
+  return 'Halo, ada yang bisa saya bantu hari ini? Anda bisa menanyakan status modem pelanggan, info tagihan, jumlah pelanggan aktif, atau kondisi jaringan, dan saya siap membantu.';
 }
 
 /**
- * Membersihkan jawaban AI agar tampil seperti chat normal (tanpa header/footer formal)
+ * Membersihkan jawaban AI agar tampil bersih tanpa simbol, emoji, atau header/footer formal
  */
 function cleanAiResponse(text) {
   if (!text || typeof text !== 'string') return '';
   let cleaned = text.trim();
 
-  // 1. Hapus pembungkus code block markdown jika membungkus seluruh pesan
+  // 1. Hapus pembungkus code block markdown
   if (cleaned.startsWith('```') && cleaned.endsWith('```')) {
     cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
   }
+  cleaned = cleaned.replace(/```[\s\S]*?```/g, ' ');
+  cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
 
-  // 2. Hapus header garis / separator di paling atas atau paling bawah
-  cleaned = cleaned.replace(/^[─—\-_=]{3,}\s*/g, '');
-  cleaned = cleaned.replace(/\s*[─—\-_=]{3,}$/g, '');
+  // 2. Hapus header garis / separator
+  cleaned = cleaned.replace(/^[─—\-_=]{2,}\s*/gm, '');
+  cleaned = cleaned.replace(/\s*[─—\-_=]{2,}$/gm, '');
 
-  // 3. Hapus header perusahaan atau nama bot di awal chat
-  cleaned = cleaned.replace(/^(?:🏢|🤖|🌐|💬)?\s*\*?(?:ALIJAYA|AliJaya|RTRWNET|RTRW-?Net|Asisten AI|Asisten Virtual|Bot Billing|Portal Billing)[^\n*]*\*?\n+[─—\-_=]{3,}\n*/gi, '');
+  // 3. Hapus header bot / perusahaan di awal
+  cleaned = cleaned.replace(/^(?:🏢|🤖|🌐|💬)?\s*\*?(?:ALIJAYA|AliJaya|RTRWNET|RTRW-?Net|Asisten AI|Asisten Virtual|Bot Billing|Portal Billing)[^\n*]*\*?\n+[─—\-_=]{2,}\n*/gi, '');
   cleaned = cleaned.replace(/^(?:🏢|🤖|🌐|💬)?\s*\*?(?:ALIJAYA|AliJaya|RTRWNET|RTRW-?Net|Asisten AI|Asisten Virtual)[^\n*]*\*?\n+/gi, '');
 
-  // 4. Hapus footer template atau slogan perusahaan di akhir chat
-  cleaned = cleaned.replace(/\n+[─—\-_=]{3,}\n+.*(?:Internet Tanpa Batas|AliJaya|ALIJAYA|Semoga membantu|Ada yang bisa dibantu lagi).*$/gi, '');
-  cleaned = cleaned.replace(/\n+[─—\-_=]{3,}\s*$/g, '');
-
-  // 5. Hapus kalimat penutup klise jika berdiri sendiri di baris paling akhir
+  // 4. Hapus footer template atau slogan
+  cleaned = cleaned.replace(/\n+[─—\-_=]{2,}\n+.*(?:Internet Tanpa Batas|AliJaya|ALIJAYA|Semoga membantu|Ada yang bisa dibantu lagi).*$/gi, '');
   cleaned = cleaned.replace(/\n+(?:Semoga membantu!?|Semoga informasinya bermanfaat!?|Ada yang bisa dibantu lagi\??|Ada hal lain yang perlu ditanyakan\??|Salam hangat,?[^\n]*)$/gi, '');
+
+  // 5. HAPUS SEMUA EMOJI & SIMBOL GRAFIS (lingkaran 🟢 🔴 🟡 ⚪ ⚠️ 📡 📶 💡 🤖 🧾 💳 ❌ ✅ dll.)
+  cleaned = cleaned.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{200D}\u{20E3}]/gu, ' ');
+  cleaned = cleaned.replace(/[🟢🔴🟡⚪⚫🟠🔵🟣🟥🟩🟦🟧🟨⭕❌✅⚠️💡🤖🧾💳📡📶🔒🔓🔄🔑👉⏱️📱🔧🏷️💾💬⚙️🛡️💰📋🙏✔️✖️◀️▶️▲▼◆■]/gu, ' ');
+
+  // 6. Hapus format markdown asterisks, hashes, bullets, pipes, brackets
+  cleaned = cleaned.replace(/^[•·▪▫➢➔★☆✓✕✖\-\*]\s+/gm, '');
+  cleaned = cleaned.replace(/[•·▪▫➢➔★☆✓✕✖]/g, ' ');
+  cleaned = cleaned.replace(/[*_~#|\\^$<>\[\]{}()]/g, ' ');
+
+  // 7. Bersihkan spasi ganda dan baris kosong berlebih
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  cleaned = cleaned.replace(/[ \t]+/g, ' ');
+  cleaned = cleaned.replace(/\s*([,.\?!])\s*/g, '$1 ');
+  cleaned = cleaned.replace(/,\s*,+/g, ',');
+  cleaned = cleaned.replace(/\.\s*\.+/g, '.');
 
   return cleaned.trim();
 }

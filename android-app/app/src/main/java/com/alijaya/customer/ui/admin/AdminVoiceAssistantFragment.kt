@@ -273,10 +273,11 @@ class AdminVoiceAssistantFragment : Fragment() {
         }
 
         val chips = listOf(
-            "💰 Cek Penunggak Tagihan" to "Berapa pelanggan yang belum bayar bulan ini?",
+            "📡 Cek Kondisi Modem" to "Cek kondisi modem pelanggan saat ini",
+            "💰 Cek Tagihan Belum Lunas" to "Berapa pelanggan yang belum bayar bulan ini?",
             "🔒 Pelanggan Terisolir" to "Siapa saja pelanggan yang sedang terisolir?",
             "📊 Ringkasan Pelanggan" to "Bagaimana ringkasan total pelanggan aktif?",
-            "⚡ Status MikroTik" to "Cek status router dan server saat ini",
+            "⚡ Status Jaringan" to "Cek status router dan jaringan saat ini",
             "💡 Tips WiFi Kuat" to "Ceritakan tips agar sinyal wifi di rumah pelanggan kuat"
         )
         for ((label, query) in chips) {

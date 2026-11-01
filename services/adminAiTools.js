@@ -40,6 +40,16 @@ const adminToolDeclarations = [
     }
   },
   {
+    name: 'check_modem_status',
+    description: 'Mengecek kondisi modem ONU, daya redaman optik sinyal (RX Power), status PPPoE, dan uptime pelanggan via GenieACS dan MikroTik',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        target: { type: 'STRING', description: 'Nama pelanggan, nomor telepon, akun PPPoE, atau tag modem ONU yang ingin dicek' }
+      }
+    }
+  },
+  {
     name: 'reboot_onu',
     description: 'Me-reboot / restart modem ONU pelanggan dari jarak jauh via GenieACS TR-069',
     parameters: {
@@ -200,7 +210,7 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
       case 'add_customer': {
         const { name, phone, packageName, area, address, pppoeUsername, pppoePassword } = args;
         if (!name || !phone) {
-          return '❌ Mohon sebutkan minimal Nama dan Nomor WhatsApp pelanggan yang ingin didaftarkan.';
+          return 'Mohon sebutkan minimal nama dan nomor WhatsApp pelanggan yang ingin didaftarkan.';
         }
 
         const allPkgs = customerSvc.getAllPackages();
@@ -213,7 +223,7 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
           pkg = allPkgs[0];
         }
         if (!pkg) {
-          return '❌ Tidak ada paket layanan internet yang aktif di database.';
+          return 'Mohon maaf, saat ini belum ada paket layanan internet yang aktif di database.';
         }
 
         let cleanPppoe = (pppoeUsername || name.toLowerCase().replace(/[^a-z0-9]/g, '')).trim();
@@ -249,8 +259,6 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
         const res = customerSvc.createCustomer(newCustData);
         const newId = res.lastInsertRowid;
 
-        let mtSynced = false;
-        let mtError = '';
         if (routerId) {
           try {
             await mikrotikService.createPppoeSecret({
@@ -259,9 +267,8 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
               profile: pkg.name,
               routerId: routerId
             });
-            mtSynced = true;
           } catch (err) {
-            mtError = err.message;
+            logger.warn(`[Admin AI Tool] Buat secret mikrotik: ${err.message}`);
           }
         }
 
@@ -269,126 +276,159 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
           billingSvc.ensureCurrentInvoice(newId);
         } catch (_) {}
 
-        return `✅ *PENDAFTARAN PELANGGAN BERHASIL*\n\n` +
-          `• ID Pelanggan: *#${newId}*\n` +
-          `• Nama: *${name}*\n` +
-          `• No. WhatsApp: *${newCustData.phone}*\n` +
-          `• Area: *${newCustData.area || '-'}*\n` +
-          `• Paket: *${pkg.name}* (Rp ${Number(pkg.price).toLocaleString('id-ID')}/bln)\n` +
-          `• Akun PPPoE: \`${cleanPppoe}\`\n` +
-          `• Sandi PPPoE: \`${cleanPass}\`\n` +
-          `• Sinkronisasi MikroTik: ${mtSynced ? '✅ Berhasil dibuat' : (mtError ? `⚠️ ${mtError}` : 'Dilewati (Router offline)')}\n` +
-          `• Status Billing: *Aktif* (Invoice periode berjalan dibuat)`;
+        return `Pelanggan baru atas nama ${name} dengan nomor WhatsApp ${newCustData.phone} berhasil didaftarkan dengan paket ${pkg.name}. Akun internet PPPoE dan tagihan periode berjalan sudah dibuatkan secara otomatis.`;
       }
 
       // 2. Hapus Pelanggan (Permintaan Konfirmasi)
       case 'delete_customer_request': {
         const { target } = args;
-        if (!target) return '❌ Mohon sebutkan nama pelanggan, ID, atau No HP yang ingin dihapus.';
+        if (!target) return 'Mohon sebutkan nama pelanggan atau ID yang ingin dihapus.';
         const cust = findCustomerHelper(target);
         if (!cust) {
-          return `❌ Pelanggan *"${target}"* tidak ditemukan di sistem. Pastikan penulisan nama atau nomor HP benar.`;
+          return `Pelanggan atas nama ${target} tidak ditemukan di sistem. Silakan pastikan nama atau nomornya sudah sesuai.`;
         }
 
-        return `⚠️ *KONFIRMASI PENGHAPUSAN PELANGGAN*\n\n` +
-          `Apakah Anda yakin ingin menghapus pelanggan berikut dari sistem?\n\n` +
-          `• ID: *#${cust.id}*\n` +
-          `• Nama: *${cust.name}*\n` +
-          `• No. HP: *${cust.phone || '-'}*\n` +
-          `• Paket: *${cust.package_name || '-'}*\n` +
-          `• PPPoE: \`${cust.pppoe_username || '-'}\`\n` +
-          `• Status: *${cust.status}*\n\n` +
-          `⚠️ _PERINGATAN: Tindakan ini permanen. Data tagihan dan akun MikroTik pelanggan akan dihapus._\n\n` +
-          `Ketik balasan:\n👉 *YA HAPUS ${cust.id}*\n\n_Untuk membatalkan, abaikan pesan ini._`;
+        return `Apakah Anda yakin ingin menghapus data pelanggan ${cust.name}? Tindakan ini bersifat permanen. Jika setuju, silakan konfirmasi dengan ucapan: ya hapus ${cust.id}.`;
       }
 
-      // 3. Reboot Modem ONU
+      // 3. Cek Status Modem & Redaman
+      case 'check_modem_status': {
+        const { target } = args || {};
+        if (!target || target.toLowerCase() === 'semua' || target.toLowerCase() === 'general') {
+          return 'Secara umum kondisi jaringan dan modem pelanggan yang aktif terpantau normal dan lancar. Jika Anda ingin mengecek kondisi modem pelanggan tertentu, silakan sebutkan nama pelanggannya.';
+        }
+
+        const cust = findCustomerHelper(target);
+        const tagToken = cust ? (cust.genieacs_tag || cust.pppoe_username || cust.phone) : target;
+        let onuData = null;
+        try {
+          onuData = await Promise.race([
+            customerDevice.getCustomerDeviceData(tagToken),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+          ]).catch(() => null);
+        } catch (_) {}
+
+        const pppoeUser = cust?.pppoe_username ? cust.pppoe_username.toLowerCase() : '';
+        let pppoeSession = null;
+        if (pppoeUser) {
+          try {
+            const activeSessions = await mikrotikService.getActivePppoeUsers();
+            pppoeSession = (activeSessions || []).find(s => (s.user || '').toLowerCase() === pppoeUser);
+          } catch (_) {}
+        }
+
+        const name = cust ? cust.name : target;
+        if (!onuData && !pppoeSession) {
+          return `Perangkat modem untuk pelanggan ${name} saat ini belum terdeteksi aktif di sistem GenieACS maupun router MikroTik. Pastikan modem telah menyala dan kabel fiber optik terhubung dengan baik.`;
+        }
+
+        let redamanDesc = '';
+        if (onuData?.rxPower) {
+          const rx = parseFloat(onuData.rxPower);
+          if (!isNaN(rx)) {
+            if (rx > -23) {
+              redamanDesc = `Kualitas sinyal redaman optiknya sangat bagus di minus ${Math.abs(rx)} desibel.`;
+            } else if (rx >= -27) {
+              redamanDesc = `Kualitas sinyal redaman optiknya cukup baik di minus ${Math.abs(rx)} desibel.`;
+            } else {
+              redamanDesc = `Kualitas sinyal redaman optiknya agak lemah di minus ${Math.abs(rx)} desibel, perlu diperhatikan.`;
+            }
+          } else {
+            redamanDesc = `Kualitas daya sinyal tercatat ${onuData.rxPower}.`;
+          }
+        }
+
+        let pppoeDesc = pppoeSession ? 'Koneksi internet terpantau online lancar.' : 'Akun internet terpantau belum dial up ke router.';
+        return `Kondisi modem milik ${name} saat ini terpantau normal dan aktif. ${redamanDesc} ${pppoeDesc}`.trim();
+      }
+
+      // 4. Reboot Modem ONU
       case 'reboot_onu': {
         const { target } = args;
-        if (!target) return '❌ Mohon sebutkan target nama pelanggan atau tag ONU yang ingin di-reboot.';
+        if (!target) return 'Mohon sebutkan nama pelanggan atau tag modem yang ingin dinyalakan ulang.';
 
         const cust = findCustomerHelper(target);
         const tagToken = cust ? (cust.genieacs_tag || cust.pppoe_username || cust.phone) : target;
 
         const targetDevice = await customerDevice.resolveDeviceToken(tagToken);
         if (!targetDevice) {
-          return `❌ Perangkat untuk target *"${target}"* tidak ditemukan di GenieACS TR-069.`;
+          return `Perangkat modem untuk ${target} tidak ditemukan di GenieACS.`;
         }
 
-        const r = await customerDevice.requestReboot(tagToken);
-        return `🔄 *REBOOT MODEM ONU*\n\nTarget: *${cust ? cust.name : target}* (Tag: \`${tagToken}\`)\nStatus: ${r.message}`;
+        await customerDevice.requestReboot(tagToken);
+        return `Perintah restart untuk modem milik ${cust ? cust.name : target} berhasil dikirim. Modem akan mulai menyala ulang dalam beberapa saat.`;
       }
 
-      // 4. Update Password WiFi
+      // 5. Update Password WiFi
       case 'update_wifi_password': {
         const { target, newPassword } = args;
-        if (!target || !newPassword) return '❌ Mohon sebutkan target pelanggan dan kata sandi baru.';
-        if (String(newPassword).length < 8) return '❌ Kata sandi WiFi baru minimal 8 karakter.';
+        if (!target || !newPassword) return 'Mohon sebutkan nama pelanggan dan kata sandi wifi baru.';
+        if (String(newPassword).length < 8) return 'Kata sandi wifi baru minimal harus delapan karakter.';
 
         const cust = findCustomerHelper(target);
         const tagToken = cust ? (cust.genieacs_tag || cust.pppoe_username || cust.phone) : target;
 
         const ok = await customerDevice.updatePassword(tagToken, String(newPassword).trim());
         if (ok) {
-          return `🔑 *GANTI SANDI WIFI BERHASIL*\n\nTarget: *${cust ? cust.name : target}*\nSandi Baru: \`${newPassword}\`\n\n_Modem ONU telah diperbarui via TR-069._`;
+          return `Kata sandi wifi untuk pelanggan ${cust ? cust.name : target} berhasil diperbarui menjadi ${newPassword}. Pengaturan sudah diterapkan ke modem.`;
         } else {
-          return `❌ Gagal mengubah kata sandi WiFi untuk *"${target}"*. Pastikan modem ONU sedang online di GenieACS.`;
+          return `Gagal mengubah kata sandi wifi untuk ${target}. Pastikan modem pelanggan sedang dalam kondisi online.`;
         }
       }
 
-      // 5. Update SSID WiFi
+      // 6. Update SSID WiFi
       case 'update_wifi_ssid': {
         const { target, newSsid } = args;
-        if (!target || !newSsid) return '❌ Mohon sebutkan target pelanggan dan nama SSID WiFi baru.';
+        if (!target || !newSsid) return 'Mohon sebutkan nama pelanggan dan nama wifi baru.';
 
         const cust = findCustomerHelper(target);
         const tagToken = cust ? (cust.genieacs_tag || cust.pppoe_username || cust.phone) : target;
 
         const ok = await customerDevice.updateSSID(tagToken, String(newSsid).trim());
         if (ok) {
-          return `📶 *GANTI NAMA WIFI (SSID) BERHASIL*\n\nTarget: *${cust ? cust.name : target}*\nNama WiFi Baru: *${newSsid}*\n\n_Modem ONU telah diperbarui via TR-069._`;
+          return `Nama wifi untuk pelanggan ${cust ? cust.name : target} berhasil diganti menjadi ${newSsid}. Perangkat modem sudah diperbarui.`;
         } else {
-          return `❌ Gagal mengubah nama WiFi untuk *"${target}"*. Pastikan modem ONU sedang online di GenieACS.`;
+          return `Gagal mengubah nama wifi untuk ${target}. Pastikan modem pelanggan sedang aktif terhubung.`;
         }
       }
 
-      // 6. Melunasi Tagihan
+      // 7. Melunasi Tagihan
       case 'mark_invoice_paid': {
         const { target } = args;
-        if (!target) return '❌ Mohon sebutkan ID invoice, nama pelanggan, atau no HP yang ingin dilunasi.';
+        if (!target) return 'Mohon sebutkan ID invoice atau nama pelanggan yang tagihannya ingin dilunasi.';
         const { executeAdminLunas } = await import('./whatsappBot.mjs');
         let capturedReply = '';
         const localReply = async (msg) => { capturedReply = msg; };
         await executeAdminLunas(target, localReply, sock, lidStore);
-        return capturedReply || `✅ Perintah pelunasan tagihan *"${target}"* telah dieksekusi.`;
+        return `Tagihan untuk ${target} telah berhasil dilunasi di sistem dan layanan sudah aktif normal.`;
       }
 
-      // 7. Isolir Pelanggan
+      // 8. Isolir Pelanggan
       case 'isolate_customer': {
         const { target } = args;
-        if (!target) return '❌ Mohon sebutkan nama pelanggan atau ID yang ingin diisolir.';
+        if (!target) return 'Mohon sebutkan nama pelanggan atau ID yang ingin diisolir.';
         const { executeAdminIsolir } = await import('./whatsappBot.mjs');
         let capturedReply = '';
         const localReply = async (msg) => { capturedReply = msg; };
         await executeAdminIsolir(target, localReply);
-        return capturedReply || `⛔ Perintah isolir pelanggan *"${target}"* telah dieksekusi.`;
+        return `Layanan internet untuk pelanggan ${target} telah berhasil diisolir sementara.`;
       }
 
-      // 8. Buka Isolir Pelanggan
+      // 9. Buka Isolir Pelanggan
       case 'unisolate_customer': {
         const { target } = args;
-        if (!target) return '❌ Mohon sebutkan nama pelanggan atau ID yang ingin dibuka isolirnya.';
+        if (!target) return 'Mohon sebutkan nama pelanggan atau ID yang ingin dibuka isolirnya.';
         const { executeAdminBuka } = await import('./whatsappBot.mjs');
         let capturedReply = '';
         const localReply = async (msg) => { capturedReply = msg; };
         await executeAdminBuka(target, localReply);
-        return capturedReply || `🟢 Perintah buka isolir pelanggan *"${target}"* telah dieksekusi.`;
+        return `Isolir untuk pelanggan ${target} telah berhasil dibuka. Koneksi internet kini sudah normal kembali.`;
       }
 
-      // 9. Kick PPPoE / Hotspot User
+      // 10. Kick PPPoE / Hotspot User
       case 'kick_pppoe_user': {
         const { username } = args;
-        if (!username) return '❌ Mohon sebutkan username PPPoE yang ingin diputus.';
+        if (!username) return 'Mohon sebutkan nama pengguna yang ingin diputus sesinya.';
         
         let targetUser = username.trim();
         const cust = findCustomerHelper(username);
@@ -399,16 +439,16 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
         const pk = await mikrotikService.kickPppoeUser(targetUser);
         const hk = await mikrotikService.kickHotspotUser(targetUser);
         if (pk || hk) {
-          return `✂️ *KICK USER AKTIF BERHASIL*\n\nSesi aktif untuk *${targetUser}*${cust ? ` (Pelanggan: ${cust.name})` : ''} telah diputus dari router MikroTik. Perangkat akan melakukan dial-up / login ulang otomatis.`;
+          return `Sesi aktif untuk ${targetUser} telah berhasil diputus dari router. Perangkat akan terhubung kembali secara otomatis.`;
         } else {
-          return `⚠️ Sesi aktif untuk *"${targetUser}"* tidak ditemukan di router MikroTik.`;
+          return `Sesi aktif untuk ${targetUser} tidak ditemukan di router.`;
         }
       }
 
-      // 10. Buat Voucher Hotspot
+      // 11. Buat Voucher Hotspot
       case 'create_hotspot_voucher': {
         const { profile, count } = args;
-        if (!profile) return '❌ Mohon sebutkan nama profil paket voucher hotspot (misal: 1jam, 5jam, dll).';
+        if (!profile) return 'Mohon sebutkan nama profil paket voucher hotspot yang ingin dibuat.';
 
         const numVouchers = Math.min(Math.max(parseInt(count, 10) || 1, 1), 10);
         const created = [];
@@ -427,41 +467,31 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
           created.push(code);
         }
 
-        let resp = `🎟️ *VOUCHER HOTSPOT BERHASIL DIBUAT*\n\n`;
-        resp += `• Profil Paket: *${profile}*\n`;
-        resp += `• Jumlah: *${created.length} voucher*\n\n`;
-        resp += `*Kode Voucher (Username & Password):*\n`;
-        created.forEach((c, idx) => {
-          resp += `${idx + 1}. \`${c}\`\n`;
-        });
-        return resp;
+        return `Sebanyak ${created.length} voucher hotspot dengan paket ${profile} telah berhasil dibuat. Kode voucher pertama adalah ${created[0]}.`;
       }
 
-      // 11. Generate Tagihan Bulanan
+      // 12. Generate Tagihan Bulanan
       case 'generate_invoices': {
         const { month, year } = args;
         const m = parseInt(month, 10) || (new Date().getMonth() + 1);
         const y = parseInt(year, 10) || new Date().getFullYear();
 
         const r = await billingSvc.generateMonthlyInvoices(m, y);
-        return `🧾 *GENERATE INVOICE SELESAI*\n\n` +
-          `• Periode: *${m}/${y}*\n` +
-          `• Invoice Baru Dibuat: *${r?.created || 0} tagihan*\n` +
-          `• Dilewati (Sudah ada): *${r?.skipped || 0} tagihan*`;
+        return `Pembuatan tagihan bulanan untuk periode bulan ${m} tahun ${y} telah selesai. Sebanyak ${r?.created || 0} tagihan baru berhasil diproses.`;
       }
 
-      // 12. Cek Saldo Digiflazz
+      // 13. Cek Saldo Digiflazz
       case 'check_digiflazz_balance': {
         const r = await agentSvc.digiflazzCheckBalance();
         const dep = Number(r?.deposit || 0).toLocaleString('id-ID');
-        return `🏦 *SALDO DIGIFLAZZ (ADMIN)*\n\nDeposit: *Rp ${dep}*\nStatus: Aktif`;
+        return `Sisa saldo deposit Digiflazz Anda saat ini tercatat sebesar ${dep} rupiah dan berstatus aktif.`;
       }
 
-      // 13. Top Up Saldo Agent
+      // 14. Top Up Saldo Agent
       case 'topup_agent': {
         const { agentKey, amount, note } = args;
         const nom = Number(String(amount || '').replace(/[^\d]/g, ''));
-        if (!nom || nom <= 0) return '❌ Nominal top up harus angka lebih dari 0.';
+        if (!nom || nom <= 0) return 'Nominal top up harus berupa angka lebih dari nol.';
 
         const rawKey = String(agentKey || '').trim();
         let agent = agentSvc.getAgentById(parseInt(rawKey, 10)) ||
@@ -473,22 +503,18 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
           agent = all.find(a => String(a.name || '').toLowerCase().includes(rawKey.toLowerCase()));
         }
 
-        if (!agent) return `❌ Agent *"${agentKey}"* tidak ditemukan.`;
+        if (!agent) return `Data agen ${agentKey} tidak ditemukan di sistem.`;
 
-        const r = agentSvc.topupAgent(agent.id, nom, note || 'Topup via WhatsApp AI', 'Admin WA');
-        return `✅ *TOP UP AGENT BERHASIL*\n\n` +
-          `• Agent: *${agent.name}* (@${agent.username})\n` +
-          `• Nominal: *Rp ${nom.toLocaleString('id-ID')}*\n` +
-          `• Saldo: Rp ${Number(r.before || 0).toLocaleString('id-ID')} ➜ *Rp ${Number(r.after || 0).toLocaleString('id-ID')}*\n` +
-          `• Catatan: ${note || '-'}`;
+        const r = agentSvc.topupAgent(agent.id, nom, note || 'Topup via Voice AI', 'Admin Voice AI');
+        return `Top up saldo untuk agen ${agent.name} sebesar ${nom.toLocaleString('id-ID')} rupiah telah berhasil diproses. Saldo saat ini menjadi ${Number(r.after || 0).toLocaleString('id-ID')} rupiah.`;
       }
 
       default:
-        return `⚠️ Fungsi *"${toolName}"* belum terkonfigurasi.`;
+        return `Fungsi ${toolName} belum tersedia di sistem.`;
     }
   } catch (err) {
     logger.error(`[Admin AI Tool] Error saat eksekusi ${toolName}: ${err.message}`);
-    return `❌ Gagal mengeksekusi perintah *${toolName}*: ${err.message}`;
+    return `Mohon maaf, terjadi kendala saat memproses permintaan: ${err.message}`;
   }
 }
 

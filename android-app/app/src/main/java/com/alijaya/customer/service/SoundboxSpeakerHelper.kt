@@ -226,10 +226,24 @@ object SoundboxSpeakerHelper {
     }
 
     private fun cleanForSpeech(raw: String): String {
-        return raw.replace(Regex("`[^`]*`"), "")
-            .replace(Regex("[*_~#•]"), " ")
+        return raw
+            .replace(Regex("```[\\s\\S]*?```"), " ")
+            .replace(Regex("`([^`]+)`"), "$1")
             .replace(Regex("\\[([^\\]]+)\\]\\([^)]+\\)"), "$1")
+            .replace(Regex("<[^>]+>"), " ")
             .replace(Regex("(?i)\\bRp\\.?\\s*([0-9.,]+)"), "$1 rupiah")
+            .replace(Regex("(?i)-(\\d+(?:\\.\\d+)?)\\s*(?:dBm)\\b"), "minus $1 desibel")
+            .replace(Regex("(?i)\\b(\\d+(?:\\.\\d+)?)\\s*(?:dBm)\\b"), "$1 desibel")
+            .replace(Regex("(?i)\\bRX\\s*Power\\b"), "daya sinyal")
+            .replace(Regex("(?i)\\bTX\\s*Power\\b"), "daya kirim")
+            .replace(Regex("(?i)\\bONU\\b|\\bONT\\b"), "modem")
+            .replace(Regex("(?i)\\bPPPoE\\b"), "pe pe po e")
+            .replace(Regex("(?i)\\bSSID\\b"), "nama wifi")
+            .replace(Regex("(?i)\\bQRIS\\b"), "kris")
+            .replace(Regex("[🟢🔴🟡⚪⚫🟠🔵🟣🟥🟩🟦🟧🟨⭕❌✅⚠️💡🤖🧾💳📡📶🔒🔓🔄🔑👉⏱️📱🔧🏷️💾💬⚙️🛡️💰📋🙏✔️✖️]"), " ")
+            .replace(Regex("[\\p{So}\\p{Cn}]"), " ")
+            .replace(Regex("[*_~#|\\\\^$<>\\[\\]{}()•·▪▫➢➔★☆✓✕✖]"), " ")
+            .replace(Regex("[^\\p{L}\\p{N}\\s,.\\?!]"), " ")
             .replace(Regex("\\s+"), " ")
             .trim()
     }
