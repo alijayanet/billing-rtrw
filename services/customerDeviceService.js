@@ -923,19 +923,24 @@ async function updateSSID(tag, newSSID, actor = null) {
     // Check supported paths directly from loaded device object
     if (igd && igd.LANDevice && igd.LANDevice['1'] && igd.LANDevice['1'].WLANConfiguration) {
       const wlan = igd.LANDevice['1'].WLANConfiguration;
-      if (wlan['1']) {
-        parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID', newSSID, 'xsd:string']);
-      }
-      // Hanya kirim 5G SSID jika parameter SSID 5G benar-benar ada di pohon data perangkat
-      const fiveGIndex = (wlan['5'] && wlan['5'].SSID !== undefined) ? '5' : ((wlan['2'] && wlan['2'].SSID !== undefined) ? '2' : null);
-      if (fiveGIndex) {
-        parameterValues.push([`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.SSID`, `${newSSID}-5G`, 'xsd:string']);
+      // Selalu ubah SSID 1 (2.4GHz Utama)
+      parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID', newSSID, 'xsd:string']);
+      
+      // HANYA jika parameter SSID 5G (WLANConfiguration.5) benar-benar ada di perangkat.
+      // JANGAN PERNAH mengubah WLANConfiguration.2 (SSID 2) karena itu adalah SSID2/Guest pada perangkat single-band!
+      const hasFiveG = Boolean(
+        wlan['5'] && (
+          wlan['5'].SSID !== undefined ||
+          wlan['5']._object === true ||
+          wlan['5'].Enable !== undefined ||
+          wlan['5'].KeyPassphrase !== undefined
+        )
+      );
+      if (hasFiveG) {
+        parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.SSID', `${newSSID}-5G`, 'xsd:string']);
       }
     } else if (dev181 && dev181.WiFi) {
       parameterValues.push(['Device.WiFi.SSID.1.SSID', newSSID, 'xsd:string']);
-      if (dev181.WiFi.SSID && dev181.WiFi.SSID['2'] && dev181.WiFi.SSID['2'].SSID !== undefined) {
-        parameterValues.push(['Device.WiFi.SSID.2.SSID', `${newSSID}-5G`, 'xsd:string']);
-      }
     } else {
       // Fallback check in local DB
       const db = require('../config/database');
@@ -946,6 +951,9 @@ async function updateSSID(tag, newSSID, actor = null) {
           parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID', newSSID, 'xsd:string']);
         } else if (flatParams['Device.WiFi.SSID.1.SSID'] !== undefined) {
           parameterValues.push(['Device.WiFi.SSID.1.SSID', newSSID, 'xsd:string']);
+        }
+        if (flatParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.SSID'] !== undefined) {
+          parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.SSID', `${newSSID}-5G`, 'xsd:string']);
         }
       }
       if (parameterValues.length === 0) {
@@ -1068,24 +1076,34 @@ async function updatePassword(tag, newPassword, actor = null) {
         parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey', pw, 'xsd:string']);
       }
 
-      // 5G if available
-      const fiveGIndex = (wlan['5'] && (wlan['5'].SSID !== undefined || wlan['5'].KeyPassphrase !== undefined)) ? '5' : ((wlan['2'] && (wlan['2'].SSID !== undefined || wlan['2'].KeyPassphrase !== undefined)) ? '2' : null);
-      if (fiveGIndex) {
-        const wlan5 = wlan[fiveGIndex] || {};
+      // 5G if available - HANYA jika WLANConfiguration.5 ada di perangkat. JANGAN PERNAH mengubah WLANConfiguration.2!
+      const hasFiveG = Boolean(
+        wlan['5'] && (
+          wlan['5'].SSID !== undefined ||
+          wlan['5'].KeyPassphrase !== undefined ||
+          wlan['5'].PreSharedKey !== undefined ||
+          wlan['5']._object === true ||
+          wlan['5'].Enable !== undefined
+        )
+      );
+      if (hasFiveG) {
+        const wlan5 = wlan['5'] || {};
         if (wlan5.KeyPassphrase !== undefined) {
-          parameterValues.push([`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.KeyPassphrase`, pw, 'xsd:string']);
+          parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.KeyPassphrase', pw, 'xsd:string']);
         }
         if (wlan5.PreSharedKey && typeof wlan5.PreSharedKey === 'object') {
-          parameterValues.push([`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.PreSharedKey.1.PreSharedKey`, pw, 'xsd:string']);
+          parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.PreSharedKey.1.PreSharedKey', pw, 'xsd:string']);
+        }
+        if (!wlan5.KeyPassphrase && (!wlan5.PreSharedKey || typeof wlan5.PreSharedKey !== 'object')) {
+          parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.KeyPassphrase', pw, 'xsd:string']);
+          parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.PreSharedKey.1.PreSharedKey', pw, 'xsd:string']);
         }
       }
     } else if (dev181 && dev181.WiFi) {
       parameterValues.push(['Device.WiFi.AccessPoint.1.Security.KeyPassphrase', pw, 'xsd:string']);
-      if (dev181.WiFi.AccessPoint && dev181.WiFi.AccessPoint['2']) {
-        parameterValues.push(['Device.WiFi.AccessPoint.2.Security.KeyPassphrase', pw, 'xsd:string']);
-      }
     } else {
       parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase', pw, 'xsd:string']);
+      parameterValues.push(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey', pw, 'xsd:string']);
     }
 
     let ok = false;

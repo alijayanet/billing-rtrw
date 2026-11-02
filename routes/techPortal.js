@@ -1050,7 +1050,7 @@ function buildBuiltinAddWanWorkflow({
             }
         }
 
-        const fiveGIndex = wlanObj['5'] ? '5' : (wlanObj['2'] ? '2' : null);
+        const fiveGIndex = wlanObj['5'] ? '5' : null;
         if (fiveGIndex && wifiSsid5) {
             wifiParamValues.push([`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.SSID`, wifiSsid5, 'xsd:string']);
             verifyNames.push(`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.SSID`);
@@ -1331,7 +1331,7 @@ router.post('/api/add-wan/:deviceId', requireTechSession, async (req, res) => {
                 }
             }
 
-            const fiveGIndex = wlanConfig['5'] ? '5' : (wlanConfig['2'] ? '2' : null);
+            const fiveGIndex = wlanConfig['5'] ? '5' : null;
             if (fiveGIndex && wifiSsid5) {
                 wifiParamValues.push([`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.SSID`, wifiSsid5, 'xsd:string']);
                 if (wifiPass5) {

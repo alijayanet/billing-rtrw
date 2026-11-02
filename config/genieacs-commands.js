@@ -530,9 +530,7 @@ function getSSIDValue(device, configIndex) {
             return device.VirtualParameters.SSID._value;
         }
         
-        if (configIndex === '5' && device.InternetGatewayDevice?.LANDevice?.['1']?.WLANConfiguration?.['2']?.SSID?._value) {
-            return device.InternetGatewayDevice.LANDevice['1'].WLANConfiguration['2'].SSID._value;
-        }
+        // Index 5 is 5GHz. Do NOT fallback to index 2 (2.4GHz SSID 2).
         
         return 'N/A';
     } catch (error) {
