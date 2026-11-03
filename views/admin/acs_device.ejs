@@ -82,7 +82,7 @@
                     <span>SSID Wi-Fi</span>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="font-weight:700;"><%= device.ssid || '-' %></span>
-                        <button type="button" class="btn btn-p btn-sm" onclick="openWifiModal('<%= device.id || device.sn %>', '<%= (device.ssid || "").replace(/'/g, "\\'") %>', '<%= device.serialNumber || device.sn || "" %>', '<%= (device.pppoeUsername || "").replace(/'/g, "\\'") %>')" style="padding:2px 8px; font-size:11px;">
+                        <button type="button" class="btn btn-p btn-sm" onclick="openWifiModal('<%= device.id || device.sn %>', '<%= String(device.ssid || '').replace(/'/g, '\\\'') %>', '<%= device.serialNumber || device.sn || '' %>', '<%= String(device.pppoeUsername || '').replace(/'/g, '\\\'') %>')" style="padding:2px 8px; font-size:11px;">
                             <i class="bi bi-pencil-square me-1"></i>Ubah Wi-Fi
                         </button>
                     </div>

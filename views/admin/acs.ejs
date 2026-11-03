@@ -204,15 +204,20 @@
                                 </td>
                                 <td>
                                     <% 
-                                      const safeSsid = (d.wlan_ssid && d.wlan_ssid !== '-') ? d.wlan_ssid.replace(/'/g, "\\'") : '';
-                                      const safeCustName = (d.customer_name && d.customer_name !== '-') ? d.customer_name.replace(/'/g, "\\'") : '';
-                                      const safePppoe = (d.pppoe_user && d.pppoe_user !== '-') ? d.pppoe_user.replace(/'/g, "\\'") : '';
+                                      const strSsid = (typeof d.wlan_ssid === 'object' && d.wlan_ssid !== null) ? String(d.wlan_ssid._value || '') : String(d.wlan_ssid || '');
+                                      const strCustName = (typeof d.customer_name === 'object' && d.customer_name !== null) ? String(d.customer_name.name || d.customer_name._value || '') : String(d.customer_name || '');
+                                      const strPppoe = (typeof d.pppoe_user === 'object' && d.pppoe_user !== null) ? String(d.pppoe_user._value || '') : String(d.pppoe_user || '');
+
+                                      const safeSsid = (strSsid && strSsid !== '-' && strSsid !== '[object Object]') ? strSsid.replace(/'/g, "\\'") : '';
+                                      const safeCustName = (strCustName && strCustName !== '-' && strCustName !== '[object Object]') ? strCustName.replace(/'/g, "\\'") : '';
+                                      const safePppoe = (strPppoe && strPppoe !== '-' && strPppoe !== '[object Object]') ? strPppoe.replace(/'/g, "\\'") : '';
+                                      const hasSsid = (strSsid && strSsid !== '-' && strSsid !== '[object Object]');
                                     %>
-                                    <% if (d.wlan_ssid && d.wlan_ssid !== '-') { %>
-                                        <div style="font-weight:600; font-size:11px; color:var(--text); max-width:115px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Klik untuk ubah SSID / Password WiFi (<%= d.wlan_ssid %>)">
+                                    <% if (hasSsid) { %>
+                                        <div style="font-weight:600; font-size:11px; color:var(--text); max-width:115px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Klik untuk ubah SSID / Password WiFi (<%= strSsid %>)">
                                             <a href="javascript:void(0)" onclick="openWifiModal('<%= d.id %>', '<%= safeSsid %>', '<%= d.sn %>', '<%= safeCustName %>', '<%= safePppoe %>')" style="color:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:3px;">
                                                 <i class="bi bi-wifi text-primary"></i>
-                                                <span><%= d.wlan_ssid %></span>
+                                                <span><%= strSsid %></span>
                                                 <i class="bi bi-pencil-square text-primary" style="font-size:10px; margin-left:2px;" title="Ubah Wi-Fi"></i>
                                             </a>
                                         </div>

@@ -690,32 +690,58 @@ function extractRxPower(d) {
 function extractSsid(d) {
     // 1. Cek VirtualParameters
     const vpVal = getNestedValue(d, 'VirtualParameters.WlanSSID');
-    if (vpVal && typeof vpVal === 'string' && vpVal.trim() && vpVal !== '-') return vpVal.trim();
+    if (vpVal !== undefined && vpVal !== null) {
+        const str = (typeof vpVal === 'object' ? (vpVal._value ?? '') : vpVal).toString().trim();
+        if (str && str !== '-' && str !== '[object Object]') return str;
+    }
 
     // 2. Cek TR-069
     const SSID_PATHS = [
         'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
-        'Device.WiFi.SSID.1.SSID',
-        'Device.WiFi.SSID.2.SSID'
+        'Device.WiFi.SSID.1.SSID'
     ];
     for (const path of SSID_PATHS) {
         const val = getNestedValue(d, path);
-        if (val && val !== '-' && val !== '') return val;
+        if (val !== undefined && val !== null) {
+            let str = '';
+            if (typeof val === 'object') {
+                if (val._value !== undefined && val._value !== null) {
+                    str = String(val._value).trim();
+                }
+            } else {
+                str = String(val).trim();
+            }
+            if (str && str !== '-' && str !== '' && str !== '[object Object]') return str;
+        }
     }
     return '-';
 }
 
 function extractWlanPassword(d) {
     const vpVal = getNestedValue(d, 'VirtualParameters.WlanPassword');
-    if (vpVal && typeof vpVal === 'string' && vpVal.trim()) return vpVal.trim();
+    if (vpVal !== undefined && vpVal !== null) {
+        const str = (typeof vpVal === 'object' ? (vpVal._value ?? '') : vpVal).toString().trim();
+        if (str && str !== '-' && str !== '[object Object]') return str;
+    }
 
     const passKeys = [
         'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase',
-        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase'
+        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase',
+        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey'
     ];
     for (const path of passKeys) {
         const val = getNestedValue(d, path);
-        if (val && typeof val === 'string' && val.trim()) return val.trim();
+        if (val !== undefined && val !== null) {
+            let str = '';
+            if (typeof val === 'object') {
+                if (val._value !== undefined && val._value !== null) {
+                    str = String(val._value).trim();
+                }
+            } else {
+                str = String(val).trim();
+            }
+            if (str && str !== '-' && str !== '' && str !== '[object Object]') return str;
+        }
     }
     return '-';
 }
