@@ -36,8 +36,15 @@
     </div>
   </div>
   <div class="page">
-    <% const waTab = 'status'; %>
-    <% if (msg) { %>
+    <% 
+      const waTab = 'status'; 
+      const currentAiMode = (typeof whatsappAiMode !== 'undefined') ? whatsappAiMode : ((typeof locals !== 'undefined' && typeof locals.whatsappAiMode !== 'undefined') ? locals.whatsappAiMode : 'admin_only');
+      const currentWaGatewayType = (typeof waGatewayType !== 'undefined') ? waGatewayType : ((typeof locals !== 'undefined' && typeof locals.waGatewayType !== 'undefined') ? locals.waGatewayType : 'baileys');
+      const currentMetaSettings = (typeof metaSettings !== 'undefined' && metaSettings) ? metaSettings : ((typeof locals !== 'undefined' && locals.metaSettings) ? locals.metaSettings : {});
+      const currentFonnteSettings = (typeof fonnteSettings !== 'undefined' && fonnteSettings) ? fonnteSettings : ((typeof locals !== 'undefined' && locals.fonnteSettings) ? locals.fonnteSettings : {});
+      const currentHost = (typeof host !== 'undefined') ? host : ((typeof locals !== 'undefined' && locals.host) ? locals.host : 'localhost:3001');
+    %>
+    <% if (typeof msg !== 'undefined' && msg) { %>
     <div class="alert alert-<%= msg.type==='success'?'s':'d' %>">
       <i class="bi bi-<%= msg.type==='success'?'check-circle':'exclamation-circle' %>"></i> <%= msg.text %>
     </div>
@@ -59,35 +66,35 @@
           <div class="fg">
             <label class="fl">Pilihan Provider / Gateway WhatsApp</label>
             <select class="fs" name="wa_gateway_type" id="wa_gateway_type" onchange="toggleGatewayFields()">
-              <option value="fonnte" <%= waGatewayType === 'fonnte' ? 'selected' : '' %>>🚀 Fonnte API Gateway (Cloud Resmi & Self-Hosted Ready)</option>
-              <option value="baileys" <%= waGatewayType === 'baileys' ? 'selected' : '' %>>🌐 Baileys Web (Unofficial Socket - Ringan)</option>
-              <option value="meta" <%= waGatewayType === 'meta' ? 'selected' : '' %>>🟢 Meta Cloud API (Official - Resmi Meta & Anti-Banned)</option>
+              <option value="fonnte" <%= currentWaGatewayType === 'fonnte' ? 'selected' : '' %>>🚀 Fonnte API Gateway (Cloud Resmi & Self-Hosted Ready)</option>
+              <option value="baileys" <%= currentWaGatewayType === 'baileys' ? 'selected' : '' %>>🌐 Baileys Web (Unofficial Socket - Ringan)</option>
+              <option value="meta" <%= currentWaGatewayType === 'meta' ? 'selected' : '' %>>🟢 Meta Cloud API (Official - Resmi Meta & Anti-Banned)</option>
             </select>
           </div>
           <div class="fg">
             <label class="fl">Nomor WA Pengirim (Business Phone)</label>
-            <input class="fc" name="meta_business_phone" value="<%= metaSettings.meta_business_phone %>" placeholder="Contoh: 628123456789">
+            <input class="fc" name="meta_business_phone" value="<%= currentMetaSettings.meta_business_phone || '' %>" placeholder="Contoh: 628123456789">
           </div>
         </div>
 
         <!-- 1. FONNTE GATEWAY FIELDS -->
-        <div id="fonnte_fields_container" style="<%= waGatewayType === 'fonnte' ? '' : 'display:none;' %> background: rgba(59, 130, 246, 0.04); padding: 16px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 16px;">
+        <div id="fonnte_fields_container" style="<%= currentWaGatewayType === 'fonnte' ? '' : 'display:none;' %> background: rgba(59, 130, 246, 0.04); padding: 16px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 16px;">
           <div class="fw6 mb12" style="color: #2563eb; font-size: 13px;"><i class="bi bi-send-check"></i> Konfigurasi Fonnte WhatsApp Gateway</div>
           
           <div class="form-row mb12">
             <div class="fg" style="flex: 2;">
               <label class="fl">Fonnte API Token / Device Key *</label>
-              <input class="fc" name="fonnte_token" id="fonnte_token" value="<%= fonnteSettings.fonnte_token %>" placeholder="Paste Token Akun / Device Fonnte di sini...">
+              <input class="fc" name="fonnte_token" id="fonnte_token" value="<%= currentFonnteSettings.fonnte_token || '' %>" placeholder="Paste Token Akun / Device Fonnte di sini...">
             </div>
             <div class="fg" style="flex: 1;">
               <label class="fl">Country Code (Kode Negara)</label>
-              <input class="fc" name="fonnte_country_code" value="<%= fonnteSettings.fonnte_country_code %>" placeholder="62">
+              <input class="fc" name="fonnte_country_code" value="<%= currentFonnteSettings.fonnte_country_code || '62' %>" placeholder="62">
             </div>
           </div>
 
           <div class="fg mb12">
             <label class="fl">API Endpoint URL (Default: <code>https://api.fonnte.com/send</code> atau URL Server Self-Hosted)</label>
-            <input class="fc" name="fonnte_api_url" value="<%= fonnteSettings.fonnte_api_url %>" placeholder="https://api.fonnte.com/send">
+            <input class="fc" name="fonnte_api_url" value="<%= currentFonnteSettings.fonnte_api_url || 'https://api.fonnte.com/send' %>" placeholder="https://api.fonnte.com/send">
             <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">
               <i class="bi bi-info-circle"></i> Gunakan <code>https://api.fonnte.com/send</code> untuk Fonnte Cloud, atau ubah ke domain/IP server mandiri jika menggunakan <b>Fonnte Self-Hosted</b> (misal: <code>http://192.168.1.100:8000/send</code>).
             </div>
@@ -100,7 +107,7 @@
               <button type="button" class="btn btn-g btn-sm" onclick="copyWebhookUrl('fonnte_webhook_url')" style="padding: 2px 8px; font-size: 11px;"><i class="bi bi-clipboard"></i> Salin URL</button>
             </div>
             <div style="display: flex; gap: 6px;">
-              <input type="text" id="fonnte_webhook_url" class="fc" readonly value="http://<%= host %>/api/webhook/fonnte" style="font-family: monospace; font-size: 12px; background: var(--bg3); cursor: pointer;" onclick="this.select();">
+              <input type="text" id="fonnte_webhook_url" class="fc" readonly value="http://<%= currentHost %>/api/webhook/fonnte" style="font-family: monospace; font-size: 12px; background: var(--bg3); cursor: pointer;" onclick="this.select();">
             </div>
           </div>
 
@@ -117,28 +124,28 @@
         </div>
 
         <!-- 2. META CLOUD API FIELDS -->
-        <div id="meta_fields_container" style="<%= waGatewayType === 'meta' ? '' : 'display:none;' %> background: rgba(16, 185, 129, 0.04); padding: 16px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.2); margin-bottom: 16px;">
+        <div id="meta_fields_container" style="<%= currentWaGatewayType === 'meta' ? '' : 'display:none;' %> background: rgba(16, 185, 129, 0.04); padding: 16px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.2); margin-bottom: 16px;">
           <div class="fw6 mb12" style="color: var(--success); font-size: 13px;"><i class="bi bi-shield-check"></i> Kredensial Meta WhatsApp Cloud API</div>
           
           <div class="form-row mb12">
             <div class="fg">
               <label class="fl">Meta Phone Number ID *</label>
-              <input class="fc" name="meta_phone_number_id" value="<%= metaSettings.meta_phone_number_id %>" placeholder="Contoh: 100654321987654">
+              <input class="fc" name="meta_phone_number_id" value="<%= currentMetaSettings.meta_phone_number_id || '' %>" placeholder="Contoh: 100654321987654">
             </div>
             <div class="fg">
               <label class="fl">Meta Business Account ID (WABA ID)</label>
-              <input class="fc" name="meta_waba_id" value="<%= metaSettings.meta_waba_id %>" placeholder="Contoh: 109876543210987">
+              <input class="fc" name="meta_waba_id" value="<%= currentMetaSettings.meta_waba_id || '' %>" placeholder="Contoh: 109876543210987">
             </div>
           </div>
 
           <div class="fg mb12">
             <label class="fl">Meta Permanent Access Token *</label>
-            <textarea class="fc" name="meta_access_token" rows="2" placeholder="Paste Permanent Access Token Meta Graph API di sini..."><%= metaSettings.meta_access_token %></textarea>
+            <textarea class="fc" name="meta_access_token" rows="2" placeholder="Paste Permanent Access Token Meta Graph API di sini..."><%= currentMetaSettings.meta_access_token || '' %></textarea>
           </div>
 
           <div class="fg">
             <label class="fl">Webhook Verification Token (Verify Token)</label>
-            <input class="fc" name="meta_verify_token" value="<%= metaSettings.meta_verify_token %>" placeholder="Token Rahasia Webhook">
+            <input class="fc" name="meta_verify_token" value="<%= currentMetaSettings.meta_verify_token || '' %>" placeholder="Token Rahasia Webhook">
           </div>
 
           <div style="font-size: 11.5px; margin-top: 10px; background: var(--bg2); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border);">
@@ -146,7 +153,7 @@
               <strong style="color: var(--primary);"><i class="bi bi-link-45deg"></i> Callback Webhook URL Meta Developer Portal:</strong>
               <button type="button" class="btn btn-g btn-sm" onclick="copyWebhookUrl('meta_webhook_url')" style="padding: 2px 8px; font-size: 11px;"><i class="bi bi-clipboard"></i> Salin URL</button>
             </div>
-            <input type="text" id="meta_webhook_url" class="fc" readonly value="http://<%= host %>/api/meta-webhook" style="font-family: monospace; font-size: 12px; background: var(--bg3); cursor: pointer;" onclick="this.select();">
+            <input type="text" id="meta_webhook_url" class="fc" readonly value="http://<%= currentHost %>/api/meta-webhook" style="font-family: monospace; font-size: 12px; background: var(--bg3); cursor: pointer;" onclick="this.select();">
           </div>
         </div>
 
@@ -217,11 +224,11 @@
         <h6 style="margin:0; font-weight:700; color:var(--primary); font-size:15px;">
           <i class="bi bi-robot"></i> Mode & Kontrol Bot AI WhatsApp
         </h6>
-        <% if (whatsappAiMode === true || whatsappAiMode === 'true') { %>
+        <% if (currentAiMode === true || currentAiMode === 'true') { %>
           <span class="badge" style="background:#e0f2fe; color:#0369a1; padding:6px 12px; border-radius:20px; font-weight:600; font-size:12px;">
             <i class="bi bi-broadcast"></i> Aktif untuk Semua (Admin & Pelanggan)
           </span>
-        <% } else if (whatsappAiMode === false || whatsappAiMode === 'false') { %>
+        <% } else if (currentAiMode === false || currentAiMode === 'false') { %>
           <span class="badge" style="background:#f1f5f9; color:#475569; padding:6px 12px; border-radius:20px; font-weight:600; font-size:12px;">
             <i class="bi bi-slash-circle"></i> Nonaktif Sepenuhnya
           </span>
@@ -241,13 +248,13 @@
           <div style="flex:1; min-width:280px;">
             <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text);">Pilih Mode Respon Bot AI</label>
             <select class="fc" name="whatsapp_ai_enabled" style="font-weight:600; padding:10px 14px; height:auto; width:100%;">
-              <option value="admin_only" <%= (whatsappAiMode === 'admin_only' || whatsappAiMode === undefined || whatsappAiMode === null) ? 'selected' : '' %>>
+              <option value="admin_only" <%= (currentAiMode === 'admin_only' || currentAiMode === undefined || currentAiMode === null) ? 'selected' : '' %>>
                 🔒 Khusus Admin Saja (Disarankan - CS Pelanggan Bebas Chat Manual)
               </option>
-              <option value="true" <%= (whatsappAiMode === true || whatsappAiMode === 'true') ? 'selected' : '' %>>
+              <option value="true" <%= (currentAiMode === true || currentAiMode === 'true') ? 'selected' : '' %>>
                 🌐 Aktif untuk Semua (Admin & Pelanggan Otomatis Dijawab AI)
               </option>
-              <option value="false" <%= (whatsappAiMode === false || whatsappAiMode === 'false') ? 'selected' : '' %>>
+              <option value="false" <%= (currentAiMode === false || currentAiMode === 'false') ? 'selected' : '' %>>
                 ⏸️ Nonaktif Sepenuhnya (Bot AI WhatsApp Mati Total)
               </option>
             </select>
