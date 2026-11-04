@@ -1,23 +1,100 @@
 <!DOCTYPE html>
-<html lang="<%= lang || 'id' %>">
+<html lang="<%= (typeof lang !== 'undefined' && lang) ? lang : 'id' %>">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title><%= title %> | <%= company %></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/css/admin.css">
   <style>
-    .inv-tabs { display: flex; gap: 4px; background: var(--bg3); padding: 4px; border-radius: 10px; margin-bottom: 20px; width: fit-content; }
-    .inv-tab { padding: 8px 20px; border-radius: 7px; border: none; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s; }
-    .inv-tab.active { background: var(--bg2); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
-    .stock-badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-    .stock-low { background: var(--ddim); color: var(--danger); }
-    .stock-ok { background: var(--sdim); color: var(--success); }
-    .log-type-in { color: var(--success); }
-    .log-type-out { color: var(--danger); }
-    .log-type-adjust { color: var(--warning); }
-    .flex-1 { flex: 1 1 auto; }
-    .w300 { width: 300px; }
+    .inv-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .inv-stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .inv-stat-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .inv-stat-info { overflow: hidden; }
+    .inv-stat-val { font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--text); }
+    .inv-stat-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+    .inv-tabs {
+      display: flex;
+      gap: 6px;
+      background: var(--bg3);
+      padding: 6px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      width: fit-content;
+      flex-wrap: wrap;
+    }
+    .inv-tab {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .inv-tab.active {
+      background: var(--bg2);
+      color: var(--primary);
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+
+    .stock-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+    .stock-low { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .stock-ok { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .stock-zero { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+
+    .log-badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .log-badge-in { background: #dcfce7; color: #15803d; }
+    .log-badge-out { background: #fee2e2; color: #b91c1c; }
+    .log-badge-assigned { background: #e0f2fe; color: #0369a1; }
+    .log-badge-adjust { background: #fef3c7; color: #b45309; }
+    .log-badge-return { background: #ffedd5; color: #c2410c; }
+    .log-badge-broken { background: #f3e8ff; color: #7e22ce; }
+
+    .balance-pill {
+      background: rgba(0, 0, 0, 0.04);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text);
+      display: inline-block;
+      border: 1px solid var(--border);
+    }
+
+    .tb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .fs11 { font-size: 11px; }
+    .fs12 { font-size: 12px; }
+    .flex-1 { flex: 1 1 auto; }
+    .w320 { width: 320px; }
   </style>
 </head>
 <body>
@@ -30,173 +107,383 @@
       <i class="bi bi-boxes"></i>
       <span><%= title %></span>
     </div>
-    <div class="tb-right">
+    <div class="tb-right tb-actions">
       <button class="btn btn-p btn-sm" onclick="openAddItem()"><i class="bi bi-plus-lg"></i> Tambah Barang</button>
+      <button class="btn btn-sm" style="background:#10b981; color:#fff;" onclick="openAddStockModal()"><i class="bi bi-box-arrow-in-down"></i> Stok Masuk (IN)</button>
+      <button class="btn btn-sm" style="background:#ef4444; color:#fff;" onclick="openIssueStockModal()"><i class="bi bi-box-arrow-up-right"></i> Stok Keluar (OUT)</button>
+      <button class="btn btn-g btn-sm" onclick="openAdjustStockModal()"><i class="bi bi-sliders"></i> Opname / Sesuaikan</button>
       <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>
     </div>
   </div>
 
   <div class="page">
-    <% if (msg) { %>
+    <% if (typeof msg !== 'undefined' && msg) { %>
       <div class="alert alert-<%= msg.type === 'success' ? 's' : 'd' %> mb16">
         <i class="bi bi-<%= msg.type === 'success' ? 'check-circle' : 'exclamation-triangle' %>"></i>
         <%= msg.text %>
       </div>
     <% } %>
 
-    <div class="inv-tabs">
-      <button class="inv-tab active" onclick="showTab('items')">Daftar Barang</button>
-      <button class="inv-tab" onclick="showTab('categories')">Kategori</button>
-      <button class="inv-tab" onclick="showTab('logs')">Riwayat Stok</button>
+    <!-- SUMMARY DASHBOARD CARDS -->
+    <div class="inv-stats-grid">
+      <div class="inv-stat-card">
+        <div class="inv-stat-icon" style="background:#eff6ff; color:#2563eb;"><i class="bi bi-boxes"></i></div>
+        <div class="inv-stat-info">
+          <div class="inv-stat-val"><%= stats ? stats.total_items : items.length %></div>
+          <div class="inv-stat-lbl">Jenis Barang</div>
+        </div>
+      </div>
+      <div class="inv-stat-card">
+        <div class="inv-stat-icon" style="background:#dcfce7; color:#16a34a;"><i class="bi bi-check-circle"></i></div>
+        <div class="inv-stat-info">
+          <div class="inv-stat-val" style="color:#16a34a;"><%= stats ? stats.total_stock_available : 0 %></div>
+          <div class="inv-stat-lbl">Tersedia di Gudang</div>
+        </div>
+      </div>
+      <div class="inv-stat-card">
+        <div class="inv-stat-icon" style="background:#e0f2fe; color:#0284c7;"><i class="bi bi-person-workspace"></i></div>
+        <div class="inv-stat-info">
+          <div class="inv-stat-val" style="color:#0284c7;"><%= stats ? stats.total_stock_assigned : 0 %></div>
+          <div class="inv-stat-lbl">Terpasang di Pelanggan</div>
+        </div>
+      </div>
+      <div class="inv-stat-card">
+        <div class="inv-stat-icon" style="background:#fee2e2; color:#dc2626;"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="inv-stat-info">
+          <div class="inv-stat-val" style="color:<%= (stats && stats.low_stock_count > 0) ? '#dc2626' : 'var(--text)' %>;">
+            <%= stats ? stats.low_stock_count : 0 %>
+          </div>
+          <div class="inv-stat-lbl">Stok Menipis / Kritis</div>
+        </div>
+      </div>
     </div>
 
-    <!-- TABS: ITEMS -->
-    <div id="tab-items" class="tab-content">
+    <!-- NAVIGATION TABS -->
+    <div class="inv-tabs">
+      <button class="inv-tab <%= (!query || !query.tab || query.tab === 'items') ? 'active' : '' %>" id="tabbtn-items" onclick="switchTab('items')">
+        <i class="bi bi-list-ul"></i> Daftar Barang & Stok
+      </button>
+      <button class="inv-tab <%= (query && query.tab === 'logs') ? 'active' : '' %>" id="tabbtn-logs" onclick="switchTab('logs')">
+        <i class="bi bi-clock-history"></i> Riwayat & Sisa Stok
+      </button>
+      <button class="inv-tab <%= (query && query.tab === 'categories') ? 'active' : '' %>" id="tabbtn-categories" onclick="switchTab('categories')">
+        <i class="bi bi-tags"></i> Kategori Barang (<%= categories.length %>)
+      </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: DAFTAR BARANG                       -->
+    <!-- ========================================== -->
+    <div id="tab-items" class="tab-content" style="<%= (query && (query.tab === 'logs' || query.tab === 'categories')) ? 'display:none;' : '' %>">
       <div class="card">
-        <div class="card-hd">
-          <h6><i class="bi bi-list-ul"></i> Semua Barang Inventaris</h6>
-          <div class="sinput">
-            <i class="bi bi-search"></i>
-            <input type="text" class="fc fc-sm" placeholder="Cari barang..." onkeyup="filterItems(this.value)">
+        <div class="card-hd" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <h6 style="margin:0;"><i class="bi bi-box-seam"></i> Daftar Master Barang & Status Stok</h6>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <select class="fc fc-sm" id="cat-filter" onchange="filterCategory(this.value)" style="width:180px;">
+              <option value="">Semua Kategori</option>
+              <% categories.forEach(cat => { %>
+                <option value="<%= cat.id %>" <%= (query && query.category_id == cat.id) ? 'selected' : '' %>><%= cat.name %></option>
+              <% }) %>
+            </select>
+            <div class="sinput">
+              <i class="bi bi-search"></i>
+              <input type="text" class="fc fc-sm" placeholder="Cari nama, brand, model..." id="item-search-input" onkeyup="filterItems(this.value)" value="<%= (query && query.q) ? query.q : '' %>">
+            </div>
           </div>
         </div>
+
         <div class="tbl-wrap">
           <table class="dtbl">
             <thead>
               <tr>
-                <th>Nama Barang</th>
+                <th>Nama Barang & Spesifikasi</th>
                 <th>Kategori</th>
-                <th>Brand / Model</th>
-                <th class="num">Stok Tersedia</th>
+                <th class="num">Stok Gudang</th>
                 <th class="num">Terpasang</th>
-                <th class="text-right">Aksi</th>
+                <th class="num">Rusak</th>
+                <th class="num">Batas Min</th>
+                <th class="text-right">Aksi Kelola Stok</th>
               </tr>
             </thead>
             <tbody id="items-list">
-              <% items.forEach(item => { %>
+              <% if (items && items.length > 0) { %>
+                <% items.forEach(item => { %>
+                  <% 
+                    const isLow = (item.stock_available || 0) <= item.min_stock; 
+                    const isZero = (item.stock_available || 0) === 0;
+                  %>
+                  <tr data-cat-id="<%= item.category_id || '' %>">
+                    <td>
+                      <div class="fw6" style="color:var(--text); font-size:13px;"><%= item.name %></div>
+                      <div class="text-muted fs11">
+                        <% if (item.brand || item.model) { %>
+                          <span style="font-weight:600;"><%= [item.brand, item.model].filter(Boolean).join(' ') %></span> &bull; 
+                        <% } %>
+                        <%= item.description || 'Tidak ada keterangan' %>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge" style="background:var(--bg3); color:var(--text); border:1px solid var(--border);">
+                        <%= item.category_name || '-' %>
+                      </span>
+                    </td>
+                    <td class="num">
+                      <span class="stock-badge <%= isZero ? 'stock-zero' : (isLow ? 'stock-low' : 'stock-ok') %>">
+                        <%= item.stock_available || 0 %> <%= item.unit %>
+                        <% if (isLow) { %>
+                          <i class="bi bi-exclamation-triangle-fill" title="Stok sudah di bawah minimum (<%= item.min_stock %>)"></i>
+                        <% } %>
+                      </span>
+                    </td>
+                    <td class="num text-muted" style="font-size:12px;">
+                      <%= item.stock_assigned || 0 %> <%= item.unit %>
+                    </td>
+                    <td class="num text-muted" style="font-size:12px;">
+                      <% if ((item.stock_broken || 0) > 0) { %>
+                        <span style="color:#ef4444; font-weight:600;"><%= item.stock_broken %> <%= item.unit %></span>
+                      <% } else { %>
+                        0 <%= item.unit %>
+                      <% } %>
+                    </td>
+                    <td class="num text-muted" style="font-size:12px;"><%= item.min_stock %> <%= item.unit %></td>
+                    <td>
+                      <div class="flex jc-fe gap">
+                        <!-- 1. Detail / Kartu Stok -->
+                        <button class="btn btn-g btn-icon" onclick="viewStock(<%= item.id %>, this.getAttribute('data-name'))" data-name="<%= item.name %>" title="Lihat Kartu Stok & Riwayat Mutasi">
+                          <i class="bi bi-eye"></i>
+                        </button>
+                        <!-- 2. Stok Masuk Cepat -->
+                        <button class="btn btn-g btn-icon text-success" onclick="openAddStockFor(<%= item.id %>, this.getAttribute('data-name'), '<%= item.unit %>')" data-name="<%= item.name %>" title="Tambah Stok Masuk (IN)">
+                          <i class="bi bi-box-arrow-in-down"></i>
+                        </button>
+                        <!-- 3. Pengeluaran Cepat -->
+                        <button class="btn btn-g btn-icon text-danger" onclick="openIssueStockFor(<%= item.id %>, this.getAttribute('data-name'), <%= item.stock_available || 0 %>, '<%= item.unit %>')" data-name="<%= item.name %>" title="Keluarkan Barang (OUT)">
+                          <i class="bi bi-box-arrow-up-right"></i>
+                        </button>
+                        <!-- 4. Edit Master Barang -->
+                        <button class="btn btn-g btn-icon" onclick="openEditItemById(<%= item.id %>)" title="Edit Data Barang">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                        <!-- 5. Hapus Barang -->
+                        <form action="/admin/inventory/item/delete/<%= item.id %>" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus barang ini?');" style="display:inline;">
+                          <button class="btn btn-g btn-icon text-muted" title="Hapus Barang"><i class="bi bi-trash"></i></button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
                 <tr>
-                  <td>
-                    <div class="fw6"><%= item.name %></div>
-                    <div class="text-muted fs11"><%= item.description %></div>
-                  </td>
-                  <td><span class="badge bp"><%= item.category_name || '-' %></span></td>
-                  <td><%= item.brand %> <%= item.model %></td>
-                  <td class="num">
-                    <span class="stock-badge <%= (item.stock_available || 0) <= item.min_stock ? 'stock-low' : 'stock-ok' %>">
-                      <%= item.stock_available || 0 %> <%= item.unit %>
-                    </span>
-                  </td>
-                  <td class="num text-muted"><%= item.stock_assigned || 0 %> <%= item.unit %></td>
-                  <td>
-                    <div class="flex jc-fe gap">
-                      <button class="btn btn-g btn-icon" <%- `onclick="viewStock(${item.id}, '${item.name}')"` %> title="Detail Stok"><i class="bi bi-eye"></i></button>
-                      <button class="btn btn-g btn-icon" <%- `onclick="openAddStock(${item.id}, '${item.name}')"` %> title="Tambah Stok"><i class="bi bi-plus-circle"></i></button>
-                      <button class="btn btn-g btn-icon" <%- `onclick='openEditItem(${JSON.stringify(item)})'` %> title="Edit"><i class="bi bi-pencil"></i></button>
-                    </div>
+                  <td colspan="7" class="text-center" style="padding:40px; color:var(--muted);">
+                    <i class="bi bi-inbox" style="font-size:32px; display:block; margin-bottom:8px;"></i>
+                    Belum ada data barang inventaris. Klik tombol <b>"Tambah Barang"</b> di atas untuk menambahkan.
                   </td>
                 </tr>
-              <% }) %>
+              <% } %>
             </tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <!-- TABS: CATEGORIES -->
-    <div id="tab-categories" class="tab-content" style="display:none">
+    <!-- ========================================== -->
+    <!-- TAB 2: RIWAYAT & SISA STOK                 -->
+    <!-- ========================================== -->
+    <div id="tab-logs" class="tab-content" style="<%= (query && query.tab === 'logs') ? '' : 'display:none;' %>">
+      <div class="card">
+        <div class="card-hd" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h6 style="margin:0;"><i class="bi bi-journal-text"></i> Riwayat Mutasi & Catatan Sisa Stok Gudang</h6>
+            <p style="margin:4px 0 0; font-size:12px; color:var(--muted);">
+              Setiap transaksi masuk, keluar, dan penyesuaian otomatis mencatat jumlah pergerakan dan <b>sisa stok akhir</b> di gudang.
+            </p>
+          </div>
+          <form method="GET" action="/admin/inventory" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="hidden" name="tab" value="logs">
+            <select class="fc fc-sm" name="log_type" onchange="this.form.submit()" style="width:140px;">
+              <option value="">Semua Tipe</option>
+              <option value="in" <%= (query && query.log_type === 'in') ? 'selected' : '' %>>Stok Masuk (IN)</option>
+              <option value="out" <%= (query && query.log_type === 'out') ? 'selected' : '' %>>Stok Keluar (OUT)</option>
+              <option value="assigned" <%= (query && query.log_type === 'assigned') ? 'selected' : '' %>>Terpasang (Pelanggan)</option>
+              <option value="adjust" <%= (query && query.log_type === 'adjust') ? 'selected' : '' %>>Opname (Penyesuaian)</option>
+              <option value="return" <%= (query && query.log_type === 'return') ? 'selected' : '' %>>Pengembalian (Copotan)</option>
+              <option value="broken" <%= (query && query.log_type === 'broken') ? 'selected' : '' %>>Rusak / Afkir</option>
+            </select>
+            <div class="sinput">
+              <i class="bi bi-search"></i>
+              <input type="text" class="fc fc-sm" name="log_q" placeholder="Cari penerima / catatan / SN..." value="<%= (query && query.log_q) ? query.log_q : '' %>">
+            </div>
+            <button type="submit" class="btn btn-g btn-sm"><i class="bi bi-filter"></i> Filter</button>
+            <% if (query && (query.log_q || query.log_type)) { %>
+              <a href="/admin/inventory?tab=logs" class="btn btn-g btn-sm text-danger" title="Reset Filter"><i class="bi bi-x-lg"></i></a>
+            <% } %>
+          </form>
+        </div>
+
+        <div class="tbl-wrap">
+          <table class="dtbl">
+            <thead>
+              <tr>
+                <th>Waktu & Tanggal</th>
+                <th>Nama Barang</th>
+                <th>Serial Number</th>
+                <th>Jenis Mutasi</th>
+                <th class="num">Perubahan (Qty)</th>
+                <th class="num" style="background:rgba(0,0,0,0.02);">Sisa Stok Akhir</th>
+                <th>Penerima / Tujuan</th>
+                <th>Petugas</th>
+                <th>No. Referensi</th>
+                <th>Catatan / Keperluan</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (logs && logs.length > 0) { %>
+                <% logs.forEach(log => { %>
+                  <tr>
+                    <td class="text-muted" style="font-size:11px; white-space:nowrap;">
+                      <%= new Date(log.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) %>
+                    </td>
+                    <td>
+                      <div class="fw6" style="font-size:12px; color:var(--text);"><%= log.item_name || 'Item Telah Dihapus' %></div>
+                      <div class="text-muted fs11"><%= log.category_name || '-' %></div>
+                    </td>
+                    <td class="text-muted" style="font-size:11px; font-family:monospace;">
+                      <%= log.serial_number ? log.serial_number : '-' %>
+                    </td>
+                    <td>
+                      <% 
+                        let bClass = 'log-badge-in';
+                        let bLabel = 'Masuk';
+                        if (log.type === 'out') { bClass = 'log-badge-out'; bLabel = 'Keluar'; }
+                        else if (log.type === 'assigned') { bClass = 'log-badge-assigned'; bLabel = 'Terpasang'; }
+                        else if (log.type === 'adjust') { bClass = 'log-badge-adjust'; bLabel = 'Opname'; }
+                        else if (log.type === 'return') { bClass = 'log-badge-return'; bLabel = 'Kembali'; }
+                        else if (log.type === 'broken') { bClass = 'log-badge-broken'; bLabel = 'Rusak'; }
+                      %>
+                      <span class="log-badge <%= bClass %>"><%= bLabel %></span>
+                    </td>
+                    <td class="num fw6" style="font-size:12px; color:<%= log.quantity > 0 ? '#16a34a' : '#dc2626' %>;">
+                      <%= log.quantity > 0 ? ('+' + log.quantity) : log.quantity %> <%= log.item_unit || 'pcs' %>
+                    </td>
+                    <td class="num" style="background:rgba(0,0,0,0.02);">
+                      <span class="balance-pill">
+                        <%= (typeof log.remaining_stock !== 'undefined' && log.remaining_stock !== null) ? log.remaining_stock : '-' %> <%= log.item_unit || 'pcs' %>
+                      </span>
+                    </td>
+                    <td style="font-size:12px;">
+                      <% if (log.recipient) { %>
+                        <span class="fw6"><%= log.recipient %></span>
+                      <% } else { %>
+                        <span class="text-muted">-</span>
+                      <% } %>
+                    </td>
+                    <td style="font-size:11px; color:var(--muted);"><%= log.actor || 'Admin' %></td>
+                    <td style="font-size:11px; font-family:monospace;">
+                      <%= log.reference_no ? log.reference_no : '-' %>
+                    </td>
+                    <td class="text-muted" style="font-size:11px; max-width:240px;"><%= log.note || '-' %></td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="10" class="text-center" style="padding:40px; color:var(--muted);">
+                    <i class="bi bi-clock-history" style="font-size:32px; display:block; margin-bottom:8px;"></i>
+                    Belum ada riwayat mutasi stok barang.
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: MANAJEMEN KATEGORI                  -->
+    <!-- ========================================== -->
+    <div id="tab-categories" class="tab-content" style="<%= (query && query.tab === 'categories') ? '' : 'display:none;' %>">
       <div class="form-row">
         <div class="card flex-1">
-          <div class="card-hd"><h6><i class="bi bi-tags"></i> Daftar Kategori</h6></div>
+          <div class="card-hd"><h6><i class="bi bi-tags"></i> Daftar Kategori Inventaris</h6></div>
           <div class="tbl-wrap">
             <table class="dtbl">
               <thead>
                 <tr>
                   <th>Nama Kategori</th>
-                  <th>Keterangan</th>
+                  <th>Keterangan / Deskripsi</th>
+                  <th class="num">Jumlah Barang</th>
                   <th class="text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                <% categories.forEach(cat => { %>
+                <% if (categories && categories.length > 0) { %>
+                  <% categories.forEach(cat => { %>
+                    <tr>
+                      <td class="fw6" style="font-size:13px; color:var(--text);"><%= cat.name %></td>
+                      <td class="text-muted" style="font-size:12px;"><%= cat.description || '-' %></td>
+                      <td class="num">
+                        <span class="badge" style="background:var(--bg3);"><%= cat.item_count || 0 %> barang</span>
+                      </td>
+                      <td>
+                        <div class="flex jc-fe gap">
+                          <button class="btn btn-g btn-icon" onclick="openEditCategoryById(<%= cat.id %>)" title="Edit Kategori">
+                            <i class="bi bi-pencil"></i>
+                          </button>
+                          <form action="/admin/inventory/category/delete/<%= cat.id %>" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus kategori ini?');">
+                            <button class="btn btn-g btn-icon text-danger" title="Hapus Kategori"><i class="bi bi-trash"></i></button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
                   <tr>
-                    <td class="fw6"><%= cat.name %></td>
-                    <td class="text-muted"><%= cat.description %></td>
-                    <td>
-                      <div class="flex jc-fe gap">
-                        <button class="btn btn-g btn-icon" <%- `onclick='openEditCategory(${JSON.stringify(cat)})'` %>><i class="bi bi-pencil"></i></button>
-                        <form action="/admin/inventory/category/delete/<%= cat.id %>" method="POST" onsubmit="return confirm('Hapus kategori ini?')">
-                          <button class="btn btn-g btn-icon text-danger"><i class="bi bi-trash"></i></button>
-                        </form>
-                      </div>
-                    </td>
+                    <td colspan="4" class="text-center text-muted" style="padding:30px;">Belum ada kategori barang.</td>
                   </tr>
-                <% }) %>
+                <% } %>
               </tbody>
             </table>
           </div>
         </div>
-        <div class="card w300">
-          <div class="card-hd"><h6><i class="bi bi-plus-lg"></i> Tambah Kategori</h6></div>
+
+        <div class="card w320">
+          <div class="card-hd"><h6 id="cat-card-title"><i class="bi bi-plus-lg"></i> Tambah Kategori Baru</h6></div>
           <div class="card-bd">
-            <form action="/admin/inventory/category/add" method="POST">
-              <div class="fg"><label class="fl">Nama Kategori</label><input class="fc" name="name" required></div>
-              <div class="fg"><label class="fl">Keterangan</label><textarea class="fc" name="description"></textarea></div>
-              <button class="btn btn-p w-100">Simpan Kategori</button>
+            <form id="cat-form" action="/admin/inventory/category/add" method="POST">
+              <div class="fg">
+                <label class="fl">Nama Kategori *</label>
+                <input class="fc" name="name" id="c_name" required placeholder="Contoh: Router & ONT">
+              </div>
+              <div class="fg">
+                <label class="fl">Keterangan / Deskripsi</label>
+                <textarea class="fc" name="description" id="c_description" rows="3" placeholder="Deskripsi jenis barang dalam kategori ini..."></textarea>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-g" id="btn-cancel-cat" style="display:none;" onclick="cancelEditCategory()">Batal</button>
+                <button class="btn btn-p flex-1" id="btn-submit-cat"><i class="bi bi-save"></i> Simpan Kategori</button>
+              </div>
             </form>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- TABS: LOGS -->
-    <div id="tab-logs" class="tab-content" style="display:none">
-      <div class="card">
-        <div class="card-hd"><h6><i class="bi bi-clock-history"></i> Riwayat Pergerakan Barang</h6></div>
-        <div class="tbl-wrap">
-          <table class="dtbl">
-            <thead>
-              <tr>
-                <th>Waktu</th>
-                <th>Barang</th>
-                <th>SN</th>
-                <th>Tipe</th>
-                <th class="num">Qty</th>
-                <th>Petugas</th>
-                <th>Catatan</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% logs.forEach(log => { %>
-                <tr>
-                  <td class="text-muted" style="font-size:11px"><%= new Date(log.created_at).toLocaleString('id-ID') %></td>
-                  <td class="fw6"><%= log.item_name %></td>
-                  <td class="text-muted"><%= log.serial_number || '-' %></td>
-                  <td>
-                    <span class="badge log-type-<%= log.type %>">
-                      <%= log.type === 'in' ? 'Masuk' : log.type === 'out' ? 'Keluar' : log.type === 'adjust' ? 'Penyesuaian' : log.type %>
-                    </span>
-                  </td>
-                  <td class="num fw6"><%= log.quantity > 0 ? '+' : '' %><%= log.quantity %></td>
-                  <td><%= log.actor %></td>
-                  <td class="text-muted"><%= log.note %></td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 
-<!-- MODAL: ADD/EDIT ITEM -->
+<!-- ========================================== -->
+<!-- MODAL: ADD / EDIT MASTER BARANG            -->
+<!-- ========================================== -->
 <div class="mo" id="modal-item">
-  <div class="mb">
-    <div class="mh"><div class="mt" id="item-modal-title">Tambah Barang Baru</div><button class="mc" onclick="closeModal('modal-item')">&times;</button></div>
+  <div class="mb" style="max-width:540px;">
+    <div class="mh">
+      <div class="mt" id="item-modal-title">Tambah Barang Baru</div>
+      <button class="mc" onclick="closeModal('modal-item')">&times;</button>
+    </div>
     <form id="item-form" method="POST" action="/admin/inventory/item/add">
       <div class="mbody">
         <div class="fg">
-          <label class="fl">Kategori</label>
+          <label class="fl">Kategori Barang *</label>
           <select class="fs" name="category_id" id="i_category_id" required>
             <option value="">-- Pilih Kategori --</option>
             <% categories.forEach(cat => { %>
@@ -204,57 +491,391 @@
             <% }) %>
           </select>
         </div>
-        <div class="fg"><label class="fl">Nama Barang</label><input class="fc" name="name" id="i_name" required></div>
-        <div class="form-row">
-          <div class="fg"><label class="fl">Brand</label><input class="fc" name="brand" id="i_brand"></div>
-          <div class="fg"><label class="fl">Model</label><input class="fc" name="model" id="i_model"></div>
+        <div class="fg">
+          <label class="fl">Nama Barang *</label>
+          <input class="fc" name="name" id="i_name" required placeholder="Contoh: ZTE F609 GPON ONT, Patchcord SC-UPC 3M">
         </div>
         <div class="form-row">
-          <div class="fg"><label class="fl">Satuan (Unit)</label><input class="fc" name="unit" id="i_unit" value="pcs" required></div>
-          <div class="fg"><label class="fl">Stok Minimum</label><input class="fc" type="number" name="min_stock" id="i_min_stock" value="5" required></div>
+          <div class="fg">
+            <label class="fl">Brand / Merk</label>
+            <input class="fc" name="brand" id="i_brand" placeholder="Contoh: ZTE, Huawei, Belden">
+          </div>
+          <div class="fg">
+            <label class="fl">Model / Tipe</label>
+            <input class="fc" name="model" id="i_model" placeholder="Contoh: F609 V3, HG8245H5">
+          </div>
         </div>
-        <div class="fg"><label class="fl">Deskripsi</label><textarea class="fc" name="description" id="i_description"></textarea></div>
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Satuan Unit *</label>
+            <input class="fc" name="unit" id="i_unit" value="pcs" required placeholder="pcs, meter, roll, box, set">
+          </div>
+          <div class="fg">
+            <label class="fl">Batas Minimum Stok *</label>
+            <input class="fc" type="number" name="min_stock" id="i_min_stock" value="5" min="0" required>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">Keterangan / Deskripsi</label>
+          <textarea class="fc" name="description" id="i_description" rows="2" placeholder="Catatan spesifikasi atau peruntukan..."></textarea>
+        </div>
       </div>
-      <div class="mf"><button type="button" class="btn btn-g" onclick="closeModal('modal-item')">Batal</button><button class="btn btn-p">Simpan Barang</button></div>
+      <div class="mf">
+        <button type="button" class="btn btn-g" onclick="closeModal('modal-item')">Batal</button>
+        <button class="btn btn-p"><i class="bi bi-save"></i> Simpan Barang</button>
+      </div>
     </form>
   </div>
 </div>
 
-<!-- MODAL: ADD STOCK -->
-<div class="mo" id="modal-stock">
-  <div class="mb">
-    <div class="mh"><div class="mt">Input Stok Masuk</div><button class="mc" onclick="closeModal('modal-stock')">&times;</button></div>
+<!-- ========================================== -->
+<!-- MODAL: 1. INPUT STOK MASUK (IN)            -->
+<!-- ========================================== -->
+<div class="mo" id="modal-stock-in">
+  <div class="mb" style="max-width:540px;">
+    <div class="mh" style="border-bottom:2px solid #10b981;">
+      <div class="mt" style="color:#059669;"><i class="bi bi-box-arrow-in-down"></i> Input Stok Masuk (IN)</div>
+      <button class="mc" onclick="closeModal('modal-stock-in')">&times;</button>
+    </div>
     <form action="/admin/inventory/stock/add" method="POST">
-      <input type="hidden" name="item_id" id="s_item_id">
       <div class="mbody">
-        <div class="fg"><label class="fl">Nama Barang</label><input class="fc" id="s_item_name" readonly></div>
-        <div class="fg"><label class="fl">Serial Number (Opsional)</label><input class="fc" name="serial_number" placeholder="Contoh: SN12345678"></div>
+        <div class="fg">
+          <label class="fl">Pilih Barang *</label>
+          <select class="fs" name="item_id" id="in_item_id" required onchange="onStockInItemChange(this.value)">
+            <option value="">-- Pilih Barang yang Akan Ditambah --</option>
+            <% items.forEach(i => { %>
+              <option value="<%= i.id %>" data-unit="<%= i.unit %>" data-stock="<%= i.stock_available || 0 %>">
+                <%= i.name %> (Saat ini di gudang: <%= i.stock_available || 0 %> <%= i.unit %>)
+              </option>
+            <% }) %>
+          </select>
+        </div>
         <div class="form-row">
-          <div class="fg"><label class="fl">Jumlah (Qty)</label><input class="fc" type="number" name="quantity" value="1" min="1" required></div>
           <div class="fg">
-            <label class="fl">Kondisi</label>
+            <label class="fl">Jumlah Masuk (Qty) *</label>
+            <input class="fc" type="number" name="quantity" id="in_quantity" value="1" min="1" required>
+          </div>
+          <div class="fg">
+            <label class="fl">Kondisi Barang</label>
             <select class="fs" name="condition">
-              <option value="new">Baru</option>
-              <option value="used">Bekas / Copotan</option>
+              <option value="new">Baru (New)</option>
+              <option value="used">Bekas / Copotan Layak Pakai</option>
             </select>
           </div>
         </div>
-        <div class="fg"><label class="fl">Lokasi Penyimpanan</label><input class="fc" name="location" value="Gudang Utama"></div>
-        <div class="fg"><label class="fl">Catatan</label><textarea class="fc" name="note" placeholder="Contoh: Pembelian dari Supplier X"></textarea></div>
+        <div class="fg">
+          <label class="fl">Serial Number (Opsional - khusus ONT/Router/Radio)</label>
+          <input class="fc" name="serial_number" placeholder="Contoh: ZTEG12345678 (Kosongkan jika non-serial)">
+          <div class="fs11 text-muted mt-1">Jika memasukkan Serial Number, Qty otomatis dihitung 1 unit.</div>
+        </div>
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Supplier / Sumber Pengadaan</label>
+            <input class="fc" name="supplier" placeholder="Contoh: Toko Maju Jaya, Gudang Pusat">
+          </div>
+          <div class="fg">
+            <label class="fl">Lokasi Simpan</label>
+            <input class="fc" name="location" value="Gudang Utama">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Harga Beli Satuan (Rp, Opsional)</label>
+            <input class="fc" type="number" name="price" placeholder="0">
+          </div>
+          <div class="fg">
+            <label class="fl">No. PO / Nota Pembelian</label>
+            <input class="fc" name="reference_no" placeholder="Contoh: PO-2026/08">
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">Catatan / Keterangan Masuk</label>
+          <textarea class="fc" name="note" rows="2" placeholder="Contoh: Pembelian restock awal bulan..."></textarea>
+        </div>
       </div>
-      <div class="mf"><button type="button" class="btn btn-g" onclick="closeModal('modal-stock')">Batal</button><button class="btn btn-p">Tambah Stok</button></div>
+      <div class="mf">
+        <button type="button" class="btn btn-g" onclick="closeModal('modal-stock-in')">Batal</button>
+        <button class="btn btn-p" style="background:#10b981; border-color:#10b981;"><i class="bi bi-box-arrow-in-down"></i> Simpan Stok Masuk</button>
+      </div>
     </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: 2. PENGELUARAN BARANG (OUT)         -->
+<!-- ========================================== -->
+<div class="mo" id="modal-stock-out">
+  <div class="mb" style="max-width:540px;">
+    <div class="mh" style="border-bottom:2px solid #ef4444;">
+      <div class="mt" style="color:#dc2626;"><i class="bi bi-box-arrow-up-right"></i> Pengeluaran Barang (OUT)</div>
+      <button class="mc" onclick="closeModal('modal-stock-out')">&times;</button>
+    </div>
+    <form action="/admin/inventory/stock/out" method="POST" onsubmit="return validateStockOutForm()">
+      <div class="mbody">
+        <div class="fg">
+          <label class="fl">Pilih Barang yang Dikeluarkan *</label>
+          <select class="fs" name="item_id" id="out_item_id" required onchange="onStockOutItemChange(this.value)">
+            <option value="">-- Pilih Barang --</option>
+            <% items.forEach(i => { %>
+              <option value="<%= i.id %>" data-unit="<%= i.unit %>" data-stock="<%= i.stock_available || 0 %>">
+                <%= i.name %> (Tersedia: <%= i.stock_available || 0 %> <%= i.unit %>)
+              </option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div id="out-stock-info" class="alert alert-s mb12" style="display:none; padding:8px 12px; font-size:12px;">
+          <i class="bi bi-info-circle"></i> Stok tersedia saat ini: <b id="out-avail-label">0</b>
+        </div>
+
+        <!-- Opsi Serial Number (Jika item punya SN) -->
+        <div class="fg" id="out-sn-container" style="display:none;">
+          <label class="fl">Pilih Serial Number (ONT/Router Tersedia)</label>
+          <select class="fs" name="serial_number" id="out_serial_number" onchange="onStockOutSnSelect(this.value)">
+            <option value="">-- Pilih Serial Number --</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Jumlah Keluar (Qty) *</label>
+            <input class="fc" type="number" name="quantity" id="out_quantity" value="1" min="1" required>
+          </div>
+          <div class="fg">
+            <label class="fl">Tujuan / Jenis Pengeluaran *</label>
+            <select class="fs" name="type" id="out_type" onchange="onStockOutTypeChange(this.value)">
+              <option value="out">Pemakaian Teknisi / Operasional</option>
+              <option value="assigned">Instalasi Terpasang ke Pelanggan</option>
+              <option value="broken">Barang Rusak / Afkir</option>
+              <option value="loss">Barang Hilang / Susut</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Jika untuk pelanggan -->
+        <div class="fg" id="out-customer-group" style="display:none;">
+          <label class="fl">Pilih Pelanggan (Instalasi Baru / Maintenance)</label>
+          <select class="fs" name="customer_id" id="out_customer_id">
+            <option value="">-- Pilih Pelanggan --</option>
+            <% customers.forEach(c => { %>
+              <option value="<%= c.id %>"><%= c.name %> (<%= c.pppoe_user || c.phone || '-' %>)</option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Nama Teknisi / Penerima Barang</label>
+            <input class="fc" name="recipient" id="out_recipient" list="tech-list" placeholder="Contoh: Teknisi Budi / Pak Joko">
+            <datalist id="tech-list">
+              <% technicians.forEach(t => { %>
+                <option value="<%= t.name %> (<%= t.phone || 'Teknisi' %>)">
+              <% }) %>
+            </datalist>
+          </div>
+          <div class="fg">
+            <label class="fl">No. SPK / Tiket / Referensi</label>
+            <input class="fc" name="reference_no" placeholder="Contoh: Tiket #104, SPK-05">
+          </div>
+        </div>
+
+        <div class="fg">
+          <label class="fl">Catatan / Keperluan Pengeluaran *</label>
+          <textarea class="fc" name="note" id="out_note" rows="2" required placeholder="Contoh: Pasang baru rumah Bpk Ahmad, atau ganti dropcore putus..."></textarea>
+        </div>
+      </div>
+      <div class="mf">
+        <button type="button" class="btn btn-g" onclick="closeModal('modal-stock-out')">Batal</button>
+        <button class="btn btn-p" style="background:#ef4444; border-color:#ef4444;"><i class="bi bi-box-arrow-up-right"></i> Konfirmasi Pengeluaran</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: 3. STOCK OPNAME / PENYESUAIAN      -->
+<!-- ========================================== -->
+<div class="mo" id="modal-stock-adjust">
+  <div class="mb" style="max-width:500px;">
+    <div class="mh" style="border-bottom:2px solid #f59e0b;">
+      <div class="mt" style="color:#d97706;"><i class="bi bi-sliders"></i> Stock Opname / Penyesuaian Fisik</div>
+      <button class="mc" onclick="closeModal('modal-stock-adjust')">&times;</button>
+    </div>
+    <form action="/admin/inventory/stock/adjust" method="POST">
+      <div class="mbody">
+        <div class="fg">
+          <label class="fl">Pilih Barang yang Disesuaikan *</label>
+          <select class="fs" name="item_id" id="adj_item_id" required onchange="onStockAdjustItemChange(this.value)">
+            <option value="">-- Pilih Barang --</option>
+            <% items.forEach(i => { %>
+              <option value="<%= i.id %>" data-unit="<%= i.unit %>" data-stock="<%= i.stock_available || 0 %>">
+                <%= i.name %> (Sistem: <%= i.stock_available || 0 %> <%= i.unit %>)
+              </option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="fg">
+            <label class="fl">Stok Menurut Sistem Saat Ini</label>
+            <input class="fc" id="adj_sys_stock" readonly value="0">
+          </div>
+          <div class="fg">
+            <label class="fl">Stok Fisik Riil di Gudang *</label>
+            <input class="fc" type="number" name="actual_quantity" id="adj_actual_quantity" value="0" min="0" required oninput="calcAdjustDiff()">
+          </div>
+        </div>
+        <div id="adj-diff-box" style="margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:12px; font-weight:600; display:none;"></div>
+        <div class="fg">
+          <label class="fl">Alasan / Catatan Penyesuaian *</label>
+          <textarea class="fc" name="note" id="adj_note" rows="2" required placeholder="Contoh: Hasil Stock Opname Akhir Bulan, selisih karena salah hitung..."></textarea>
+        </div>
+      </div>
+      <div class="mf">
+        <button type="button" class="btn btn-g" onclick="closeModal('modal-stock-adjust')">Batal</button>
+        <button class="btn btn-p" style="background:#f59e0b; border-color:#f59e0b;"><i class="bi bi-check2-circle"></i> Simpan Penyesuaian</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: 4. DETAIL BARANG & KARTU STOK       -->
+<!-- ========================================== -->
+<div class="mo" id="modal-view-stock">
+  <div class="mb" style="max-width:850px; width:95%;">
+    <div class="mh">
+      <div>
+        <div class="mt" id="view-title">Kartu Stok & Riwayat Mutasi</div>
+        <div class="text-muted fs11" id="view-subtitle">-</div>
+      </div>
+      <button class="mc" onclick="closeModal('modal-view-stock')">&times;</button>
+    </div>
+    <div class="mbody" style="max-height:75vh; overflow-y:auto; padding:16px;">
+      <!-- Ringkasan Stok Barang -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:16px;">
+        <div style="background:var(--bg3); padding:12px; border-radius:8px; text-align:center;">
+          <div class="text-muted fs11">Stok di Gudang</div>
+          <div id="v-stock-avail" style="font-size:20px; font-weight:700; color:#16a34a;">0</div>
+        </div>
+        <div style="background:var(--bg3); padding:12px; border-radius:8px; text-align:center;">
+          <div class="text-muted fs11">Terpasang Pelanggan</div>
+          <div id="v-stock-assigned" style="font-size:20px; font-weight:700; color:#0284c7;">0</div>
+        </div>
+        <div style="background:var(--bg3); padding:12px; border-radius:8px; text-align:center;">
+          <div class="text-muted fs11">Rusak / Afkir</div>
+          <div id="v-stock-broken" style="font-size:20px; font-weight:700; color:#dc2626;">0</div>
+        </div>
+        <div style="background:var(--bg3); padding:12px; border-radius:8px; text-align:center;">
+          <div class="text-muted fs11">Batas Minimum</div>
+          <div id="v-stock-min" style="font-size:20px; font-weight:700; color:var(--text);">0</div>
+        </div>
+      </div>
+
+      <!-- Action buttons khusus item ini -->
+      <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+        <button class="btn btn-sm btn-p" style="background:#10b981; border-color:#10b981;" id="btn-quick-in"><i class="bi bi-box-arrow-in-down"></i> + Stok Masuk</button>
+        <button class="btn btn-sm btn-p" style="background:#ef4444; border-color:#ef4444;" id="btn-quick-out"><i class="bi bi-box-arrow-up-right"></i> - Keluarkan Barang</button>
+        <button class="btn btn-sm btn-g" id="btn-quick-adj"><i class="bi bi-sliders"></i> Penyesuaian Opname</button>
+      </div>
+
+      <!-- Tab detail: Unit / SN vs Kartu Mutasi -->
+      <h6 style="margin:16px 0 8px; font-size:13px; font-weight:700; color:var(--primary);"><i class="bi bi-clock-history"></i> Riwayat Transaksi Kartu Stok (Mutasi & Sisa)</h6>
+      <div class="tbl-wrap" style="max-height:280px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+        <table class="dtbl" style="font-size:11.5px;">
+          <thead>
+            <tr>
+              <th>Waktu</th>
+              <th>Jenis</th>
+              <th>SN</th>
+              <th class="num">Perubahan</th>
+              <th class="num" style="background:rgba(0,0,0,0.02);">Sisa Stok</th>
+              <th>Penerima / Sumber</th>
+              <th>Petugas</th>
+              <th>Catatan</th>
+            </tr>
+          </thead>
+          <tbody id="v-logs-body">
+            <tr><td colspan="8" class="text-center text-muted" style="padding:20px;">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Unit SN Terdaftar (Jika Ada) -->
+      <div id="v-sn-section" style="display:none; margin-top:20px;">
+        <h6 style="margin:0 0 8px; font-size:13px; font-weight:700; color:var(--primary);"><i class="bi bi-upc-scan"></i> Daftar Unit & Serial Number Terdaftar</h6>
+        <div class="tbl-wrap" style="max-height:200px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+          <table class="dtbl" style="font-size:11.5px;">
+            <thead>
+              <tr>
+                <th>Serial Number</th>
+                <th>Status Unit</th>
+                <th>Kondisi</th>
+                <th>Lokasi / Terpasang Di</th>
+                <th>Catatan</th>
+              </tr>
+            </thead>
+            <tbody id="v-sn-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="mf">
+      <button type="button" class="btn btn-g" onclick="closeModal('modal-view-stock')">Tutup</button>
+    </div>
   </div>
 </div>
 
 <script>
-  function showTab(tab) {
+  // ─── TAB NAVIGATION ────────────────────────────────────────────────────────
+  function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.inv-tab').forEach(el => el.classList.remove('active'));
-    document.getElementById('tab-' + tab).style.display = 'block';
-    event.currentTarget.classList.add('active');
+    const target = document.getElementById('tab-' + tab);
+    if (target) target.style.display = 'block';
+    const btn = document.getElementById('tabbtn-' + tab);
+    if (btn) btn.classList.add('active');
   }
 
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  function toggleSidebar() {
+    const sb = document.querySelector('.sidebar');
+    if (sb) sb.classList.toggle('open');
+  }
+
+  // ─── FILTERING ─────────────────────────────────────────────────────────────
+  function filterItems(q) {
+    q = (q || '').toLowerCase();
+    const catId = document.getElementById('cat-filter').value;
+    const rows = document.querySelectorAll('#items-list tr');
+    rows.forEach(row => {
+      const rowCat = row.getAttribute('data-cat-id');
+      const text = row.innerText.toLowerCase();
+      const matchCat = (!catId || rowCat === catId);
+      const matchText = (!q || text.includes(q));
+      row.style.display = (matchCat && matchText) ? '' : 'none';
+    });
+  }
+
+  function filterCategory(catId) {
+    const q = (document.getElementById('item-search-input').value || '').toLowerCase();
+    const rows = document.querySelectorAll('#items-list tr');
+    rows.forEach(row => {
+      const rowCat = row.getAttribute('data-cat-id');
+      const text = row.innerText.toLowerCase();
+      const matchCat = (!catId || rowCat === catId);
+      const matchText = (!q || text.includes(q));
+      row.style.display = (matchCat && matchText) ? '' : 'none';
+    });
+  }
+
+  // ─── MASTER DATA LOOKUP ───────────────────────────────────────────────────
+  const allItems = <%- JSON.stringify(items || []) %>;
+  const allCategories = <%- JSON.stringify(categories || []) %>;
+
+  // ─── MASTER ITEM MODAL ─────────────────────────────────────────────────────
   function openAddItem() {
     document.getElementById('item-modal-title').innerText = 'Tambah Barang Baru';
     document.getElementById('item-form').action = '/admin/inventory/item/add';
@@ -262,37 +883,294 @@
     document.getElementById('modal-item').classList.add('show');
   }
 
-  function openEditItem(item) {
-    document.getElementById('item-modal-title').innerText = 'Edit Barang';
+  function openEditItemById(itemId) {
+    const item = allItems.find(i => i.id == itemId);
+    if (!item) return;
+    document.getElementById('item-modal-title').innerText = 'Edit Data Barang';
     document.getElementById('item-form').action = '/admin/inventory/item/edit/' + item.id;
     document.getElementById('i_category_id').value = item.category_id || '';
-    document.getElementById('i_name').value = item.name;
-    document.getElementById('i_brand').value = item.brand;
-    document.getElementById('i_model').value = item.model;
-    document.getElementById('i_unit').value = item.unit;
-    document.getElementById('i_min_stock').value = item.min_stock;
-    document.getElementById('i_description').value = item.description;
+    document.getElementById('i_name').value = item.name || '';
+    document.getElementById('i_brand').value = item.brand || '';
+    document.getElementById('i_model').value = item.model || '';
+    document.getElementById('i_unit').value = item.unit || 'pcs';
+    document.getElementById('i_min_stock').value = item.min_stock || 5;
+    document.getElementById('i_description').value = item.description || '';
     document.getElementById('modal-item').classList.add('show');
   }
 
-  function openAddStock(itemId, itemName) {
-    document.getElementById('s_item_id').value = itemId;
-    document.getElementById('s_item_name').value = itemName;
-    document.getElementById('modal-stock').classList.add('show');
+  // ─── KATEGORI EDIT ─────────────────────────────────────────────────────────
+  function openEditCategoryById(catId) {
+    const cat = allCategories.find(c => c.id == catId);
+    if (!cat) return;
+    switchTab('categories');
+    document.getElementById('cat-card-title').innerHTML = '<i class="bi bi-pencil"></i> Edit Kategori';
+    document.getElementById('cat-form').action = '/admin/inventory/category/edit/' + cat.id;
+    document.getElementById('c_name').value = cat.name || '';
+    document.getElementById('c_description').value = cat.description || '';
+    document.getElementById('btn-cancel-cat').style.display = 'inline-block';
+    document.getElementById('btn-submit-cat').innerHTML = '<i class="bi bi-check-lg"></i> Perbarui Kategori';
+    document.getElementById('c_name').focus();
   }
 
-  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-
-  function filterItems(q) {
-    const rows = document.querySelectorAll('#items-list tr');
-    q = q.toLowerCase();
-    rows.forEach(row => {
-      const text = row.innerText.toLowerCase();
-      row.style.display = text.includes(q) ? '' : 'none';
-    });
+  function cancelEditCategory() {
+    document.getElementById('cat-card-title').innerHTML = '<i class="bi bi-plus-lg"></i> Tambah Kategori Baru';
+    document.getElementById('cat-form').action = '/admin/inventory/category/add';
+    document.getElementById('cat-form').reset();
+    document.getElementById('btn-cancel-cat').style.display = 'none';
+    document.getElementById('btn-submit-cat').innerHTML = '<i class="bi bi-save"></i> Simpan Kategori';
   }
 
-  function toggleSidebar() { document.querySelector('.sidebar').classList.toggle('open'); }
+  // ─── STOK MASUK (IN) ───────────────────────────────────────────────────────
+  function openAddStockModal() {
+    document.getElementById('in_item_id').value = '';
+    document.getElementById('in_quantity').value = 1;
+    document.getElementById('modal-stock-in').classList.add('show');
+  }
+
+  function openAddStockFor(itemId, itemName, unit) {
+    document.getElementById('in_item_id').value = itemId;
+    document.getElementById('in_quantity').value = 1;
+    document.getElementById('modal-stock-in').classList.add('show');
+  }
+
+  function onStockInItemChange(val) {}
+
+  // ─── STOK KELUAR (OUT) ─────────────────────────────────────────────────────
+  let currentSelectedAvailable = 0;
+
+  function openIssueStockModal() {
+    document.getElementById('out_item_id').value = '';
+    document.getElementById('out_quantity').value = 1;
+    document.getElementById('out-stock-info').style.display = 'none';
+    document.getElementById('out-sn-container').style.display = 'none';
+    document.getElementById('modal-stock-out').classList.add('show');
+  }
+
+  function openIssueStockFor(itemId, itemName, availableStock, unit) {
+    document.getElementById('out_item_id').value = itemId;
+    onStockOutItemChange(itemId);
+    document.getElementById('modal-stock-out').classList.add('show');
+  }
+
+  async function onStockOutItemChange(itemId) {
+    const sel = document.getElementById('out_item_id');
+    const opt = sel.options[sel.selectedIndex];
+    const infoBox = document.getElementById('out-stock-info');
+    const snBox = document.getElementById('out-sn-container');
+    const snSelect = document.getElementById('out_serial_number');
+
+    if (!itemId) {
+      infoBox.style.display = 'none';
+      snBox.style.display = 'none';
+      return;
+    }
+
+    currentSelectedAvailable = parseInt(opt.getAttribute('data-stock'), 10) || 0;
+    const unit = opt.getAttribute('data-unit') || 'pcs';
+    document.getElementById('out-avail-label').innerText = currentSelectedAvailable + ' ' + unit;
+    infoBox.style.display = 'block';
+
+    // Cek apakah item punya serial number
+    try {
+      const res = await fetch('/admin/api/inventory/serials/' + itemId);
+      const json = await res.json();
+      if (json.success && json.data && json.data.length > 0) {
+        snSelect.innerHTML = '<option value="">-- Pilih Serial Number (Opsional) --</option>';
+        json.data.forEach(s => {
+          snSelect.innerHTML += `<option value="${s.serial_number}">SN: ${s.serial_number} (${s.condition || 'new'} - ${s.location || 'Gudang'})</option>`;
+        });
+        snBox.style.display = 'block';
+      } else {
+        snBox.style.display = 'none';
+        snSelect.innerHTML = '';
+      }
+    } catch (e) {
+      snBox.style.display = 'none';
+    }
+  }
+
+  function onStockOutSnSelect(sn) {
+    if (sn) {
+      document.getElementById('out_quantity').value = 1;
+      document.getElementById('out_quantity').readOnly = true;
+    } else {
+      document.getElementById('out_quantity').readOnly = false;
+    }
+  }
+
+  function onStockOutTypeChange(type) {
+    const custGroup = document.getElementById('out-customer-group');
+    if (type === 'assigned') {
+      custGroup.style.display = 'block';
+    } else {
+      custGroup.style.display = 'none';
+    }
+  }
+
+  function validateStockOutForm() {
+    const qty = parseInt(document.getElementById('out_quantity').value, 10) || 0;
+    if (qty <= 0) {
+      alert('Jumlah keluar minimal 1');
+      return false;
+    }
+    if (qty > currentSelectedAvailable) {
+      alert(`Stok tidak mencukupi! Tersedia di gudang: ${currentSelectedAvailable}, diminta: ${qty}`);
+      return false;
+    }
+    return true;
+  }
+
+  // ─── STOCK OPNAME / ADJUSTMENT ─────────────────────────────────────────────
+  function openAdjustStockModal() {
+    document.getElementById('adj_item_id').value = '';
+    document.getElementById('adj_sys_stock').value = 0;
+    document.getElementById('adj_actual_quantity').value = 0;
+    document.getElementById('adj-diff-box').style.display = 'none';
+    document.getElementById('modal-stock-adjust').classList.add('show');
+  }
+
+  function onStockAdjustItemChange(itemId) {
+    const sel = document.getElementById('adj_item_id');
+    const opt = sel.options[sel.selectedIndex];
+    if (!itemId) {
+      document.getElementById('adj_sys_stock').value = 0;
+      document.getElementById('adj_actual_quantity').value = 0;
+      document.getElementById('adj-diff-box').style.display = 'none';
+      return;
+    }
+    const currentStock = parseInt(opt.getAttribute('data-stock'), 10) || 0;
+    document.getElementById('adj_sys_stock').value = currentStock;
+    document.getElementById('adj_actual_quantity').value = currentStock;
+    calcAdjustDiff();
+  }
+
+  function calcAdjustDiff() {
+    const sys = parseInt(document.getElementById('adj_sys_stock').value, 10) || 0;
+    const act = parseInt(document.getElementById('adj_actual_quantity').value, 10) || 0;
+    const diff = act - sys;
+    const box = document.getElementById('adj-diff-box');
+    box.style.display = 'block';
+    if (diff === 0) {
+      box.style.background = '#f1f5f9';
+      box.style.color = '#475569';
+      box.innerHTML = '⚖️ Jumlah fisik sama persis dengan sistem (Tidak ada selisih).';
+    } else if (diff > 0) {
+      box.style.background = '#dcfce7';
+      box.style.color = '#15803d';
+      box.innerHTML = `🟢 Stok fisik lebih banyak <b>+${diff}</b>. Sistem akan menambahkan ${diff} ke stok gudang.`;
+    } else {
+      box.style.background = '#fee2e2';
+      box.style.color = '#b91c1c';
+      box.innerHTML = `🔴 Stok fisik berkurang <b>${diff}</b>. Sistem akan mengurangi ${Math.abs(diff)} dari stok gudang.`;
+    }
+  }
+
+  // ─── DETAIL & KARTU STOK (VIEW STOCK) ──────────────────────────────────────
+  let currentViewingItemId = null;
+
+  async function viewStock(itemId, itemName) {
+    currentViewingItemId = itemId;
+    document.getElementById('view-title').innerText = itemName;
+    document.getElementById('view-subtitle').innerText = 'Memuat rincian stok...';
+    document.getElementById('v-logs-body').innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:20px;">Memuat riwayat transaksi...</td></tr>';
+    document.getElementById('v-sn-section').style.display = 'none';
+    document.getElementById('modal-view-stock').classList.add('show');
+
+    try {
+      const res = await fetch('/admin/api/inventory/item/' + itemId);
+      const json = await res.json();
+      if (!json.success || !json.data) throw new Error(json.message || 'Gagal memuat');
+
+      const { item, stockList, logs } = json.data;
+      const unit = item.unit || 'pcs';
+
+      document.getElementById('view-subtitle').innerText = `${item.category_name || '-'} &bull; ${[item.brand, item.model].filter(Boolean).join(' ')} &bull; Satuan: ${unit}`;
+      document.getElementById('v-stock-avail').innerText = `${item.stock_available || 0} ${unit}`;
+      document.getElementById('v-stock-assigned').innerText = `${item.stock_assigned || 0} ${unit}`;
+      document.getElementById('v-stock-broken').innerText = `${item.stock_broken || 0} ${unit}`;
+      document.getElementById('v-stock-min').innerText = `${item.min_stock || 0} ${unit}`;
+
+      // Set quick action buttons
+      document.getElementById('btn-quick-in').onclick = function() {
+        closeModal('modal-view-stock');
+        openAddStockFor(item.id, item.name, unit);
+      };
+      document.getElementById('btn-quick-out').onclick = function() {
+        closeModal('modal-view-stock');
+        openIssueStockFor(item.id, item.name, item.stock_available || 0, unit);
+      };
+      document.getElementById('btn-quick-adj').onclick = function() {
+        closeModal('modal-view-stock');
+        openAdjustStockModal();
+        document.getElementById('adj_item_id').value = item.id;
+        onStockAdjustItemChange(item.id);
+      };
+
+      // Render Logs / Kartu Stok
+      const tbody = document.getElementById('v-logs-body');
+      if (logs && logs.length > 0) {
+        tbody.innerHTML = '';
+        logs.forEach(l => {
+          let bClass = 'log-badge-in';
+          let bLabel = 'Masuk';
+          if (l.type === 'out') { bClass = 'log-badge-out'; bLabel = 'Keluar'; }
+          else if (l.type === 'assigned') { bClass = 'log-badge-assigned'; bLabel = 'Terpasang'; }
+          else if (l.type === 'adjust') { bClass = 'log-badge-adjust'; bLabel = 'Opname'; }
+          else if (l.type === 'return') { bClass = 'log-badge-return'; bLabel = 'Kembali'; }
+          else if (l.type === 'broken') { bClass = 'log-badge-broken'; bLabel = 'Rusak'; }
+
+          tbody.innerHTML += `
+            <tr>
+              <td class="text-muted" style="white-space:nowrap;">${new Date(l.created_at).toLocaleString('id-ID')}</td>
+              <td><span class="log-badge ${bClass}">${bLabel}</span></td>
+              <td style="font-family:monospace;">${l.serial_number || '-'}</td>
+              <td class="num fw6" style="color:${l.quantity > 0 ? '#16a34a' : '#dc2626'}">
+                ${l.quantity > 0 ? ('+' + l.quantity) : l.quantity} ${unit}
+              </td>
+              <td class="num"><span class="balance-pill">${l.remaining_stock ?? '-'} ${unit}</span></td>
+              <td><b>${l.recipient || '-'}</b></td>
+              <td class="text-muted">${l.actor || 'Admin'}</td>
+              <td class="text-muted">${l.note || '-'}</td>
+            </tr>
+          `;
+        });
+      } else {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:20px;">Belum ada riwayat mutasi stok untuk barang ini.</td></tr>';
+      }
+
+      // Render Serial Numbers jika ada yang ber-SN
+      const serialRows = (stockList || []).filter(s => s.serial_number);
+      if (serialRows.length > 0) {
+        const snBody = document.getElementById('v-sn-body');
+        snBody.innerHTML = '';
+        serialRows.forEach(s => {
+          let stBadge = '<span class="badge bp">Tersedia di Gudang</span>';
+          if (s.status === 'assigned') {
+            stBadge = `<span class="badge" style="background:#e0f2fe; color:#0369a1;">Terpasang: ${s.customer_name || s.pppoe_user || 'Pelanggan'}</span>`;
+          } else if (s.status === 'broken') {
+            stBadge = '<span class="badge" style="background:#fee2e2; color:#dc2626;">Rusak / Afkir</span>';
+          } else if (s.status === 'out') {
+            stBadge = '<span class="badge" style="background:#f1f5f9; color:#475569;">Keluar</span>';
+          }
+
+          snBody.innerHTML += `
+            <tr>
+              <td style="font-family:monospace; font-weight:700;">${s.serial_number}</td>
+              <td>${stBadge}</td>
+              <td>${s.condition === 'new' ? 'Baru' : 'Bekas / Copotan'}</td>
+              <td>${s.location || 'Gudang Utama'}</td>
+              <td class="text-muted">${s.note || '-'}</td>
+            </tr>
+          `;
+        });
+        document.getElementById('v-sn-section').style.display = 'block';
+      }
+
+    } catch (err) {
+      document.getElementById('view-subtitle').innerText = 'Gagal memuat detail barang: ' + err.message;
+      document.getElementById('v-logs-body').innerHTML = `<tr><td colspan="8" class="text-center text-danger" style="padding:20px;">Error: ${err.message}</td></tr>`;
+    }
+  }
 </script>
 </body>
 </html>

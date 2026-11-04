@@ -515,6 +515,8 @@ db.exec(`
     location TEXT DEFAULT 'Gudang Utama',
     status TEXT DEFAULT 'available', -- available, assigned, broken, lost
     assigned_to_customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    price INTEGER DEFAULT 0,
+    supplier TEXT DEFAULT '',
     note TEXT DEFAULT '',
     updated_at DATETIME DEFAULT (NOW_LOCAL()),
     created_at DATETIME DEFAULT (NOW_LOCAL())
@@ -526,7 +528,10 @@ db.exec(`
     stock_id INTEGER REFERENCES inventory_stock(id) ON DELETE SET NULL,
     type TEXT NOT NULL, -- in (stock masuk), out (stock keluar/dipakai), adjust (penyesuaian), broken, return
     quantity INTEGER NOT NULL DEFAULT 0,
+    remaining_stock INTEGER DEFAULT 0,
     actor TEXT DEFAULT 'Admin',
+    recipient TEXT DEFAULT '',
+    reference_no TEXT DEFAULT '',
     note TEXT DEFAULT '',
     created_at DATETIME DEFAULT (NOW_LOCAL())
   );
@@ -1174,6 +1179,34 @@ try {
   }
 } catch(e) {
   console.error('Failed to migrate public_donation_orders:', e);
+}
+
+// Safe migration: inventory enhancements (remaining_stock, recipient, reference_no, price, supplier)
+try {
+  const colLogs = db.prepare("PRAGMA table_info(inventory_logs)").all();
+  if (colLogs.length > 0) {
+    if (!colLogs.some(c => c.name === 'remaining_stock')) {
+      db.exec("ALTER TABLE inventory_logs ADD COLUMN remaining_stock INTEGER DEFAULT 0");
+    }
+    if (!colLogs.some(c => c.name === 'recipient')) {
+      db.exec("ALTER TABLE inventory_logs ADD COLUMN recipient TEXT DEFAULT ''");
+    }
+    if (!colLogs.some(c => c.name === 'reference_no')) {
+      db.exec("ALTER TABLE inventory_logs ADD COLUMN reference_no TEXT DEFAULT ''");
+    }
+  }
+
+  const colStock = db.prepare("PRAGMA table_info(inventory_stock)").all();
+  if (colStock.length > 0) {
+    if (!colStock.some(c => c.name === 'price')) {
+      db.exec("ALTER TABLE inventory_stock ADD COLUMN price INTEGER DEFAULT 0");
+    }
+    if (!colStock.some(c => c.name === 'supplier')) {
+      db.exec("ALTER TABLE inventory_stock ADD COLUMN supplier TEXT DEFAULT ''");
+    }
+  }
+} catch (e) {
+  console.error('Failed to migrate inventory columns:', e);
 }
 
 module.exports = db;

@@ -4524,67 +4524,190 @@ router.post('/backup/cleanup', requireAdminSession, express.urlencoded({ extende
 
 // ─── INVENTORY / WAREHOUSE ──────────────────────────────────────────────────
 router.get('/inventory', requireAdminSession, requireSidebarMenuAccess('inventory'), (req, res) => {
-  const items = inventorySvc.getAllItems(req.query.q);
+  const selectedCat = req.query.category_id ? Number(req.query.category_id) : null;
+  const items = inventorySvc.getAllItems(req.query.q, selectedCat);
   const categories = inventorySvc.getAllCategories();
-  const logs = inventorySvc.getInventoryLogs(100);
+  const logs = inventorySvc.getInventoryLogs({
+    limit: 150,
+    search: req.query.log_q || '',
+    type: req.query.log_type || null,
+    itemId: req.query.log_item_id || null
+  });
+  const stats = inventorySvc.getInventoryStats();
+
+  let customers = [];
+  try {
+    customers = db.prepare('SELECT id, name, pppoe_username as pppoe_user, phone FROM customers ORDER BY name ASC').all() || [];
+  } catch (e) {
+    customers = [];
+  }
+
+  let technicians = [];
+  try {
+    technicians = db.prepare('SELECT id, name, phone FROM technicians WHERE is_active = 1 ORDER BY name ASC').all() || [];
+  } catch (e) {
+    technicians = [];
+  }
 
   res.render('admin/inventory', {
-    title: 'Manajemen Inventaris',
+    title: 'Manajemen Inventaris & Stok Gudang',
     company: company(),
     activePage: 'inventory',
     msg: flashMsg(req),
     items,
     categories,
-    logs
+    logs,
+    stats,
+    customers,
+    technicians,
+    query: req.query
   });
 });
 
+// JSON API Detail Barang untuk Modal & Kartu Stok
+router.get('/api/inventory/item/:id', requireAdminSession, (req, res) => {
+  try {
+    const detail = inventorySvc.getItemDetail(req.params.id);
+    if (!detail) return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
+    res.json({ success: true, data: detail });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// JSON API List Serial Number Available untuk Dropdown Modal
+router.get('/api/inventory/serials/:itemId', requireAdminSession, (req, res) => {
+  try {
+    const serials = inventorySvc.getAvailableSerialNumbers(req.params.itemId);
+    res.json({ success: true, data: serials });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// Kategori: Tambah
 router.post('/inventory/category/add', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
   try {
     inventorySvc.createCategory(req.body);
-    req.session._msg = { type: 'success', text: 'Kategori berhasil ditambahkan.' };
+    req.session._msg = { type: 'success', text: 'Kategori barang berhasil ditambahkan.' };
   } catch (e) {
-    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+    req.session._msg = { type: 'error', text: 'Gagal menambah kategori: ' + e.message };
   }
-  res.redirect('/admin/inventory');
+  res.redirect('/admin/inventory?tab=categories');
 });
 
+// Kategori: Edit
+router.post('/inventory/category/edit/:id', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    inventorySvc.updateCategory(req.params.id, req.body);
+    req.session._msg = { type: 'success', text: 'Kategori barang berhasil diperbarui.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal memperbarui kategori: ' + e.message };
+  }
+  res.redirect('/admin/inventory?tab=categories');
+});
+
+// Kategori: Hapus
 router.post('/inventory/category/delete/:id', requireAdminSession, (req, res) => {
   try {
     inventorySvc.deleteCategory(req.params.id);
     req.session._msg = { type: 'success', text: 'Kategori berhasil dihapus.' };
   } catch (e) {
-    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+    req.session._msg = { type: 'error', text: 'Gagal menghapus kategori: ' + e.message };
   }
-  res.redirect('/admin/inventory');
+  res.redirect('/admin/inventory?tab=categories');
 });
 
+// Master Barang: Tambah
 router.post('/inventory/item/add', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
   try {
     inventorySvc.createItem(req.body);
-    req.session._msg = { type: 'success', text: 'Barang berhasil ditambahkan.' };
+    req.session._msg = { type: 'success', text: 'Data barang baru berhasil disimpan.' };
   } catch (e) {
-    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+    req.session._msg = { type: 'error', text: 'Gagal menambah barang: ' + e.message };
   }
   res.redirect('/admin/inventory');
 });
 
+// Master Barang: Edit
 router.post('/inventory/item/edit/:id', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
   try {
     inventorySvc.updateItem(req.params.id, req.body);
-    req.session._msg = { type: 'success', text: 'Barang berhasil diperbarui.' };
+    req.session._msg = { type: 'success', text: 'Data barang berhasil diperbarui.' };
   } catch (e) {
-    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+    req.session._msg = { type: 'error', text: 'Gagal memperbarui barang: ' + e.message };
   }
   res.redirect('/admin/inventory');
 });
 
+// Master Barang: Hapus
+router.post('/inventory/item/delete/:id', requireAdminSession, (req, res) => {
+  try {
+    inventorySvc.deleteItem(req.params.id);
+    req.session._msg = { type: 'success', text: 'Data barang berhasil dihapus.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal menghapus barang: ' + e.message };
+  }
+  res.redirect('/admin/inventory');
+});
+
+// Transaksi: 1. Stok Masuk (IN)
 router.post('/inventory/stock/add', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
   try {
-    inventorySvc.addStock(req.body, req.session.adminUser || 'Admin');
-    req.session._msg = { type: 'success', text: 'Stok berhasil ditambahkan.' };
+    const actor = req.session.adminUser || (req.session.user && req.session.user.name) || 'Admin';
+    const result = inventorySvc.addStock(req.body, actor);
+    req.session._msg = { 
+      type: 'success', 
+      text: `Stok berhasil ditambahkan! Sisa stok tersedia saat ini: ${result.remainingStock}` 
+    };
   } catch (e) {
-    req.session._msg = { type: 'error', text: 'Gagal: ' + e.message };
+    req.session._msg = { type: 'error', text: 'Gagal menambah stok: ' + e.message };
+  }
+  res.redirect('/admin/inventory');
+});
+
+// Transaksi: 2. Pengeluaran Barang (OUT / ISSUE)
+router.post('/inventory/stock/out', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    const actor = req.session.adminUser || (req.session.user && req.session.user.name) || 'Admin';
+    const result = inventorySvc.issueStock(req.body, actor);
+    req.session._msg = { 
+      type: 'success', 
+      text: `Pengeluaran barang berhasil dicatat! (-${result.qtyDeducted}). Sisa stok di gudang: ${result.remainingStock}` 
+    };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal mengeluarkan barang: ' + e.message };
+  }
+  res.redirect('/admin/inventory');
+});
+
+// Transaksi: 3. Penyesuaian Stok (STOCK OPNAME / ADJUST)
+router.post('/inventory/stock/adjust', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    const actor = req.session.adminUser || (req.session.user && req.session.user.name) || 'Admin';
+    const result = inventorySvc.adjustStock(req.body, actor);
+    const diffSign = result.diff > 0 ? '+' : '';
+    req.session._msg = { 
+      type: 'success', 
+      text: `Penyesuaian stok berhasil! Selisih: ${diffSign}${result.diff}. Sisa stok fisik sekarang: ${result.remainingStock}` 
+    };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal penyesuaian stok: ' + e.message };
+  }
+  res.redirect('/admin/inventory');
+});
+
+// Transaksi: 4. Pengembalian Barang (RETURN / COPOTAN)
+router.post('/inventory/stock/return', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    const actor = req.session.adminUser || (req.session.user && req.session.user.name) || 'Admin';
+    const result = inventorySvc.returnStock(req.body, actor);
+    req.session._msg = { 
+      type: 'success', 
+      text: `Pengembalian barang berhasil dicatat! Sisa stok tersedia di gudang: ${result.remainingStock}` 
+    };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal mencatat pengembalian: ' + e.message };
   }
   res.redirect('/admin/inventory');
 });

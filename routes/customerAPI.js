@@ -2475,8 +2475,9 @@ router.get('/app/admin/areas', requireAdminApiAuth, (req, res) => {
 // ─── ADMIN NATIVE: INVENTARIS / GUDANG ──────────────────────────────────────
 router.get('/app/admin/inventory', requireAdminApiAuth, (req, res) => {
   try {
-    const items = db.prepare(`SELECT * FROM inventory_items ORDER BY name ASC`).all() || [];
-    const lowStock = items.filter(i => i.quantity <= (i.min_stock || 5));
+    const inventorySvc = require('../services/inventoryService');
+    const items = inventorySvc.getAllItems() || [];
+    const lowStock = items.filter(i => (i.stock_available || 0) <= (i.min_stock || 5));
     res.json({ success: true, data: { items, lowStockCount: lowStock.length } });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
