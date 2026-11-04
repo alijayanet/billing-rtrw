@@ -78,6 +78,7 @@ const acsPortal = require('./acsPortal');
 const { uploadAttendance, removeAttendanceFile } = require('../middleware/attendanceUpload');
 const telegramAi = require('../services/telegramAiService');
 const voiceTts = require('../services/voiceTtsService');
+const securityWatchdog = require('../services/securityWatchdogService');
 
 const DIGIFLAZZ_URL = 'https://api.digiflazz.com/v1';
 const digiflazzApi = axios.create({
@@ -574,9 +575,19 @@ router.get('/login', (req, res) => {
   res.render('admin/login', { title: 'Admin Login', company: company(), error: null });
 });
 
-router.post('/login', loginRateLimiter, express.urlencoded({ extended: true }), (req, res) => {
+router.post('/login', loginRateLimiter, express.urlencoded({ extended: true }), async (req, res) => {
+  const ip = req.ip || req.connection?.remoteAddress || '127.0.0.1';
+  if (securityWatchdog.isIpBlocked(ip)) {
+    return res.render('admin/login', { 
+      title: 'Admin Login', 
+      company: company(), 
+      error: 'Akses login diblokir sementara karena terdeteksi percobaan login berulang kali. Silakan hubungi administrator atau coba lagi nanti.' 
+    });
+  }
+
   const { username, password } = req.body;
   if (username === getSetting('admin_username', 'admin') && password === getSetting('admin_password', 'admin123')) {
+    await securityWatchdog.recordAppLoginAttempt({ type: 'admin', username, ip, success: true });
     req.session.isAdmin = true;
     req.session.adminUser = username;
     return res.redirect('/admin');
@@ -585,12 +596,21 @@ router.post('/login', loginRateLimiter, express.urlencoded({ extended: true }), 
   // Check Cashier
   const cashier = adminSvc.authenticateCashier(username, password);
   if (cashier) {
+    await securityWatchdog.recordAppLoginAttempt({ type: 'cashier', username, ip, success: true });
     req.session.isCashier = true;
     req.session.cashierId = cashier.id;
     req.session.cashierName = cashier.name;
     req.session.cashierUsername = cashier.username;
     return res.redirect('/admin');
   }
+
+  await securityWatchdog.recordAppLoginAttempt({ 
+    type: 'admin', 
+    username: username || '', 
+    ip, 
+    success: false, 
+    userAgent: req.get('user-agent') 
+  });
 
   res.render('admin/login', { title: 'Admin Login', company: company(), error: 'Username atau password salah' });
 });
@@ -4962,6 +4982,32 @@ router.get('/api/self-heal/diagnose', requireAdminSession, restrictToAdmin, asyn
     const selfHealingSvc = require('../services/selfHealingService');
     const result = await selfHealingSvc.diagnose();
     res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── AI SECURITY WATCHDOG API ─────────────────────────────────────────────
+router.get('/api/security/status', requireAdminSession, (req, res) => {
+  res.json({ success: true, data: securityWatchdog.getSecurityOverview() });
+});
+
+router.post('/api/security/unblock', requireAdminSession, restrictToAdmin, (req, res) => {
+  const { ip } = req.body;
+  if (!ip) return res.status(400).json({ success: false, message: 'IP diperlukan' });
+  securityWatchdog.unblockIp(ip);
+  res.json({ success: true, message: `IP ${ip} berhasil dibuka blokirnya` });
+});
+
+router.post('/api/security/test-alert', requireAdminSession, restrictToAdmin, async (req, res) => {
+  try {
+    const testIp = req.body.ip || '192.168.1.99';
+    await securityWatchdog.recordAppLoginAttempt({ type: 'admin-test', username: 'admin', ip: testIp, success: false });
+    await securityWatchdog.recordAppLoginAttempt({ type: 'admin-test', username: 'root', ip: testIp, success: false });
+    await securityWatchdog.recordAppLoginAttempt({ type: 'admin-test', username: 'user', ip: testIp, success: false });
+    await securityWatchdog.recordAppLoginAttempt({ type: 'admin-test', username: 'administrator', ip: testIp, success: false });
+    const result = await securityWatchdog.recordAppLoginAttempt({ type: 'admin-test', username: 'support', ip: testIp, success: false });
+    res.json({ success: true, message: 'Simulasi brute-force berhasil dikirim ke Soundbox dan sistem peringatan', result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

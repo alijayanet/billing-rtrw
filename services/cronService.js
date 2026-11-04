@@ -716,6 +716,16 @@ function startCronJobs() {
     }
   });
 
+  // 10. AI Security Watchdog - Deteksi Brute Force MikroTik (Setiap 2 Menit)
+  cron.schedule('*/2 * * * *', async () => {
+    try {
+      const securityWatchdog = require('./securityWatchdogService');
+      await securityWatchdog.scanMikrotikLoginFailures();
+    } catch (e) {
+      logger.error(`[CRON-SECURITY-WATCHDOG] Error: ${e.message}`);
+    }
+  });
+
   logger.info('[CRON] Semua tugas penjadwalan telah aktif.');
 }
 

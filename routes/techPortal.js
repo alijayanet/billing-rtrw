@@ -3,6 +3,7 @@ const router = express.Router();
 const techSvc = require('../services/techService');
 const customerSvc = require('../services/customerService');
 const odpSvc = require('../services/odpService');
+const securityWatchdog = require('../services/securityWatchdogService');
 const { getSetting, getNowLocal, getCurrentDateInTimezone, getNowLocalISO, formatDateLocal, getSettings, formatTimeLocal, parseDateInTimezone } = require('../config/settingsManager');
 const mikrotikService = require('../services/mikrotikService');
 const db = require('../config/database');
@@ -140,15 +141,33 @@ router.get('/login', (req, res) => {
   res.render('tech/login', { title: 'Teknisi Login', company: company(), error: null });
 });
 
-router.post('/login', loginRateLimiter, express.urlencoded({ extended: true }), (req, res) => {
+router.post('/login', loginRateLimiter, express.urlencoded({ extended: true }), async (req, res) => {
+  const ip = req.ip || req.connection?.remoteAddress || '127.0.0.1';
+  if (securityWatchdog.isIpBlocked(ip)) {
+    return res.render('tech/login', { 
+      title: 'Teknisi Login', 
+      company: company(), 
+      error: 'Akses login diblokir sementara karena terdeteksi percobaan login berulang kali. Silakan hubungi administrator.' 
+    });
+  }
+
   const { username, password } = req.body;
   const tech = techSvc.authenticate(username, password);
   if (tech) {
+    await securityWatchdog.recordAppLoginAttempt({ type: 'technician', username, ip, success: true });
     req.session.isTechnician = true;
     req.session.techId = tech.id;
     req.session.techName = tech.name;
     return res.redirect('/tech');
   }
+
+  await securityWatchdog.recordAppLoginAttempt({ 
+    type: 'technician', 
+    username: username || '', 
+    ip, 
+    success: false, 
+    userAgent: req.get('user-agent') 
+  });
   res.render('tech/login', { title: 'Teknisi Login', company: company(), error: 'Username atau password salah!' });
 });
 

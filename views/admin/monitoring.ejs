@@ -344,6 +344,36 @@
       </div>
     </div>
 
+    <!-- AI Security Watchdog & Voice Brute-Force Alert Card -->
+    <div class="card mb16" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9)); border: 1px solid rgba(239, 68, 68, 0.3);">
+      <div class="card-bd" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="background:rgba(239, 68, 68, 0.15); color:#ef4444; padding:6px 10px; border-radius:8px; font-size:18px;">
+              <i class="bi bi-shield-lock-fill"></i>
+            </span>
+            <div>
+              <h6 style="margin:0; font-size:15px; font-weight:700; color:#f8fafc;">AI Security Watchdog & Voice Alert Shield</h6>
+              <p class="text-muted fs12" style="margin:4px 0 0 0;">
+                Mendeteksi anomali brute force login aplikasi & MikroTik secara real-time, membunyikan sirine darurat Voice TTS Soundbox, memblokir IP penyerang, dan notifikasi WA/Telegram.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="btnCheckSecurity" onclick="loadSecurityWatchdogStatus()" class="btn btn-g btn-sm">
+            <i class="bi bi-shield-check"></i> Cek Status Keamanan
+          </button>
+          <button id="btnTestSecurityAlert" onclick="testSecurityVoiceAlert()" class="btn btn-sm" style="background:rgba(239, 68, 68, 0.2); border:1px solid #ef4444; color:#fca5a5;">
+            <i class="bi bi-megaphone-fill"></i> Tes Sirine & Suara
+          </button>
+        </div>
+      </div>
+      <div id="securityStatusArea" style="display:none; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.2);">
+        <div id="securityStatusContent" class="fs12" style="color:#e2e8f0; line-height:1.6;"></div>
+      </div>
+    </div>
+
     <!-- Issues and Warnings -->
     <% if (healthStatus.issues.length > 0 || healthStatus.warnings.length > 0) { %>
     <div class="mon-grid">
@@ -972,6 +1002,99 @@
     } finally {
       btn.disabled = false;
       btn.innerHTML = origText;
+    }
+  }
+
+  // AI Security Watchdog Functions
+  async function loadSecurityWatchdogStatus() {
+    const area = document.getElementById('securityStatusArea');
+    const content = document.getElementById('securityStatusContent');
+    area.style.display = 'block';
+    content.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Mengambil status keamanan...';
+
+    try {
+      const res = await fetch('/admin/api/security/status');
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        const isWarning = d.status === 'warning';
+        let html = `<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span>Status Sistem:</span>
+          <span class="badge" style="background:${isWarning ? '#ef4444' : '#22c55e'}; color:#fff; font-weight:700; padding:3px 8px; border-radius:4px;">
+            ${isWarning ? 'WASPADA (SERANGAN TERDETEKSI)' : 'AMAN (NORMAL)'}
+          </span>
+        </div>`;
+
+        if (d.activeBlockedIps && d.activeBlockedIps.length > 0) {
+          html += '<div style="margin-top:8px;"><strong>IP Diblokir Sementara:</strong><ul style="margin:4px 0 8px 16px; padding:0;">';
+          d.activeBlockedIps.forEach(item => {
+            html += `<li><code>${item.ip}</code> (Tersisa ${item.remainingSeconds} detik) <button class="btn btn-xs" style="padding:1px 6px; font-size:10px; margin-left:6px; background:#475569; color:#fff;" onclick="unblockSecurityIp('${item.ip}')">Buka Blokir</button></li>`;
+          });
+          html += '</ul></div>';
+        } else {
+          html += '<div style="color:#94a3b8;">Tidak ada IP yang sedang diblokir.</div>';
+        }
+
+        if (d.recentAlerts && d.recentAlerts.length > 0) {
+          html += '<div style="margin-top:8px;"><strong>Log Insiden Terakhir:</strong><ul style="margin:4px 0 0 16px; padding:0;">';
+          d.recentAlerts.slice(0, 5).forEach(alert => {
+            html += `<li>[${alert.created_at}] <strong>${alert.action}</strong>: ${alert.details || '-'}</li>`;
+          });
+          html += '</ul></div>';
+        }
+
+        content.innerHTML = html;
+      } else {
+        content.innerHTML = '<span style="color:#f87171;">Gagal mengambil status keamanan</span>';
+      }
+    } catch (err) {
+      content.innerHTML = `<span style="color:#f87171;">Error: ${err.message}</span>`;
+    }
+  }
+
+  async function unblockSecurityIp(ip) {
+    if (!confirm(`Buka blokir IP ${ip}?`)) return;
+    try {
+      const res = await fetch('/admin/api/security/unblock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        loadSecurityWatchdogStatus();
+      } else {
+        alert('Gagal: ' + data.message);
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  }
+
+  async function testSecurityVoiceAlert() {
+    const btn = document.getElementById('btnTestSecurityAlert');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Mengirim simulasi...';
+
+    try {
+      const res = await fetch('/admin/api/security/test-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: '192.168.1.99' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadSecurityWatchdogStatus();
+      } else {
+        alert('Gagal tes alert: ' + (data.error || 'Error'));
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
     }
   }
 

@@ -62,6 +62,42 @@
   }
 
   /**
+   * Bunyikan Sirine Peringatan Keamanan Darurat (Web Audio API)
+   */
+  function playSecuritySiren() {
+    return new Promise((resolve) => {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return resolve();
+
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sawtooth';
+        // Urgent dual-tone alarm
+        osc.frequency.setValueAtTime(850, now);
+        osc.frequency.setValueAtTime(600, now + 0.15);
+        osc.frequency.setValueAtTime(850, now + 0.3);
+        osc.frequency.setValueAtTime(600, now + 0.45);
+
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.7);
+        setTimeout(resolve, 650);
+      } catch (e) {
+        resolve();
+      }
+    });
+  }
+
+  /**
    * Mainkan Suara Google TTS Bahasa Indonesia dari Server
    */
   function playTtsAudio(speechText) {
@@ -112,8 +148,12 @@
       // 2. Notifikasi ke halaman Voice Assistant jika sedang dibuka
       window.dispatchEvent(new CustomEvent('soundbox:event', { detail: item }));
 
-      // 3. Mainkan Bel Chime
-      await playCashierChime();
+      // 3. Mainkan Bel Chime atau Sirine Alarm
+      if (item.type === 'security_alert') {
+        await playSecuritySiren();
+      } else {
+        await playCashierChime();
+      }
 
       // 4. Mainkan Suara Ucapan
       if (item.speech_text) {
@@ -128,7 +168,7 @@
   }
 
   /**
-   * Tampilkan Toast Notifikasi Pembayaran Mengambang di Pojok Layar
+   * Tampilkan Toast Notifikasi Pembayaran / Keamanan Mengambang di Pojok Layar
    */
   function showSoundboxToast(ev) {
     let container = document.getElementById('soundboxToastContainer');
@@ -149,14 +189,28 @@
       document.body.appendChild(container);
     }
 
+    const isSecurity = ev.type === 'security_alert';
+    const borderColor = isSecurity ? 'rgba(239, 68, 68, 0.7)' : 'rgba(16, 185, 129, 0.5)';
+    const shadowColor = isSecurity ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.3)';
+    const iconBg = isSecurity ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+    const iconBorder = isSecurity ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)';
+    const accentColor = isSecurity ? '#ef4444' : '#10b981';
+
+    const iconType = isSecurity ? 'bi-shield-fill-exclamation' :
+                     ev.type === 'voucher' ? 'bi-ticket-perforated-fill' : 
+                     ev.type === 'invoice' ? 'bi-receipt' :
+                     ev.type === 'donation' ? 'bi-heart-fill' : 'bi-cash-coin';
+
+    const formattedAmt = Number(ev.amount || 0).toLocaleString('id-ID');
+
     const toast = document.createElement('div');
     toast.className = 'soundbox-toast-card';
     toast.style.cssText = `
       pointer-events: auto;
       background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
-      border: 1px solid rgba(16, 185, 129, 0.5);
+      border: 1px solid ${borderColor};
       border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(16, 185, 129, 0.3);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px ${shadowColor};
       padding: 14px 16px;
       color: #f8fafc;
       font-family: inherit;
@@ -169,27 +223,30 @@
       opacity: 0;
     `;
 
-    const iconType = ev.type === 'voucher' ? 'bi-ticket-perforated-fill' : 
-                     ev.type === 'invoice' ? 'bi-receipt' :
-                     ev.type === 'donation' ? 'bi-heart-fill' : 'bi-cash-coin';
-
-    const formattedAmt = Number(ev.amount || 0).toLocaleString('id-ID');
-
     toast.innerHTML = `
-      <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-        <i class="bi ${iconType}" style="font-size: 22px; color: #10b981;"></i>
+      <div style="width: 44px; height: 44px; border-radius: 12px; background: ${iconBg}; border: 1px solid ${iconBorder}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i class="bi ${iconType}" style="font-size: 22px; color: ${accentColor};"></i>
       </div>
       <div style="flex: 1; min-width: 0;">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-          <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #10b981;">${ev.title || 'DANA MASUK'}</span>
+          <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: ${accentColor};">${ev.title || (isSecurity ? 'PERINGATAN KEAMANAN' : 'DANA MASUK')}</span>
           <span style="font-size: 10px; color: #94a3b8;">Baru saja</span>
         </div>
-        <div style="font-size: 15px; font-weight: 800; color: #ffffff; margin-top: 2px;">
-          Rp ${formattedAmt}
-        </div>
-        <div style="font-size: 12px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">
-          ${ev.customer_name ? (ev.type === 'voucher' ? 'Paket: ' : 'Nama: ') + ev.customer_name : (ev.speech_text || '')}
-        </div>
+        ${isSecurity ? `
+          <div style="font-size: 13px; font-weight: 700; color: #fca5a5; margin-top: 2px;">
+            ${ev.customer_name || 'Serangan Login Terdeteksi'}
+          </div>
+          <div style="font-size: 11px; color: #cbd5e1; white-space: normal; line-height: 1.3; margin-top: 2px;">
+            Akses IP penyerang diblokir sementara otomatis.
+          </div>
+        ` : `
+          <div style="font-size: 15px; font-weight: 800; color: #ffffff; margin-top: 2px;">
+            Rp ${formattedAmt}
+          </div>
+          <div style="font-size: 12px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">
+            ${ev.customer_name ? (ev.type === 'voucher' ? 'Paket: ' : 'Nama: ') + ev.customer_name : (ev.speech_text || '')}
+          </div>
+        `}
       </div>
       <button style="background: none; border: none; color: #64748b; font-size: 18px; cursor: pointer; padding: 4px;" onclick="this.parentElement.remove()">
         <i class="bi bi-x"></i>

@@ -182,6 +182,14 @@ const adminToolDeclarations = [
         mode: { type: 'STRING', description: 'Mode perbaikan: "repair" untuk langsung memperbaiki otomatis, atau "scan" untuk diagnosa saja (opsional, default: "repair")' }
       }
     }
+  },
+  {
+    name: 'check_security_status',
+    description: 'Mengecek status keamanan sistem, apakah ada anomali serangan brute force pada portal login aplikasi maupun router MikroTik, serta IP penyerang yang diblokir',
+    parameters: {
+      type: 'OBJECT',
+      properties: {}
+    }
   }
 ];
 
@@ -540,6 +548,28 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
         } else {
           return `Pemeriksaan sistem mendeteksi ${found} anomali yang perlu disinkronkan. Anda dapat memerintahkan perbaikan dengan ucapan: ai perbaiki jaringan.`;
         }
+      }
+
+      // 16. Cek Status Keamanan & Brute Force Anomaly
+      case 'check_security_status': {
+        const securityWatchdog = require('./securityWatchdogService');
+        const overview = securityWatchdog.getSecurityOverview();
+        const blockedCount = overview.activeBlockedIps ? overview.activeBlockedIps.length : 0;
+        const recentAlerts = overview.recentAlerts || [];
+
+        if (blockedCount === 0 && recentAlerts.length === 0) {
+          return 'Status keamanan sistem saat ini aman dan terkendali. Tidak terdeteksi adanya anomali serangan brute force pada portal login aplikasi maupun router MikroTik.';
+        }
+
+        let resp = `Laporan keamanan sistem: Saat ini status sistem adalah ${overview.status === 'warning' ? 'waspada' : 'aman'}. `;
+        if (blockedCount > 0) {
+          const ipList = overview.activeBlockedIps.map(b => `${b.ip} (tersisa ${b.remainingSeconds} detik)`).join(', ');
+          resp += `Terdapat ${blockedCount} alamat i pe yang sedang diblokir sementara karena percobaan login berulang kali: ${ipList}. `;
+        }
+        if (recentAlerts.length > 0) {
+          resp += `Tercatat ${recentAlerts.length} riwayat insiden keamanan terbaru pada audit sistem.`;
+        }
+        return resp;
       }
 
       default:

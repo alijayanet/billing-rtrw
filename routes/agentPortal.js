@@ -9,6 +9,7 @@ const paymentSvc = require('../services/paymentService');
 const whatsappService = require('../services/whatsappService');
 const qrisUtil = require('../utils/qrisUtil');
 const db = require('../config/database');
+const securityWatchdog = require('../services/securityWatchdogService');
 
 function isEnabledFlag(val) {
   if (val === true || val === 1) return true;
@@ -128,16 +129,34 @@ router.get('/login', (req, res) => {
   res.render('agent/login', { title: 'Login Agent', company: company(), error: null });
 });
 
-router.post('/login', loginRateLimiter, express.urlencoded({ extended: true }), (req, res) => {
+router.post('/login', loginRateLimiter, express.urlencoded({ extended: true }), async (req, res) => {
+  const ip = req.ip || req.connection?.remoteAddress || '127.0.0.1';
+  if (securityWatchdog.isIpBlocked(ip)) {
+    return res.render('agent/login', { 
+      title: 'Login Agent', 
+      company: company(), 
+      error: 'Akses login diblokir sementara karena terdeteksi percobaan login berulang kali. Silakan hubungi administrator.' 
+    });
+  }
+
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
   const agent = agentSvc.authenticate(username, password);
   if (agent) {
+    await securityWatchdog.recordAppLoginAttempt({ type: 'agent', username, ip, success: true });
     req.session.isAgent = true;
     req.session.agentId = agent.id;
     req.session.agentName = agent.name;
     return res.redirect('/agent');
   }
+
+  await securityWatchdog.recordAppLoginAttempt({ 
+    type: 'agent', 
+    username, 
+    ip, 
+    success: false, 
+    userAgent: req.get('user-agent') 
+  });
   return res.render('agent/login', { title: 'Login Agent', company: company(), error: 'Username atau password salah!' });
 });
 
