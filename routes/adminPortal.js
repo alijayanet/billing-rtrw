@@ -3525,73 +3525,148 @@ router.post('/tickets/:id/delete', requireAdminSession, (req, res) => {
 
 // ─── REPORTS ───────────────────────────────────────────────────────────────
 router.get('/reports', requireAdminSession, requireSidebarMenuAccess('reports'), (req, res) => {
-  const filterYear = parseInt(req.query.year) || new Date().getFullYear();
   const now = new Date();
-  const monthlyData = billingSvc.getMonthlyRevenue(filterYear);
+  const filterYear = parseInt(req.query.year) || now.getFullYear();
+  const filterMonth = parseInt(req.query.month) || (filterYear === now.getFullYear() ? (now.getMonth() + 1) : 1);
   const recentPayments = billingSvc.getRecentPayments(10);
   const topUnpaid = billingSvc.getTopUnpaid(5);
   const activeCustomers = customerSvc.getCustomerStats().active;
 
   const yStr = String(filterYear);
+
+  // 12-Month Detailed Breakdown
+  const monthlyData = [];
+  let cashInYear = 0;
+  let expensesYear = 0;
+  let revenueYearDirect = 0;
+  let agentDepositYear = 0;
+  let customCashInYear = 0;
+  let voucherYear = 0;
+  let donationYear = 0;
+
+  for (let m = 1; m <= 12; m++) {
+    const loopMStr = String(m).padStart(2, '0');
+
+    // Tagihan menurut periode penagihan bulan m
+    const invPeriod = db.prepare(`
+      SELECT 
+        COUNT(*) as total_invoices,
+        SUM(CASE WHEN status='paid' THEN 1 ELSE 0 END) as paid_count,
+        SUM(CASE WHEN status='unpaid' THEN 1 ELSE 0 END) as unpaid_count,
+        SUM(CASE WHEN status='paid' THEN amount ELSE 0 END) as invoice_revenue
+      FROM invoices 
+      WHERE period_year = ? AND period_month = ?
+    `).get(filterYear, m);
+
+    // Kas masuk riil bulan berjalan:
+    // 1. Tagihan langsung (bukan lewat saldo agen) yang dibayar pada bulan m
+    const dirPaid = db.prepare(`
+      SELECT SUM(amount) as t 
+      FROM invoices 
+      WHERE status='paid' 
+        AND strftime('%Y', paid_at) = ? 
+        AND strftime('%m', paid_at) = ? 
+        AND (paid_by_name IS NULL OR paid_by_name NOT LIKE 'Agent %')
+    `).get(yStr, loopMStr)?.t || 0;
+
+    // 2. Deposit / topup saldo agen pada bulan m
+    const agTopup = db.prepare(`
+      SELECT SUM(amount_buy) as t 
+      FROM agent_transactions 
+      WHERE type='topup' 
+        AND strftime('%Y', created_at) = ? 
+        AND strftime('%m', created_at) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    // 3. Voucher hotspot online berbayar
+    const vPaid = db.prepare(`
+      SELECT SUM(price) as t 
+      FROM public_voucher_orders 
+      WHERE status='paid' 
+        AND strftime('%Y', COALESCE(paid_at, created_at)) = ? 
+        AND strftime('%m', COALESCE(paid_at, created_at)) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    // 4. Donasi publik online
+    const donPaid = db.prepare(`
+      SELECT SUM(COALESCE(qris_amount_unique, amount)) as t 
+      FROM public_donation_orders 
+      WHERE status='paid' 
+        AND strftime('%Y', COALESCE(paid_at, created_at)) = ? 
+        AND strftime('%m', COALESCE(paid_at, created_at)) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    // 5. Kas masuk manual
+    const cIn = db.prepare(`
+      SELECT SUM(amount) as t 
+      FROM cash_in 
+      WHERE strftime('%Y', date) = ? 
+        AND strftime('%m', date) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    const mIncome = dirPaid + agTopup + vPaid + donPaid + cIn;
+
+    // Pengeluaran operasional & gaji pada bulan m
+    const expReg = db.prepare(`
+      SELECT SUM(amount) as t 
+      FROM expenses 
+      WHERE strftime('%Y', date) = ? 
+        AND strftime('%m', date) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    // Modal PPOB Digiflazz pada bulan m
+    const digiCost = db.prepare(`
+      SELECT SUM(digi_price) as t 
+      FROM agent_transactions 
+      WHERE type='pulsa' 
+        AND digi_status='sukses' 
+        AND strftime('%Y', created_at) = ? 
+        AND strftime('%m', created_at) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    const mExpense = expReg + digiCost;
+    const mNetProfit = mIncome - mExpense;
+
+    cashInYear += mIncome;
+    expensesYear += mExpense;
+    revenueYearDirect += dirPaid;
+    agentDepositYear += agTopup;
+    customCashInYear += cIn;
+    voucherYear += vPaid;
+    donationYear += donPaid;
+
+    monthlyData.push({
+      month: m,
+      total_invoices: invPeriod?.total_invoices || 0,
+      paid_count: invPeriod?.paid_count || 0,
+      unpaid_count: invPeriod?.unpaid_count || 0,
+      revenue: invPeriod?.invoice_revenue || 0,
+      income: mIncome,
+      expense: mExpense,
+      net_profit: mNetProfit
+    });
+  }
+
+  // Total invoice billing revenue for whole year
   const revenueYearAllRow = db.prepare(
-    "SELECT SUM(amount) as t FROM invoices WHERE status='paid' AND strftime('%Y', paid_at) = ?"
-  ).get(yStr);
-  const revenueYearAll = Number(revenueYearAllRow?.t || 0);
+    "SELECT SUM(amount) as t FROM invoices WHERE status='paid' AND period_year = ?"
+  ).get(filterYear);
+  const totalRevenue = Number(revenueYearAllRow?.t || 0) + voucherYear + donationYear + customCashInYear;
 
-  const revenueYearDirectRow = db.prepare(
-    "SELECT SUM(amount) as t FROM invoices WHERE status='paid' AND strftime('%Y', paid_at) = ? AND (paid_by_name IS NULL OR paid_by_name NOT LIKE 'Agent %')"
-  ).get(yStr);
-  const revenueYearDirect = Number(revenueYearDirectRow?.t || 0);
-  const revenueYearAgent = Math.max(0, revenueYearAll - revenueYearDirect);
+  // Selected Month Figures
+  const selectedMonthObj = monthlyData[filterMonth - 1] || { income: 0, expense: 0, net_profit: 0, revenue: 0 };
+  const cashInThisMonth = selectedMonthObj.income;
+  const expensesMonth = selectedMonthObj.expense;
+  const netProfitMonth = selectedMonthObj.net_profit;
+  const thisMonth = selectedMonthObj.revenue;
 
-  const agentDepositYearRow = db.prepare(
-    "SELECT SUM(amount_buy) as t FROM agent_transactions WHERE type='topup' AND strftime('%Y', created_at) = ?"
-  ).get(yStr);
-  const agentDepositYear = Number(agentDepositYearRow?.t || 0);
+  const netProfitYear = cashInYear - expensesYear;
 
-  const nowYearStr = String(now.getFullYear());
-  const nowMonthStr = String(now.getMonth() + 1).padStart(2, '0');
-  const revenueThisMonthAllRow = db.prepare(
-    "SELECT SUM(amount) as t FROM invoices WHERE status='paid' AND strftime('%Y', paid_at) = ? AND strftime('%m', paid_at) = ?"
-  ).get(nowYearStr, nowMonthStr);
-  const revenueThisMonthAll = Number(revenueThisMonthAllRow?.t || 0);
-
-  const revenueThisMonthDirectRow = db.prepare(
-    "SELECT SUM(amount) as t FROM invoices WHERE status='paid' AND strftime('%Y', paid_at) = ? AND strftime('%m', paid_at) = ? AND (paid_by_name IS NULL OR paid_by_name NOT LIKE 'Agent %')"
-  ).get(nowYearStr, nowMonthStr);
-  const revenueThisMonthDirect = Number(revenueThisMonthDirectRow?.t || 0);
-  const revenueThisMonthAgent = Math.max(0, revenueThisMonthAll - revenueThisMonthDirect);
-
-  const agentDepositMonthRow = db.prepare(
-    "SELECT SUM(amount_buy) as t FROM agent_transactions WHERE type='topup' AND strftime('%Y', created_at) = ? AND strftime('%m', created_at) = ?"
-  ).get(nowYearStr, nowMonthStr);
-  const agentDepositThisMonth = Number(agentDepositMonthRow?.t || 0);
-
-  const customCashInYearRow = db.prepare("SELECT SUM(amount) as t FROM cash_in WHERE strftime('%Y', date) = ?").get(yStr);
-  const customCashInYear = Number(customCashInYearRow?.t || 0);
-
-  const customCashInMonthRow = db.prepare("SELECT SUM(amount) as t FROM cash_in WHERE strftime('%Y', date) = ? AND strftime('%m', date) = ?").get(nowYearStr, nowMonthStr);
-  const customCashInMonth = Number(customCashInMonthRow?.t || 0);
-
-  const cashInYear = revenueYearDirect + agentDepositYear + customCashInYear;
-  const cashInThisMonth = revenueThisMonthDirect + agentDepositThisMonth + customCashInMonth;
   const pendingAmountRow = db.prepare("SELECT SUM(amount) as t FROM invoices WHERE status='unpaid'").get();
   const pendingAmount = Number(pendingAmountRow?.t || 0);
 
-  const expensesYearRow = db.prepare("SELECT SUM(amount) as t FROM expenses WHERE strftime('%Y', date) = ?").get(yStr);
-  const expensesRegularYear = Number(expensesYearRow?.t || 0);
-  const digiflazzCostYear = Number(db.prepare("SELECT SUM(digi_price) as t FROM agent_transactions WHERE type='pulsa' AND digi_status='sukses' AND strftime('%Y', created_at) = ?").get(yStr)?.t || 0);
-  const expensesYear = expensesRegularYear + digiflazzCostYear;
-
-  const expensesMonthRow = db.prepare("SELECT SUM(amount) as t FROM expenses WHERE strftime('%Y', date) = ? AND strftime('%m', date) = ?").get(nowYearStr, nowMonthStr);
-  const expensesRegularMonth = Number(expensesMonthRow?.t || 0);
-  const digiflazzCostMonth = Number(db.prepare("SELECT SUM(digi_price) as t FROM agent_transactions WHERE type='pulsa' AND digi_status='sukses' AND strftime('%Y', created_at) = ? AND strftime('%m', created_at) = ?").get(nowYearStr, nowMonthStr)?.t || 0);
-  const expensesMonth = expensesRegularMonth + digiflazzCostMonth;
-
-  const netProfitYear = cashInYear - expensesYear;
-  const netProfitMonth = cashInThisMonth - expensesMonth;
-
   const expensesByCategory = db.prepare("SELECT category, SUM(amount) as total FROM expenses WHERE strftime('%Y', date) = ? GROUP BY category").all(yStr);
+  const digiflazzCostYear = Number(db.prepare("SELECT SUM(digi_price) as t FROM agent_transactions WHERE type='pulsa' AND digi_status='sukses' AND strftime('%Y', created_at) = ?").get(yStr)?.t || 0);
   if (digiflazzCostYear > 0) {
     expensesByCategory.push({ category: 'Modal PPOB (Digiflazz)', total: digiflazzCostYear });
   }
@@ -3599,17 +3674,13 @@ router.get('/reports', requireAdminSession, requireSidebarMenuAccess('reports'),
 
   res.render('admin/reports', {
     title: 'Laporan Laba / Rugi', company: company(), activePage: 'reports',
-    filterYear, monthlyData, chartData: monthlyData, recentPayments, topUnpaid,
-    totalRevenue: revenueYearAll,
-    thisMonth: revenueThisMonthAll,
+    filterYear, filterMonth, monthlyData, chartData: monthlyData, recentPayments, topUnpaid,
+    totalRevenue,
+    thisMonth,
     pendingAmount,
     activeCustomers,
-    revenueYearAgent,
-    revenueThisMonthAgent,
     agentDepositYear,
-    agentDepositThisMonth,
     customCashInYear,
-    customCashInMonth,
     cashInYear,
     cashInThisMonth,
     expensesYear,
@@ -3623,26 +3694,110 @@ router.get('/reports', requireAdminSession, requireSidebarMenuAccess('reports'),
 router.get('/reports/print', requireAdminSession, requireSidebarMenuAccess('reports'), (req, res) => {
   const filterYear = parseInt(req.query.year) || new Date().getFullYear();
   const yStr = String(filterYear);
-  const monthlyData = billingSvc.getMonthlyRevenue(filterYear);
   const settings = getSettingsWithCache();
   const activeCustomers = customerSvc.getCustomerStats().active;
 
-  // Kalkulasi sama seperti laporan utama
-  const revenueYearDirect = Number(db.prepare("SELECT SUM(amount) as t FROM invoices WHERE status='paid' AND strftime('%Y', paid_at) = ? AND (paid_by_name IS NULL OR paid_by_name NOT LIKE 'Agent %')").get(yStr)?.t || 0);
-  const agentDepositYear = Number(db.prepare("SELECT SUM(amount_buy) as t FROM agent_transactions WHERE type='topup' AND strftime('%Y', created_at) = ?").get(yStr)?.t || 0);
-  const customCashInYear = Number(db.prepare("SELECT SUM(amount) as t FROM cash_in WHERE strftime('%Y', date) = ?").get(yStr)?.t || 0);
-  const cashInYear = revenueYearDirect + agentDepositYear + customCashInYear;
+  // Reconciled 12-Month Detailed Breakdown
+  const monthlyData = [];
+  let cashInYear = 0;
+  let expensesYear = 0;
 
-  const expensesRegularYear = Number(db.prepare("SELECT SUM(amount) as t FROM expenses WHERE strftime('%Y', date) = ?").get(yStr)?.t || 0);
-  const digiflazzCostYear = Number(db.prepare("SELECT SUM(digi_price) as t FROM agent_transactions WHERE type='pulsa' AND digi_status='sukses' AND strftime('%Y', created_at) = ?").get(yStr)?.t || 0);
-  const expensesYear = expensesRegularYear + digiflazzCostYear;
-  
+  for (let m = 1; m <= 12; m++) {
+    const loopMStr = String(m).padStart(2, '0');
+
+    const invPeriod = db.prepare(`
+      SELECT 
+        COUNT(*) as total_invoices,
+        SUM(CASE WHEN status='paid' THEN 1 ELSE 0 END) as paid_count,
+        SUM(CASE WHEN status='unpaid' THEN 1 ELSE 0 END) as unpaid_count,
+        SUM(CASE WHEN status='paid' THEN amount ELSE 0 END) as invoice_revenue
+      FROM invoices 
+      WHERE period_year = ? AND period_month = ?
+    `).get(filterYear, m);
+
+    const dirPaid = db.prepare(`
+      SELECT SUM(amount) as t 
+      FROM invoices 
+      WHERE status='paid' 
+        AND strftime('%Y', paid_at) = ? 
+        AND strftime('%m', paid_at) = ? 
+        AND (paid_by_name IS NULL OR paid_by_name NOT LIKE 'Agent %')
+    `).get(yStr, loopMStr)?.t || 0;
+
+    const agTopup = db.prepare(`
+      SELECT SUM(amount_buy) as t 
+      FROM agent_transactions 
+      WHERE type='topup' 
+        AND strftime('%Y', created_at) = ? 
+        AND strftime('%m', created_at) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    const vPaid = db.prepare(`
+      SELECT SUM(price) as t 
+      FROM public_voucher_orders 
+      WHERE status='paid' 
+        AND strftime('%Y', COALESCE(paid_at, created_at)) = ? 
+        AND strftime('%m', COALESCE(paid_at, created_at)) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    const donPaid = db.prepare(`
+      SELECT SUM(COALESCE(qris_amount_unique, amount)) as t 
+      FROM public_donation_orders 
+      WHERE status='paid' 
+        AND strftime('%Y', COALESCE(paid_at, created_at)) = ? 
+        AND strftime('%m', COALESCE(paid_at, created_at)) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    const cIn = db.prepare(`
+      SELECT SUM(amount) as t 
+      FROM cash_in 
+      WHERE strftime('%Y', date) = ? 
+        AND strftime('%m', date) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    const mIncome = dirPaid + agTopup + vPaid + donPaid + cIn;
+
+    const expReg = db.prepare(`
+      SELECT SUM(amount) as t 
+      FROM expenses 
+      WHERE strftime('%Y', date) = ? 
+        AND strftime('%m', date) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    const digiCost = db.prepare(`
+      SELECT SUM(digi_price) as t 
+      FROM agent_transactions 
+      WHERE type='pulsa' 
+        AND digi_status='sukses' 
+        AND strftime('%Y', created_at) = ? 
+        AND strftime('%m', created_at) = ?
+    `).get(yStr, loopMStr)?.t || 0;
+
+    const mExpense = expReg + digiCost;
+    const mNetProfit = mIncome - mExpense;
+
+    cashInYear += mIncome;
+    expensesYear += mExpense;
+
+    monthlyData.push({
+      month: m,
+      total_invoices: invPeriod?.total_invoices || 0,
+      paid_count: invPeriod?.paid_count || 0,
+      unpaid_count: invPeriod?.unpaid_count || 0,
+      revenue: invPeriod?.invoice_revenue || 0,
+      income: mIncome,
+      expense: mExpense,
+      net_profit: mNetProfit
+    });
+  }
+
   const netProfitYear = cashInYear - expensesYear;
 
   const pendingAmountRow = db.prepare("SELECT SUM(amount) as t FROM invoices WHERE status='unpaid' AND period_year = ?").get(filterYear);
   const pendingAmount = Number(pendingAmountRow?.t || 0);
 
   const expensesByCategory = db.prepare("SELECT category, SUM(amount) as total FROM expenses WHERE strftime('%Y', date) = ? GROUP BY category").all(yStr);
+  const digiflazzCostYear = Number(db.prepare("SELECT SUM(digi_price) as t FROM agent_transactions WHERE type='pulsa' AND digi_status='sukses' AND strftime('%Y', created_at) = ?").get(yStr)?.t || 0);
   if (digiflazzCostYear > 0) {
     expensesByCategory.push({ category: 'Modal PPOB (Digiflazz)', total: digiflazzCostYear });
   }
@@ -3671,6 +3826,7 @@ router.get('/reports/export-csv', requireAdminSession, requireSidebarMenuAccess(
   // Ambil data detail pengeluaran & pemasukan
   const expenses = db.prepare("SELECT date, category, amount, description FROM expenses WHERE strftime('%Y', date) = ? ORDER BY date ASC").all(yStr);
   const cashIn = db.prepare("SELECT date, category, amount, description FROM cash_in WHERE strftime('%Y', date) = ? ORDER BY date ASC").all(yStr);
+  const voucherOrders = db.prepare("SELECT COALESCE(paid_at, created_at) as date, plan_name, price, buyer_phone FROM public_voucher_orders WHERE status='paid' AND strftime('%Y', COALESCE(paid_at, created_at)) = ? ORDER BY date ASC").all(yStr);
 
   let csvContent = `Laporan Keuangan ${company()} - Tahun ${filterYear}\n\n`;
   
@@ -3683,6 +3839,13 @@ router.get('/reports/export-csv', requireAdminSession, requireSidebarMenuAccess(
   cashIn.forEach(c => {
     csvContent += `${c.date},"${c.category}",${c.amount},"${(c.description||'').replace(/"/g, '""')}"\n`;
   });
+
+  if (voucherOrders.length > 0) {
+    csvContent += "\n=== DATA PENJUALAN VOUCHER HOTSPOT ===\nTanggal,Paket,Nominal,No HP\n";
+    voucherOrders.forEach(v => {
+      csvContent += `${v.date},"${v.plan_name}",${v.price},"${v.buyer_phone || ''}"\n`;
+    });
+  }
 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="Laporan_Keuangan_${filterYear}.csv"`);
@@ -7314,13 +7477,35 @@ router.post('/payroll/delete-drafts', requireAdmin, (req, res) => {
   res.redirect('back');
 });
 
+router.post('/payroll/slip/:id/update', requireAdmin, express.urlencoded({ extended: true }), (req, res) => {
+  try {
+    payrollSvc.updateSlip(req.params.id, req.body);
+    req.session._msg = { type: 'success', text: 'Rincian slip gaji berhasil diperbarui.' };
+  } catch (e) {
+    req.session._msg = { type: 'error', text: 'Gagal memperbarui slip: ' + e.message };
+  }
+  res.redirect('back');
+});
+
+router.get('/payroll/slip/:id/json', requireAdmin, (req, res) => {
+  try {
+    const slip = payrollSvc.getSlipById(req.params.id);
+    if (!slip) return res.status(404).json({ success: false, message: 'Slip tidak ditemukan' });
+    res.json({ success: true, slip });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 router.get('/payroll/slip/:id/print', requireAdmin, (req, res) => {
   const slip = payrollSvc.getSlipById(req.params.id);
   if (!slip) return res.status(404).send('Slip tidak ditemukan');
   
   res.render('admin/print_payslip', {
     company: company(),
-    slip
+    slip,
+    getNowLocal,
+    formatDateLocal
   });
 });
 
@@ -7334,13 +7519,9 @@ router.post('/payroll/slip/:id/send-wa', requireAdmin, async (req, res) => {
 
     const { getSettingsWithCache } = require('../config/settingsManager');
     const settings = getSettingsWithCache();
-    if (!settings.whatsapp_enabled) throw new Error('WhatsApp bot tidak aktif');
+    if (!settings.whatsapp_enabled) throw new Error('WhatsApp bot tidak aktif di pengaturan');
 
-    const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');
-    if (!whatsappStatus || whatsappStatus.connection !== 'open') {
-      throw new Error('WhatsApp bot tidak terkoneksi');
-    }
-
+    const waSvc = require('../services/whatsappService');
     const monthNames = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
     
     const msg = `🧾 *SLIP GAJI KARYAWAN*\n\n` +
@@ -7365,7 +7546,8 @@ router.post('/payroll/slip/:id/send-wa', requireAdmin, async (req, res) => {
       `💰 *GAJI BERSIH: Rp ${slip.net_salary.toLocaleString('id-ID')}*\n\n` +
       `Terima kasih atas kerja keras Anda! 🙏`;
 
-    await sendWA(phone, msg);
+    const ok = await waSvc.sendWhatsAppMessage(phone, msg);
+    if (!ok) throw new Error('Gagal mengirim WhatsApp. Periksa gateway WhatsApp.');
     res.json({ success: true, message: 'Terkirim' });
   } catch (e) {
     res.json({ success: false, message: e.message });

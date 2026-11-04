@@ -96,7 +96,7 @@
   </div>
 
   <div style="text-align:center;margin-top:16px;font-size:10px;color:#888">
-    Dicetak: <%= getNowLocal() %> — Slip ID: #<%= slip.id %>
+    Dicetak: <%= (typeof getNowLocal === 'function') ? getNowLocal() : new Date().toLocaleString('id-ID') %> — Slip ID: #<%= slip.id %>
   </div>
 </div>
 

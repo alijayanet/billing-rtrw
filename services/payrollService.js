@@ -129,8 +129,8 @@ function getTicketsResolvedCount(technicianId, month, year) {
   const result = db.prepare(`
     SELECT COUNT(*) as cnt FROM tickets
     WHERE technician_id = ? AND status = 'resolved'
-      AND strftime('%Y', datetime(updated_at, 'localtime')) = ?
-      AND strftime('%m', datetime(updated_at, 'localtime')) = ?
+      AND strftime('%Y', updated_at) = ?
+      AND strftime('%m', updated_at) = ?
   `).get(technicianId, yearStr, monthStr);
   return result ? result.cnt : 0;
 }
@@ -141,8 +141,8 @@ function getCollectionAmount(collectorId, month, year) {
   const result = db.prepare(`
     SELECT COALESCE(SUM(amount), 0) as total FROM collector_payment_requests
     WHERE collector_id = ? AND status = 'approved'
-      AND strftime('%Y', datetime(created_at, 'localtime')) = ?
-      AND strftime('%m', datetime(created_at, 'localtime')) = ?
+      AND strftime('%Y', created_at) = ?
+      AND strftime('%m', created_at) = ?
   `).get(collectorId, yearStr, monthStr);
   return result ? result.total : 0;
 }
@@ -156,12 +156,12 @@ function getAttendanceData(employeeType, employeeId, month, year) {
       COUNT(*) as total_days,
       SUM(CASE WHEN status = 'checked_out' THEN 1 ELSE 0 END) as completed_days,
       SUM(work_duration_minutes) as total_minutes,
-      SUM(CASE WHEN time(datetime(check_in_time, 'localtime')) > '08:30:00' THEN 1 ELSE 0 END) as late_days,
+      SUM(CASE WHEN time(check_in_time) > '08:30:00' THEN 1 ELSE 0 END) as late_days,
       SUM(CASE WHEN work_duration_minutes > 480 THEN work_duration_minutes - 480 ELSE 0 END) as overtime_minutes
     FROM attendance
     WHERE employee_type = ? AND employee_id = ?
-      AND strftime('%Y', datetime(check_in_time, 'localtime')) = ?
-      AND strftime('%m', datetime(check_in_time, 'localtime')) = ?
+      AND strftime('%Y', check_in_time) = ?
+      AND strftime('%m', check_in_time) = ?
   `).get(employeeType, employeeId, yearStr, monthStr);
 
   return {
@@ -181,6 +181,9 @@ function generateSlip(employeeType, employeeId, month, year) {
     throw new Error(`Pengaturan gaji belum diset untuk ${employeeType} ID ${employeeId}`);
   }
 
+  const monthStr = String(month).padStart(2, '0');
+  const yearStr = String(year);
+
   // Cek apakah slip sudah ada
   const existing = db.prepare(`
     SELECT id FROM payroll_slips
@@ -194,10 +197,33 @@ function generateSlip(employeeType, employeeId, month, year) {
   const employeeName = getEmployeeName(employeeType, employeeId);
   const attendance = getAttendanceData(employeeType, employeeId, month, year);
 
-  // Hitung hari absen
-  const absentDays = Math.max(0, setting.working_days_per_month - attendance.workingDays);
+  // Cek apakah ada catatan absensi digital untuk karyawan ini di bulan tersebut
+  const hasAttendanceLogs = db.prepare(`
+    SELECT 1 FROM attendance 
+    WHERE employee_type = ? AND employee_id = ? 
+      AND strftime('%Y', check_in_time) = ? 
+      AND strftime('%m', check_in_time) = ? 
+    LIMIT 1
+  `).get(employeeType, employeeId, yearStr, monthStr);
 
-  // Hitung bonus performa
+  let actualWorkingDays = 0;
+  let absentDays = 0;
+  let absenceDeduction = 0;
+  let initialNote = '';
+
+  if (!hasAttendanceLogs) {
+    // Jika belum ada log absensi online/GPS, jangan potong gaji otomatis 26 hari! Set hadir penuh
+    actualWorkingDays = setting.working_days_per_month || 26;
+    absentDays = 0;
+    absenceDeduction = 0;
+    initialNote = 'Kehadiran default penuh (belum ada absensi GPS)';
+  } else {
+    actualWorkingDays = attendance.workingDays;
+    absentDays = Math.max(0, (setting.working_days_per_month || 26) - actualWorkingDays);
+    absenceDeduction = absentDays * (setting.absence_deduction_per_day || 0);
+  }
+
+  // Hitung bonus performa teknisi
   let ticketsResolved = 0;
   let ticketBonus = 0;
   if (employeeType === 'technician' && setting.bonus_per_ticket > 0) {
@@ -205,20 +231,30 @@ function generateSlip(employeeType, employeeId, month, year) {
     ticketBonus = ticketsResolved * setting.bonus_per_ticket;
   }
 
+  // Hitung komisi kolektor (dukung % atau nominal flat per tagihan)
   let collectionAmount = 0;
   let collectionCommission = 0;
   if (employeeType === 'collector' && setting.commission_percentage > 0) {
     collectionAmount = getCollectionAmount(employeeId, month, year);
-    collectionCommission = Math.round(collectionAmount * (setting.commission_percentage / 100));
+    if (setting.commission_percentage <= 100) {
+      collectionCommission = Math.round(collectionAmount * (setting.commission_percentage / 100));
+    } else {
+      // Input pengguna berupa nominal rupiah flat (misal Rp 5.000 per tagihan)
+      const invCount = db.prepare(`
+        SELECT COUNT(*) as c FROM collector_payment_requests
+        WHERE collector_id = ? AND status = 'approved'
+          AND strftime('%Y', created_at) = ? AND strftime('%m', created_at) = ?
+      `).get(employeeId, yearStr, monthStr)?.c || 0;
+      collectionCommission = Math.round(invCount * setting.commission_percentage);
+    }
   }
 
   // Hitung overtime bonus (Rp 15.000 per jam lembur)
   const overtimeHours = Math.round((attendance.overtimeMinutes / 60) * 10) / 10;
   const overtimeBonus = Math.round(overtimeHours * 15000);
 
-  // Hitung potongan
-  const absenceDeduction = absentDays * setting.absence_deduction_per_day;
-  const lateDeduction = attendance.lateDays * Math.round(setting.absence_deduction_per_day * 0.25); // 25% potongan per hari terlambat
+  // Hitung potongan terlambat (25% dari tarif absen per hari terlambat)
+  const lateDeduction = attendance.lateDays * Math.round((setting.absence_deduction_per_day || 0) * 0.25);
 
   // Total pendapatan
   const grossSalary = setting.base_salary
@@ -245,17 +281,18 @@ function generateSlip(employeeType, employeeId, month, year) {
       total_tickets_resolved, total_collection_amount,
       ticket_bonus, collection_commission, overtime_bonus,
       absence_deduction, late_deduction, other_deduction, other_deduction_note,
-      gross_salary, total_deductions, net_salary, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')
+      gross_salary, total_deductions, net_salary, status, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)
   `).run(
     employeeType, employeeId, employeeName, month, year,
     setting.base_salary, setting.transport_allowance, setting.meal_allowance,
     setting.phone_allowance, setting.other_allowance, setting.other_allowance_note || '',
-    attendance.workingDays, absentDays, attendance.lateDays, overtimeHours,
+    actualWorkingDays, absentDays, attendance.lateDays, overtimeHours,
     ticketsResolved, collectionAmount,
     ticketBonus, collectionCommission, overtimeBonus,
     absenceDeduction, lateDeduction, 0, '',
-    grossSalary, totalDeductions, netSalary
+    grossSalary, totalDeductions, netSalary,
+    initialNote
   );
 
   return result.lastInsertRowid;
@@ -324,6 +361,63 @@ function updateSlipDeductions(id, otherDeduction, otherDeductionNote) {
       total_deductions = ?, net_salary = ?
     WHERE id = ?
   `).run(od, otherDeductionNote || '', newTotalDeductions, newNetSalary, id);
+}
+
+function updateSlip(id, data) {
+  const slip = getSlipById(id);
+  if (!slip) throw new Error('Slip tidak ditemukan');
+  if (slip.status !== 'draft') throw new Error('Hanya slip berstatus draft yang dapat diedit');
+
+  const baseSalary = (data.base_salary !== undefined && data.base_salary !== '') ? parseInt(data.base_salary, 10) : slip.base_salary;
+  const transportAllowance = (data.transport_allowance !== undefined && data.transport_allowance !== '') ? parseInt(data.transport_allowance, 10) : slip.transport_allowance;
+  const mealAllowance = (data.meal_allowance !== undefined && data.meal_allowance !== '') ? parseInt(data.meal_allowance, 10) : slip.meal_allowance;
+  const phoneAllowance = (data.phone_allowance !== undefined && data.phone_allowance !== '') ? parseInt(data.phone_allowance, 10) : slip.phone_allowance;
+  const otherAllowance = (data.other_allowance !== undefined && data.other_allowance !== '') ? parseInt(data.other_allowance, 10) : slip.other_allowance;
+  const otherAllowanceNote = (data.other_allowance_note !== undefined) ? String(data.other_allowance_note) : slip.other_allowance_note;
+
+  const workingDays = (data.working_days !== undefined && data.working_days !== '') ? parseInt(data.working_days, 10) : slip.working_days;
+  const absentDays = (data.absent_days !== undefined && data.absent_days !== '') ? parseInt(data.absent_days, 10) : slip.absent_days;
+  const lateDays = (data.late_days !== undefined && data.late_days !== '') ? parseInt(data.late_days, 10) : slip.late_days;
+  const overtimeHours = (data.overtime_hours !== undefined && data.overtime_hours !== '') ? parseFloat(data.overtime_hours) : slip.overtime_hours;
+  const overtimeBonus = (data.overtime_bonus !== undefined && data.overtime_bonus !== '') ? parseInt(data.overtime_bonus, 10) : slip.overtime_bonus;
+  const ticketBonus = (data.ticket_bonus !== undefined && data.ticket_bonus !== '') ? parseInt(data.ticket_bonus, 10) : slip.ticket_bonus;
+  const collectionCommission = (data.collection_commission !== undefined && data.collection_commission !== '') ? parseInt(data.collection_commission, 10) : slip.collection_commission;
+  
+  const absenceDeduction = (data.absence_deduction !== undefined && data.absence_deduction !== '') ? parseInt(data.absence_deduction, 10) : slip.absence_deduction;
+  const lateDeduction = (data.late_deduction !== undefined && data.late_deduction !== '') ? parseInt(data.late_deduction, 10) : slip.late_deduction;
+  const otherDeduction = (data.other_deduction !== undefined && data.other_deduction !== '') ? parseInt(data.other_deduction, 10) : slip.other_deduction;
+  const otherDeductionNote = (data.other_deduction_note !== undefined) ? String(data.other_deduction_note) : slip.other_deduction_note;
+  const notes = (data.notes !== undefined) ? String(data.notes) : slip.notes;
+
+  const grossSalary = baseSalary + transportAllowance + mealAllowance + phoneAllowance + otherAllowance + ticketBonus + collectionCommission + overtimeBonus;
+  const totalDeductions = absenceDeduction + lateDeduction + otherDeduction;
+  const netSalary = Math.max(0, grossSalary - totalDeductions);
+
+  db.prepare(`
+    UPDATE payroll_slips SET
+      base_salary = ?, transport_allowance = ?, meal_allowance = ?,
+      phone_allowance = ?, other_allowance = ?, other_allowance_note = ?,
+      working_days = ?, absent_days = ?, late_days = ?,
+      overtime_hours = ?, overtime_bonus = ?,
+      ticket_bonus = ?, collection_commission = ?,
+      absence_deduction = ?, late_deduction = ?,
+      other_deduction = ?, other_deduction_note = ?,
+      gross_salary = ?, total_deductions = ?, net_salary = ?,
+      notes = ?
+    WHERE id = ?
+  `).run(
+    baseSalary, transportAllowance, mealAllowance,
+    phoneAllowance, otherAllowance, otherAllowanceNote || '',
+    workingDays, absentDays, lateDays,
+    overtimeHours, overtimeBonus,
+    ticketBonus, collectionCommission,
+    absenceDeduction, lateDeduction,
+    otherDeduction, otherDeductionNote || '',
+    grossSalary, totalDeductions, netSalary,
+    notes || '', id
+  );
+
+  return getSlipById(id);
 }
 
 function approveSlip(id) {
@@ -442,7 +536,7 @@ module.exports = {
   getTicketsResolvedCount, getCollectionAmount, getAttendanceData,
   generateSlip, generateAllSlips,
   getSlipById, getSlipsByPeriod, getSlipsByEmployee,
-  updateSlipDeductions, approveSlip, markSlipPaid,
+  updateSlip, updateSlipDeductions, approveSlip, markSlipPaid,
   bulkApprove, bulkMarkPaid,
   deleteSlip, deleteSlipsByPeriod,
   getPayrollSummary, getAvailablePeriods

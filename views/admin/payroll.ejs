@@ -185,14 +185,14 @@
             </div>
             <div class="action-row">
               <% if(slip.status==='draft'){%>
-              <button class="btn btn-p btn-sm" data-id="<%= slip.id %>" onclick="editDeduction(this.dataset.id)"><i class="bi bi-pencil"></i> Potongan Lain</button>
+              <button type="button" class="btn btn-p btn-sm" onclick='openEditSlipModal(<%- JSON.stringify(slip) %>)'><i class="bi bi-pencil-square"></i> Edit Rincian</button>
               <form method="POST" action="/admin/payroll/slip/<%= slip.id %>/approve" style="display:inline" onsubmit="return confirm('Approve slip ini?')"><button type="submit" class="btn btn-s btn-sm"><i class="bi bi-check-lg"></i> Approve</button></form>
               <form method="POST" action="/admin/payroll/slip/<%= slip.id %>/delete" style="display:inline" onsubmit="return confirm('Hapus slip ini?')"><button type="submit" class="btn btn-d btn-sm"><i class="bi bi-trash"></i></button></form>
               <%}else if(slip.status==='approved'){%>
               <form method="POST" action="/admin/payroll/slip/<%= slip.id %>/paid" style="display:inline" onsubmit="return confirm('Tandai sebagai paid?')"><button type="submit" class="btn btn-s btn-sm"><i class="bi bi-cash-coin"></i> Tandai Paid</button></form>
               <%}%>
               <a href="/admin/payroll/slip/<%= slip.id %>/print" target="_blank" class="btn btn-g btn-sm"><i class="bi bi-printer"></i> Cetak</a>
-              <button class="btn btn-g btn-sm" data-id="<%= slip.id %>" onclick="sendSlipWA(this.dataset.id)"><i class="bi bi-whatsapp"></i> Kirim WA</button>
+              <button type="button" class="btn btn-g btn-sm" data-id="<%= slip.id %>" onclick="sendSlipWA(this.dataset.id)"><i class="bi bi-whatsapp"></i> Kirim WA</button>
             </div>
           </div>
           <% }) %>
@@ -229,6 +229,89 @@
   </div>
 </div>
 
+<!-- Modal Edit Slip Gaji -->
+<div class="mo" id="editSlipModal" style="display:none">
+  <div class="mb" style="max-width:580px">
+    <div class="mb-hd">
+      <h6 id="editSlipTitle"><i class="bi bi-pencil-square"></i> Edit Rincian Slip Gaji</h6>
+      <button class="mo-close" onclick="closeEditSlipModal()">&times;</button>
+    </div>
+    <form method="POST" id="editSlipForm">
+      <div class="mb-bd" style="max-height:75vh;overflow-y:auto">
+        <div style="background:var(--bg2,#f8fafc);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;border:1px solid var(--border)">
+          <strong>Karyawan:</strong> <span id="es_emp_name"></span> (<span id="es_emp_type"></span>)<br>
+          <strong>Periode:</strong> <span id="es_period"></span>
+        </div>
+
+        <div style="font-weight:700;font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Kehadiran &amp; Absensi</div>
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;margin-bottom:12px">
+          <div>
+            <label class="fl">Hari Hadir</label>
+            <input type="number" name="working_days" id="es_working_days" class="fc" required>
+          </div>
+          <div>
+            <label class="fl">Hari Absen</label>
+            <input type="number" name="absent_days" id="es_absent_days" class="fc" value="0">
+          </div>
+          <div>
+            <label class="fl">Hari Terlambat</label>
+            <input type="number" name="late_days" id="es_late_days" class="fc" value="0">
+          </div>
+        </div>
+
+        <div style="font-weight:700;font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Tambahan, Lembur &amp; Bonus</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label class="fl">Jam Lembur (Jam)</label>
+            <input type="number" step="0.5" name="overtime_hours" id="es_overtime_hours" class="fc" value="0">
+          </div>
+          <div>
+            <label class="fl">Bonus Lembur (Rp)</label>
+            <input type="number" name="overtime_bonus" id="es_overtime_bonus" class="fc" value="0">
+          </div>
+          <div>
+            <label class="fl">Bonus Tiket (Rp)</label>
+            <input type="number" name="ticket_bonus" id="es_ticket_bonus" class="fc" value="0">
+          </div>
+          <div>
+            <label class="fl">Komisi Tagihan (Rp)</label>
+            <input type="number" name="collection_commission" id="es_collection_commission" class="fc" value="0">
+          </div>
+        </div>
+
+        <div style="font-weight:700;font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Potongan Gaji</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label class="fl">Potongan Absen (Rp)</label>
+            <input type="number" name="absence_deduction" id="es_absence_deduction" class="fc" value="0">
+          </div>
+          <div>
+            <label class="fl">Potongan Terlambat (Rp)</label>
+            <input type="number" name="late_deduction" id="es_late_deduction" class="fc" value="0">
+          </div>
+          <div>
+            <label class="fl">Potongan Lain / Kasbon (Rp)</label>
+            <input type="number" name="other_deduction" id="es_other_deduction" class="fc" value="0">
+          </div>
+          <div>
+            <label class="fl">Keterangan Potongan</label>
+            <input type="text" name="other_deduction_note" id="es_other_deduction_note" class="fc" placeholder="Kasbon, denda, dll">
+          </div>
+        </div>
+
+        <div style="margin-bottom:10px">
+          <label class="fl">Catatan Slip (Tampil di Slip Cetak &amp; WA)</label>
+          <input type="text" name="notes" id="es_notes" class="fc" placeholder="Catatan apresiasi / info penyesuaian">
+        </div>
+      </div>
+      <div class="mb-ft">
+        <button type="button" class="btn btn-g" onclick="closeEditSlipModal()">Batal</button>
+        <button type="submit" class="btn btn-p"><i class="bi bi-save"></i> Simpan Perubahan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 const payrollData = JSON.parse('<%- JSON.stringify(employees.reduce(function(acc, e) { if(e.payroll) acc[e.employee_type+"_"+e.id] = e.payroll; return acc; }, {})) %>');
 
@@ -258,12 +341,33 @@ function editPayroll(type, id, name){
 
 function closeModal(){ document.getElementById('payrollModal').style.display = 'none'; }
 
-function editDeduction(id){
-  const amount = prompt('Jumlah potongan lain (Rp):','0');
-  if(amount===null) return;
-  const note = prompt('Keterangan potongan:','');
-  fetch('/admin/payroll/slip/'+id+'/deduction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({other_deduction:amount,other_deduction_note:note||''})})
-    .then(r=>r.json()).then(d=>{if(d.success){alert('✓ Berhasil');location.reload()}else alert('✗ '+d.message)}).catch(e=>alert('Error: '+e.message));
+function openEditSlipModal(slip){
+  document.getElementById('editSlipTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Edit Slip #' + slip.id + ' — ' + slip.employee_name;
+  document.getElementById('editSlipForm').action = '/admin/payroll/slip/' + slip.id + '/update';
+  document.getElementById('es_emp_name').textContent = slip.employee_name;
+  document.getElementById('es_emp_type').textContent = slip.employee_type.toUpperCase();
+  document.getElementById('es_period').textContent = slip.period_month + '/' + slip.period_year;
+
+  document.getElementById('es_working_days').value = slip.working_days || 0;
+  document.getElementById('es_absent_days').value = slip.absent_days || 0;
+  document.getElementById('es_late_days').value = slip.late_days || 0;
+
+  document.getElementById('es_overtime_hours').value = slip.overtime_hours || 0;
+  document.getElementById('es_overtime_bonus').value = slip.overtime_bonus || 0;
+  document.getElementById('es_ticket_bonus').value = slip.ticket_bonus || 0;
+  document.getElementById('es_collection_commission').value = slip.collection_commission || 0;
+
+  document.getElementById('es_absence_deduction').value = slip.absence_deduction || 0;
+  document.getElementById('es_late_deduction').value = slip.late_deduction || 0;
+  document.getElementById('es_other_deduction').value = slip.other_deduction || 0;
+  document.getElementById('es_other_deduction_note').value = slip.other_deduction_note || '';
+  document.getElementById('es_notes').value = slip.notes || '';
+
+  document.getElementById('editSlipModal').style.display = 'flex';
+}
+
+function closeEditSlipModal(){
+  document.getElementById('editSlipModal').style.display = 'none';
 }
 
 function sendSlipWA(id){
@@ -273,6 +377,7 @@ function sendSlipWA(id){
 }
 
 document.getElementById('payrollModal').addEventListener('click',function(e){if(e.target===this)closeModal()});
+document.getElementById('editSlipModal').addEventListener('click',function(e){if(e.target===this)closeEditSlipModal()});
 </script>
 </body>
 </html>
