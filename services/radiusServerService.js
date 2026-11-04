@@ -241,7 +241,7 @@ function handleAuthMessage(msg, rinfo) {
       SELECT COUNT(1) as c FROM radius_accounting
       WHERE username = ? AND status_type IN (1, 3)
         AND session_id NOT LIKE 'auth-%'
-        AND updated_at >= datetime('now', '-15 minutes')
+        AND updated_at >= datetime('now', 'localtime', '-15 minutes')
     `).get(username)?.c || 0;
 
     if (activeSession >= 1) {
@@ -693,7 +693,7 @@ function getOnlineSessions() {
       FROM radius_accounting ra
       LEFT JOIN customers c ON (c.pppoe_username = ra.username OR c.name = ra.username)
       WHERE ra.status_type IN (1, 3)
-        AND ra.updated_at >= datetime('now', '-24 hours')
+        AND ra.updated_at >= datetime('now', 'localtime', '-24 hours')
       ORDER BY ra.updated_at DESC LIMIT 200
     `).all();
   } catch (e) {

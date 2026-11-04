@@ -7873,7 +7873,7 @@ router.get('/radius-settings', requireAdminSession, restrictToAdmin, async (req,
         COUNT(1) as total_events,
         COALESCE(SUM(input_octets + output_octets), 0) as total_bytes
       FROM radius_accounting
-      WHERE DATE(created_at) = DATE('now')
+      WHERE DATE(created_at) = DATE('now', 'localtime')
     `).get() || { total_events: 0, total_bytes: 0 };
 
     const todayTrafficMB = (todayStats.total_bytes / (1024 * 1024)).toFixed(1);
@@ -7989,7 +7989,7 @@ router.post('/radius/clear-stale', requireAdminSession, restrictToAdmin, async (
     const result = db.prepare(`
       UPDATE radius_accounting
       SET status_type = 2, terminate_cause = 10, updated_at = NOW_LOCAL()
-      WHERE status_type IN (1, 3) AND updated_at < datetime('now', '-2 hours')
+      WHERE status_type IN (1, 3) AND updated_at < datetime('now', 'localtime', '-2 hours')
     `).run();
     req.session._msg = { type: 'success', text: `Berhasil membersihkan ${result.changes} sesi kadaluarsa / ghost.` };
   } catch (e) {
