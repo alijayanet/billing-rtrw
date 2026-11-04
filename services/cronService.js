@@ -700,6 +700,22 @@ function startCronJobs() {
     }
   });
 
+  // 9. Autonomous AI Self-Healing & Network Watchdog (Setiap 30 Menit)
+  cron.schedule('*/30 * * * *', async () => {
+    const isEnabled = getSetting('ai_self_healing_enabled', true) === true || getSetting('ai_self_healing_enabled', true) === 'true';
+    if (!isEnabled) return;
+
+    try {
+      const selfHealingSvc = require('./selfHealingService');
+      const res = await selfHealingSvc.autoRepair('AI Autonomous Watchdog');
+      if (res.stats.anomaliesRepaired > 0) {
+        logger.info(`[CRON-AI-HEAL] Berhasil memperbaiki ${res.stats.anomaliesRepaired} anomali secara otomatis: ${res.repairs.join('; ')}`);
+      }
+    } catch (e) {
+      logger.error(`[CRON-AI-HEAL] Error: ${e.message}`);
+    }
+  });
+
   logger.info('[CRON] Semua tugas penjadwalan telah aktif.');
 }
 

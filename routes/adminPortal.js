@@ -4947,6 +4947,26 @@ router.get('/api/health', requireAdmin, (req, res) => {
   res.json(healthStatus);
 });
 
+router.post('/api/self-heal/run', requireAdminSession, restrictToAdmin, async (req, res) => {
+  try {
+    const selfHealingSvc = require('../services/selfHealingService');
+    const result = await selfHealingSvc.autoRepair(req.session?.adminUser?.name || 'Web Admin');
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/api/self-heal/diagnose', requireAdminSession, restrictToAdmin, async (req, res) => {
+  try {
+    const selfHealingSvc = require('../services/selfHealingService');
+    const result = await selfHealingSvc.diagnose();
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/api/metrics', requireAdmin, (req, res) => {
   const metrics = monitoringSvc.getAllMetrics();
   res.json(metrics);

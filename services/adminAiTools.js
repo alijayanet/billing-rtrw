@@ -172,6 +172,16 @@ const adminToolDeclarations = [
       },
       required: ['agentKey', 'amount']
     }
+  },
+  {
+    name: 'auto_heal_network',
+    description: 'Menjalankan diagnosa dan perbaikan mandiri otomatis (Self-Healing) pada seluruh jaringan, router MikroTik (sinkronisasi secret PPPoE & isolir), status pelanggan billing, dan sesi yang macet',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        mode: { type: 'STRING', description: 'Mode perbaikan: "repair" untuk langsung memperbaiki otomatis, atau "scan" untuk diagnosa saja (opsional, default: "repair")' }
+      }
+    }
   }
 ];
 
@@ -507,6 +517,29 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
 
         const r = agentSvc.topupAgent(agent.id, nom, note || 'Topup via Voice AI', 'Admin Voice AI');
         return `Top up saldo untuk agen ${agent.name} sebesar ${nom.toLocaleString('id-ID')} rupiah telah berhasil diproses. Saldo saat ini menjadi ${Number(r.after || 0).toLocaleString('id-ID')} rupiah.`;
+      }
+
+      // 15. Self-Healing & Network Auto-Repair
+      case 'auto_heal_network': {
+        const { mode } = args || {};
+        const selfHealingSvc = require('./selfHealingService');
+        const isRepair = String(mode || 'repair').toLowerCase() !== 'scan';
+        const res = await (isRepair ? selfHealingSvc.autoRepair('Admin AI Command') : selfHealingSvc.diagnose());
+
+        const found = res.stats.anomaliesFound;
+        const fixed = res.stats.anomaliesRepaired;
+        const routers = res.stats.routersChecked;
+
+        if (found === 0) {
+          return `Pemeriksaan mandiri selesai. Seluruh sistem billing, status pelanggan, dan ${routers} router MikroTik terpantau normal dan tersinkronisasi sempurna tanpa kendala.`;
+        }
+
+        if (isRepair) {
+          const repairList = res.repairs.slice(0, 3).map(r => r.replace(/\[[^\]]+\]\s*/, '')).join('. ');
+          return `Proses perbaikan mandiri selesai. Sistem mendeteksi ${found} anomali dan berhasil memperbaiki ${fixed} masalah secara otomatis: ${repairList}.`;
+        } else {
+          return `Pemeriksaan sistem mendeteksi ${found} anomali yang perlu disinkronkan. Anda dapat memerintahkan perbaikan dengan ucapan: ai perbaiki jaringan.`;
+        }
       }
 
       default:

@@ -314,6 +314,36 @@
       </div>
     </div>
 
+    <!-- AI Self-Healing & Auto-Repair Card -->
+    <div class="card mb16" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9)); border: 1px solid rgba(56, 189, 248, 0.2);">
+      <div class="card-bd" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="background:rgba(56, 189, 248, 0.15); color:#38bdf8; padding:6px 10px; border-radius:8px; font-size:18px;">
+              <i class="bi bi-robot"></i>
+            </span>
+            <div>
+              <h6 style="margin:0; font-size:15px; font-weight:700; color:#f8fafc;">AI Network Self-Healing & Auto-Repair</h6>
+              <p class="text-muted fs12" style="margin:4px 0 0 0;">
+                Mendeteksi dan memperbaiki otomatis ketidaksesuaian status billing, secret PPPoE MikroTik, bypass/stuck isolir, dan sesi macet.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button id="btnAiDiagnose" onclick="runAiSelfHeal(false)" class="btn btn-g btn-sm">
+            <i class="bi bi-search"></i> Pindai Anomali
+          </button>
+          <button id="btnAiRepair" onclick="runAiSelfHeal(true)" class="btn btn-p btn-sm" style="background:#0284c7; border-color:#0284c7;">
+            <i class="bi bi-magic"></i> Perbaiki Otomatis
+          </button>
+        </div>
+      </div>
+      <div id="aiHealResultArea" style="display:none; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.2);">
+        <div id="aiHealResultContent" class="fs12" style="color:#e2e8f0; line-height:1.6;"></div>
+      </div>
+    </div>
+
     <!-- Issues and Warnings -->
     <% if (healthStatus.issues.length > 0 || healthStatus.warnings.length > 0) { %>
     <div class="mon-grid">
@@ -889,6 +919,59 @@
     } catch (error) {
       messageDiv.className = 'alert alert-danger';
       messageDiv.innerHTML = '<i class="bi bi-x-circle"></i> Error: ' + error.message;
+    }
+  }
+
+  // AI Self-Healing Execution Function
+  async function runAiSelfHeal(autoRepair) {
+    const btn = autoRepair ? document.getElementById('btnAiRepair') : document.getElementById('btnAiDiagnose');
+    const resultArea = document.getElementById('aiHealResultArea');
+    const resultContent = document.getElementById('aiHealResultContent');
+
+    const origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Memproses...';
+    resultArea.style.display = 'block';
+    resultContent.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Sedang memindai dan menyelaraskan jaringan, router MikroTik, dan sistem billing...';
+
+    try {
+      const endpoint = autoRepair ? '/admin/api/self-heal/run' : '/admin/api/self-heal/diagnose';
+      const res = await fetch(endpoint, { method: autoRepair ? 'POST' : 'GET' });
+      const data = await res.json();
+
+      if (data.success && data.result) {
+        const r = data.result;
+        let html = `<div style="margin-bottom:8px;"><strong>Hasil ${autoRepair ? 'Perbaikan Otomatis' : 'Pemindaian'}:</strong> Selesai dalam ${r.durationMs || 0}ms. Ditemukan: <span class="badge" style="background:#f59e0b; color:#fff; padding:2px 6px; border-radius:4px;">${r.stats.anomaliesFound}</span>, Diperbaiki: <span class="badge" style="background:#22c55e; color:#fff; padding:2px 6px; border-radius:4px;">${r.stats.anomaliesRepaired}</span></div>`;
+
+        if (r.repairs && r.repairs.length > 0) {
+          html += '<div style="color:#4ade80; margin-bottom:6px;"><strong>Perbaikan yang dieksekusi:</strong><ul style="margin:4px 0 8px 16px; padding:0;">';
+          r.repairs.forEach(rep => { html += `<li>${rep}</li>`; });
+          html += '</ul></div>';
+        }
+
+        if (r.issues && r.issues.length > 0 && !autoRepair) {
+          html += '<div style="color:#fde047; margin-bottom:6px;"><strong>Anomali yang ditemukan:</strong><ul style="margin:4px 0 8px 16px; padding:0;">';
+          r.issues.forEach(iss => { html += `<li>${iss.description || iss}</li>`; });
+          html += '</ul></div>';
+        }
+
+        if (r.warnings && r.warnings.length > 0) {
+          html += '<div style="color:#cbd5e1; font-size:11px;"><em>Catatan: ' + r.warnings.join('; ') + '</em></div>';
+        }
+
+        if (r.stats.anomaliesFound === 0) {
+          html += '<div style="color:#38bdf8;"><i class="bi bi-check-circle"></i> Seluruh status pelanggan dan router MikroTik sudah sinkron sempurna. Tidak ada anomali yang perlu diperbaiki.</div>';
+        }
+
+        resultContent.innerHTML = html;
+      } else {
+        resultContent.innerHTML = `<span style="color:#f87171;">Gagal: ${data.error || 'Terjadi kesalahan sistem'}</span>`;
+      }
+    } catch (err) {
+      resultContent.innerHTML = `<span style="color:#f87171;">Error: ${err.message}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origText;
     }
   }
 
