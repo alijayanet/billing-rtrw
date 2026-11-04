@@ -107,7 +107,8 @@ function generateMonthlyInvoices(month, year) {
     for (const c of customers) {
       if (existingIds.has(c.id)) continue;
       const pkg = db.prepare('SELECT * FROM packages WHERE id=?').get(c.package_id);
-      if (!pkg) continue;
+      // Pelanggan prabayar (prepaid) masa aktifnya diatur via expired_at, tidak dibuatkan tagihan pascabayar berulang
+      if (!pkg || pkg.billing_type === 'prepaid') continue;
       const { amount, bumpPromo: bump, notesAuto } = computeInvoiceAmountAndMeta(c, pkg, month, year);
       insert.run(c.id, month, year, amount, notesAuto);
       if (bump) bumpPromo.run(c.id);
@@ -421,6 +422,20 @@ function markAsPaid(invoiceId, paidByName, notes, actor = null) {
 
   if (result.changes > 0 && existing.customer_id) {
     renewCustomerPrepaidValidity(existing.customer_id, 1);
+
+    // Auto-unisolate pascabayar jika semua tagihan sudah lunas
+    try {
+      const unpaidRemaining = db.prepare("SELECT count(*) as c FROM invoices WHERE customer_id=? AND status='unpaid'").get(existing.customer_id)?.c || 0;
+      if (unpaidRemaining === 0) {
+        const cust = db.prepare('SELECT id, status FROM customers WHERE id=?').get(existing.customer_id);
+        if (cust && (cust.status === 'suspended' || cust.status === 'isolated')) {
+          const customerSvc = require('./customerService');
+          customerSvc.activateCustomer(existing.customer_id).catch(err => {
+            logger.warn(`[Billing] Auto-activate error for customer ${existing.customer_id}: ${err.message}`);
+          });
+        }
+      }
+    } catch (_) {}
     try {
       const cust = db.prepare('SELECT name FROM customers WHERE id=?').get(existing.customer_id);
       const soundboxSvc = require('./soundboxService');

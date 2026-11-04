@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title : 'Terjadi Kesalahan' %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .error-card {
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 16px;
+      padding: 36px 28px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .error-code {
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #f43f5e, #fb7185);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .error-desc {
+      color: #94a3b8;
+      font-size: 15px;
+      margin-bottom: 28px;
+      word-break: break-word;
+    }
+    .btn-custom {
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-weight: 600;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .btn-home {
+      background: #6366f1;
+      color: #ffffff;
+      border: none;
+    }
+    .btn-home:hover {
+      background: #4f46e5;
+      color: #ffffff;
+    }
+    .btn-back {
+      background: rgba(148, 163, 184, 0.15);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    .btn-back:hover {
+      background: rgba(148, 163, 184, 0.25);
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-card">
+    <div class="error-code"><%= typeof statusCode !== 'undefined' ? statusCode : '500' %></div>
+    <h4 class="mb-3"><%= typeof title !== 'undefined' ? title : 'Terjadi Kesalahan' %></h4>
+    <p class="error-desc">
+      <%= typeof error !== 'undefined' ? error : 'Maaf, terjadi kesalahan saat memproses permintaan Anda.' %>
+    </p>
+    <div class="d-flex justify-content-center gap-2">
+      <button onclick="history.back()" class="btn btn-custom btn-back">
+        <i class="bi bi-arrow-left"></i> Kembali
+      </button>
+      <a href="/" class="btn btn-custom btn-home">
+        <i class="bi bi-house-door"></i> Halaman Utama
+      </a>
+    </div>
+  </div>
+</body>
+</html>
