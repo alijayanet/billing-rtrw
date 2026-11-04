@@ -43,6 +43,7 @@ npm-debug.log*
 
 # Backups and temporary files
 backups/
+.update_backup/
 scratch/
 scratch_tz_scan.json
 temp/

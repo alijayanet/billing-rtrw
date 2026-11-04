@@ -368,10 +368,17 @@ function copyDirSync(srcDir, destDir) {
   fs.mkdirSync(destDir, { recursive: true });
   const entries = fs.readdirSync(srcDir, { withFileTypes: true });
   for (const ent of entries) {
+    if (ent.name === 'node_modules' || ent.name === '.git' || ent.name === '.update_backup' || ent.name === 'backups') continue;
     const src = path.join(srcDir, ent.name);
     const dst = path.join(destDir, ent.name);
     if (ent.isDirectory()) copyDirSync(src, dst);
-    else if (ent.isFile()) fs.copyFileSync(src, dst);
+    else if (ent.isFile()) {
+      try {
+        fs.copyFileSync(src, dst);
+      } catch (err) {
+        logger.warn(`[copyDirSync] Skip file ${src}: ${err.message}`);
+      }
+    }
   }
 }
 
@@ -4203,18 +4210,34 @@ router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
   const versionPath = path.join(repoRoot, 'version.txt');
   const localBefore = readTextFileSafe(versionPath) || '-';
   const branch = getGitDefaultBranch(repoRoot);
-  const backupRoot = path.join(os.tmpdir(), `billing-update-backup-${Date.now()}`);
+  const backupRoot = path.join(repoRoot, '.update_backup');
   const authFolder = String(getSetting('whatsapp_auth_folder', 'auth_info_baileys') || 'auth_info_baileys').trim() || 'auth_info_baileys';
+
+  // Daftar item yang DILINDUNGI agar TIDAK dihapus oleh git clean -fd
+  const cleanExcludes = [
+    'node_modules',
+    'package-lock.json',
+    'settings.json',
+    '.env',
+    'database',
+    'database.sqlite',
+    'backups',
+    'public/uploads',
+    'public/img',
+    authFolder.replace(/\\/g, '/'),
+    'data',
+    '.update_backup'
+  ];
+
+  // HANYA file/folder konfigurasi & database aktif yang perlu disnapshot sebelum git reset --hard
+  // CATATAN: 'backups' dan 'public/uploads' sengaja TIDAK disalin ke snapshot karena ukurannya bisa ratusan MB/GB
+  // dan keduanya berstatus untracked sehingga aman dari git reset --hard serta dilindungi oleh cleanExcludes.
   const preservedEntries = [
-    { label: 'settings.json', relativePath: 'settings.json', cleanExclude: 'settings.json' },
-    { label: '.env', relativePath: '.env', cleanExclude: '.env' },
-    { label: 'database', relativePath: 'database', cleanExclude: 'database' },
-    { label: 'database.sqlite', relativePath: 'database.sqlite', cleanExclude: 'database.sqlite' },
-    { label: 'backups', relativePath: 'backups', cleanExclude: 'backups' },
-    { label: 'public/uploads', relativePath: 'public/uploads', cleanExclude: 'public/uploads' },
-    { label: 'public/img', relativePath: 'public/img', cleanExclude: 'public/img' },
-    { label: authFolder, relativePath: authFolder, cleanExclude: authFolder.replace(/\\/g, '/') },
-    { label: 'data', relativePath: 'data', cleanExclude: 'data' }
+    { label: 'settings.json', relativePath: 'settings.json' },
+    { label: '.env', relativePath: '.env' },
+    { label: 'database', relativePath: 'database' },
+    { label: 'database.sqlite', relativePath: 'database.sqlite' },
+    { label: authFolder, relativePath: authFolder }
   ];
   let repoChanged = false;
 
@@ -4318,7 +4341,6 @@ router.post('/update/run', requireAdminSession, restrictToAdmin, (req, res) => {
       }
     }
 
-    const cleanExcludes = ['node_modules', 'package-lock.json', ...preservedEntries.map((entry) => entry.cleanExclude)];
     const cleanArgs = ['clean', '-fd'];
     for (const exclude of cleanExcludes) {
       cleanArgs.push('-e', exclude);
