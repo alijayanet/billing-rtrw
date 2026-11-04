@@ -875,6 +875,9 @@ class ONUProvisionService {
     try {
       conn = await this.connectSSH(oltConfig);
       const { pon, onuId } = params;
+      if (!pon || !onuId) {
+        throw new Error('Parameter PON interface dan ONU ID diperlukan untuk membaca detail ONU ZTE.');
+      }
       const cmds = [
         'enable',
         `show gpon onu detail-info gpon-onu_${pon}:${onuId}`
@@ -922,6 +925,9 @@ class ONUProvisionService {
     try {
       conn = await this.connectSSH(oltConfig);
       const { frame, slot, pon, onuId } = params;
+      if (!frame || !slot || !pon || !onuId) {
+        throw new Error('Parameter frame, slot, pon, dan onuId diperlukan untuk membaca detail ONU Huawei.');
+      }
       const cmds = [
         'enable',
         `display ont info ${frame} ${slot} ${pon} ${onuId}`
@@ -965,8 +971,56 @@ class ONUProvisionService {
    * Delete ONU
    */
   async deleteONU(oltConfig, vendor, params) {
-    params = sanitizeParams(params);
+    params = sanitizeParams(params) || {};
     const v = String(vendor || '').toUpperCase();
+
+    // Auto-resolve pon and onuId if missing
+    if ((!params.pon || !params.onuId) && (params.id || params.index)) {
+      const idxNum = Number(params.index);
+      if (Number.isFinite(idxNum) && idxNum > 1000) {
+        if (v === 'ZTE') {
+          const board = (idxNum >> 16) & 0xFF;
+          const port = (idxNum >> 8) & 0xFF;
+          params.pon = params.pon || `1/${board}/${port}`;
+          params.onuId = params.onuId || String(idxNum & 0xFF);
+        } else if (v === 'HUAWEI') {
+          const frame = (idxNum >> 21) & 0x1F;
+          const slot = (idxNum >> 16) & 0x1F;
+          const port = (idxNum >> 8) & 0xFF;
+          params.frame = params.frame || String(frame);
+          params.slot = params.slot || String(slot);
+          params.pon = params.pon || String(port);
+          params.onuId = params.onuId || String(idxNum & 0xFF);
+        } else {
+          let port = (idxNum >> 16) & 0xFF;
+          if (port === 0 || port > 16) port = (idxNum >> 8) & 0xFF;
+          params.pon = params.pon || String(port);
+          params.onuId = params.onuId || String(idxNum & 0xFF);
+        }
+      } else {
+        const idStr = String(params.id || params.index || '');
+        const hasEpon = /epon/i.test(idStr);
+        const clean = idStr.replace(/^[a-zA-Z_ -]+/, '');
+        const parts = clean.split(/[/: ]+/).filter(Boolean);
+        if (parts.length >= 2) {
+          params.onuId = params.onuId || parts[parts.length - 1];
+          if (v === 'HUAWEI' || v === 'FIBERHOME') {
+            if (parts.length >= 4) {
+              params.frame = params.frame || parts[0];
+              params.slot = params.slot || parts[1];
+              params.pon = params.pon || parts[2];
+            } else if (parts.length === 3) {
+              params.frame = params.frame || '0';
+              params.slot = params.slot || parts[0];
+              params.pon = params.pon || parts[1];
+            }
+          } else {
+            const rawPon = parts.slice(0, parts.length - 1).join('/');
+            params.pon = params.pon || (hasEpon ? `epon ${rawPon}` : rawPon);
+          }
+        }
+      }
+    }
     if (v === 'ZTE') {
       return this.zteDeleteONU(oltConfig, params);
     } else if (v === 'HUAWEI') {
@@ -994,6 +1048,9 @@ class ONUProvisionService {
       conn = await this.connectSSH(oltConfig);
       params = sanitizeParams(params);
       const { pon, onuId } = params;
+      if (!pon || !onuId) {
+        throw new Error('Parameter PON interface dan ONU ID diperlukan untuk menghapus ONU ZTE.');
+      }
       const cmds = [
         'enable',
         'configure terminal',
@@ -1020,6 +1077,9 @@ class ONUProvisionService {
       conn = await this.connectSSH(oltConfig);
       params = sanitizeParams(params);
       const { frame, slot, pon, onuId } = params;
+      if (!frame || !slot || !pon || !onuId) {
+        throw new Error('Parameter frame, slot, pon, dan onuId diperlukan untuk menghapus ONU Huawei.');
+      }
       const cmds = [
         'enable',
         'config',
@@ -1046,6 +1106,9 @@ class ONUProvisionService {
       conn = await this.connectSSH(oltConfig);
       params = sanitizeParams(params);
       const { frame, slot, pon, onuId } = params;
+      if (!frame || !slot || !pon || !onuId) {
+        throw new Error('Parameter frame, slot, pon, dan onuId diperlukan untuk menghapus ONU Fiberhome.');
+      }
       const cmds = [
         'enable',
         'config',
@@ -1071,6 +1134,9 @@ class ONUProvisionService {
       conn = await this.connectSSH(oltConfig);
       params = sanitizeParams(params);
       const { pon, onuId } = params;
+      if (!pon || !onuId) {
+        throw new Error('Parameter PON interface dan ONU ID diperlukan untuk menghapus ONU VSOL.');
+      }
       const cmds = [
         'enable',
         'configure terminal',
@@ -1096,6 +1162,9 @@ class ONUProvisionService {
       conn = await this.connectSSH(oltConfig);
       params = sanitizeParams(params);
       const { pon, onuId } = params;
+      if (!pon || !onuId) {
+        throw new Error('Parameter PON interface dan ONU ID diperlukan untuk menghapus ONU C-Data.');
+      }
       const cmds = [
         'enable',
         'configure terminal',
@@ -1121,6 +1190,9 @@ class ONUProvisionService {
       conn = await this.connectSSH(oltConfig);
       params = sanitizeParams(params);
       const { pon, onuId } = params;
+      if (!pon || !onuId) {
+        throw new Error('Parameter PON interface dan ONU ID diperlukan untuk menghapus ONU HSGQ.');
+      }
       const ponLower = String(pon || '').toLowerCase();
       const isEpon = ponLower.includes('epon');
       
@@ -1158,6 +1230,9 @@ class ONUProvisionService {
       conn = await this.connectSSH(oltConfig);
       params = sanitizeParams(params);
       const { pon, onuId } = params;
+      if (!pon || !onuId) {
+        throw new Error('Parameter PON interface dan ONU ID diperlukan untuk menghapus ONU HIOSO.');
+      }
       const ponLower = String(pon || '').toLowerCase();
       const isEpon = ponLower.includes('epon') || (!ponLower.includes('gpon'));
       

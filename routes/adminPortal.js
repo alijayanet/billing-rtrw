@@ -7589,14 +7589,45 @@ router.use('/finance', require('./financePortal'));
 // ─── ONU PROVISION ─────────────────────────────────────────────────────────
 const onuProvisionSvc = require('../services/onuProvisionService');
 
-router.get('/onu-provision', requireAdminSession, restrictToAdmin, (req, res) => {
-  const oltConfig = {
+function getEffectiveOltConfig() {
+  let oltConfig = {
     vendor: getSetting('olt_vendor', ''),
     host: getSetting('olt_host', ''),
     port: getSetting('olt_port', 22),
     username: getSetting('olt_username', ''),
     password: getSetting('olt_password', '')
   };
+  
+  if (!oltConfig.host) {
+    try {
+      const activeOlt = db.prepare('SELECT * FROM olts WHERE is_active = 1 ORDER BY id ASC LIMIT 1').get();
+      if (activeOlt) {
+        const brandUpper = (activeOlt.brand || 'zte').toUpperCase();
+        let vendor = 'ZTE';
+        if (brandUpper.includes('HUAWEI')) vendor = 'Huawei';
+        else if (brandUpper.includes('FIBERHOME')) vendor = 'Fiberhome';
+        else if (brandUpper.includes('VSOL')) vendor = 'VSOL';
+        else if (brandUpper.includes('CDATA')) vendor = 'CData';
+        else if (brandUpper.includes('HSGQ')) vendor = 'HSGQ';
+        else if (brandUpper.includes('HIOSO')) vendor = 'Hioso';
+
+        oltConfig = {
+          vendor,
+          host: activeOlt.host || '',
+          port: activeOlt.telnet_port || 22,
+          username: activeOlt.web_user || 'admin',
+          password: activeOlt.web_password || ''
+        };
+      }
+    } catch (e) {
+      logger.error('Error fetching fallback OLT from database:', e);
+    }
+  }
+  return oltConfig;
+}
+
+router.get('/onu-provision', requireAdminSession, restrictToAdmin, (req, res) => {
+  const oltConfig = getEffectiveOltConfig();
   
   res.render('admin/onu_provision', {
     title: 'ONU Provision',
@@ -7636,6 +7667,18 @@ router.post('/onu-provision/configure-olt', requireAdminSession, restrictToAdmin
       });
       
       if (success) {
+        try {
+          const existingOlt = db.prepare('SELECT id FROM olts WHERE host = ? LIMIT 1').get(host);
+          if (existingOlt) {
+            db.prepare('UPDATE olts SET brand = ?, web_user = ?, web_password = ?, is_active = 1 WHERE id = ?')
+              .run(vendor.toLowerCase(), username, password, existingOlt.id);
+          } else {
+            db.prepare('INSERT INTO olts (name, host, brand, snmp_community, snmp_port, is_active, web_user, web_password) VALUES (?, ?, ?, ?, ?, 1, ?, ?)')
+              .run(`OLT ${vendor}`, host, vendor.toLowerCase(), 'public', 161, username, password);
+          }
+        } catch (e) {
+          logger.error('Error syncing OLT table:', e);
+        }
         req.session._msg = { type: 'success', text: 'Konfigurasi OLT berhasil disimpan.' };
       } else {
         req.session._msg = { type: 'error', text: 'Gagal menyimpan konfigurasi OLT.' };
@@ -7650,13 +7693,7 @@ router.post('/onu-provision/configure-olt', requireAdminSession, restrictToAdmin
 
 router.post('/onu-provision/scan-unconfigured', requireAdminSession, restrictToAdmin, express.json(), async (req, res) => {
   try {
-    const oltConfig = {
-      vendor: getSetting('olt_vendor', ''),
-      host: getSetting('olt_host', ''),
-      port: getSetting('olt_port', 22),
-      username: getSetting('olt_username', ''),
-      password: getSetting('olt_password', '')
-    };
+    const oltConfig = getEffectiveOltConfig();
     
     if (!oltConfig.host) {
       return res.json({ success: false, error: 'OLT belum dikonfigurasi' });
@@ -7692,16 +7729,21 @@ router.post('/onu-provision/scan-unconfigured', requireAdminSession, restrictToA
 
 router.post('/onu-provision/scan-configured', requireAdminSession, restrictToAdmin, express.json(), async (req, res) => {
   try {
-    const host = getSetting('olt_host', '');
-    if (!host) {
-      return res.json({ success: false, error: 'OLT belum dikonfigurasi di pengaturan global' });
+    let host = getSetting('olt_host', '');
+    let olt = null;
+    
+    if (host) {
+      olt = db.prepare('SELECT * FROM olts WHERE host = ? LIMIT 1').get(host);
     }
     
-    const olt = db.prepare('SELECT * FROM olts WHERE host = ? LIMIT 1').get(host);
+    if (!olt) {
+      olt = db.prepare('SELECT * FROM olts WHERE is_active = 1 ORDER BY id ASC LIMIT 1').get();
+    }
+    
     if (!olt) {
       return res.json({ 
         success: false, 
-        error: 'OLT dengan IP ' + host + ' belum didaftarkan di halaman "Manajemen OLT". Silakan daftarkan OLT Anda di sana terlebih dahulu agar sistem dapat membaca data monitoring SNMP.' 
+        error: 'OLT belum didaftarkan di sistem. Silakan simpan konfigurasi OLT atau daftarkan di halaman "Manajemen OLT".' 
       });
     }
     
@@ -7717,13 +7759,7 @@ router.post('/onu-provision/scan-configured', requireAdminSession, restrictToAdm
 
 router.post('/onu-provision/provision', requireAdminSession, restrictToAdmin, express.urlencoded({ extended: true }), async (req, res) => {
   try {
-    const oltConfig = {
-      vendor: getSetting('olt_vendor', ''),
-      host: getSetting('olt_host', ''),
-      port: getSetting('olt_port', 22),
-      username: getSetting('olt_username', ''),
-      password: getSetting('olt_password', '')
-    };
+    const oltConfig = getEffectiveOltConfig();
     
     if (!oltConfig.host) {
       throw new Error('OLT belum dikonfigurasi');
@@ -7826,13 +7862,7 @@ router.post('/onu-provision/provision', requireAdminSession, restrictToAdmin, ex
 
 router.post('/onu-provision/delete', requireAdminSession, restrictToAdmin, express.json(), async (req, res) => {
   try {
-    const oltConfig = {
-      vendor: getSetting('olt_vendor', ''),
-      host: getSetting('olt_host', ''),
-      port: getSetting('olt_port', 22),
-      username: getSetting('olt_username', ''),
-      password: getSetting('olt_password', '')
-    };
+    const oltConfig = getEffectiveOltConfig();
     
     const { vendor, params } = req.body;
     const result = await onuProvisionSvc.deleteONU(oltConfig, vendor, params);

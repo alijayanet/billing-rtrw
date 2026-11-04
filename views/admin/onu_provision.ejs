@@ -211,7 +211,7 @@
           </button>
         </div>
         <div class="card-bd">
-          <% if (oltConfig.vendor === 'ZTE') { %>
+          <% if (oltConfig.vendor === 'ZTE' || oltConfig.vendor === 'VSOL' || oltConfig.vendor === 'CData' || oltConfig.vendor === 'HSGQ' || oltConfig.vendor === 'Hioso') { %>
             <div class="fg">
               <label class="fl">PON Interface (contoh: 1/1/1)</label>
               <input type="text" class="fc" id="scanPon" placeholder="1/1/1">
@@ -558,7 +558,7 @@ async function scanUnconfiguredONUs() {
                 <span class="vendor-badge vendor-${onu.vendor.toLowerCase()}">${onu.vendor}</span>
                 <span class="onu-status unconfigured">Belum Terkonfigurasi</span>
               </div>
-              <button onclick="provisionONU('${JSON.stringify(onu).replace(/"/g, '"')}')" class="btn btn-p btn-sm">
+              <button onclick="provisionONU('${encodeURIComponent(JSON.stringify(onu))}')" class="btn btn-p btn-sm">
                 <i class="bi bi-plus-circle"></i> Provision
               </button>
             </div>
@@ -593,7 +593,12 @@ async function scanUnconfiguredONUs() {
 }
 
 function provisionONU(onuDataStr) {
-  const onu = JSON.parse(onuDataStr.replace(/"/g, '"'));
+  let onu;
+  try {
+    onu = typeof onuDataStr === 'string' ? JSON.parse(decodeURIComponent(onuDataStr)) : onuDataStr;
+  } catch (e) {
+    onu = typeof onuDataStr === 'string' ? JSON.parse(onuDataStr) : onuDataStr;
+  }
   // Switch to provision tab and fill form
   switchTab('provision');
   
@@ -751,13 +756,13 @@ async function scanConfiguredONUs() {
                 <span style="margin-left: 8px; font-weight: 700; color: #e2e8f0;">${onu.name}</span>
               </div>
               <div style="display:flex;gap:6px">
-                <button onclick="renameConfiguredOnu('${data.oltId}', '${onu.index}', '${onu.name}')" class="btn btn-g btn-sm" title="Rename ONU">
+                <button onclick="renameConfiguredOnu('${data.oltId}', '${onu.index}', decodeURIComponent('${encodeURIComponent(onu.name || '')}'))" class="btn btn-g btn-sm" title="Rename ONU">
                   <i class="bi bi-pencil"></i>
                 </button>
                 <button onclick="rebootConfiguredOnu('${data.oltId}', '${onu.index}')" class="btn btn-g btn-sm" style="color:#f59e0b" title="Reboot ONU">
                   <i class="bi bi-arrow-clockwise"></i>
                 </button>
-                <button onclick="deleteConfiguredOnu('${onu.index}', '${onu.sn}')" class="btn btn-g btn-sm" style="color:#ef4444" title="Hapus/Delete ONU">
+                <button onclick="deleteConfiguredOnu('${onu.index}', '${onu.sn}', '${onu.id || onu.index}')" class="btn btn-g btn-sm" style="color:#ef4444" title="Hapus/Delete ONU">
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
@@ -853,7 +858,7 @@ async function renameConfiguredOnu(oltId, index, oldName) {
 }
 
 // Delete Configured ONU
-async function deleteConfiguredOnu(index, sn) {
+async function deleteConfiguredOnu(index, sn, id) {
   if (!confirm('Apakah Anda yakin ingin menghapus/menghilangkan otorisasi ONU dengan Serial Number ' + sn + '?')) return;
   
   try {
@@ -861,8 +866,8 @@ async function deleteConfiguredOnu(index, sn) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        vendor: '<%= oltConfig.vendor %>',
-        params: { index, sn }
+        vendor: '<%= (oltConfig && oltConfig.vendor) ? oltConfig.vendor : "" %>',
+        params: { index, sn, id }
       })
     });
     const data = await res.json();
