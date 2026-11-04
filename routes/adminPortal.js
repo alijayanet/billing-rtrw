@@ -4560,15 +4560,15 @@ router.get('/backup/download/:fileName', requireAdminSession, (req, res) => {
   }
 });
 
-router.post('/backup/create', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
+router.post('/backup/create', requireAdminSession, express.urlencoded({ extended: true }), async (req, res) => {
   try {
     const { type } = req.body;
     let result;
 
     if (type === 'all') {
-      result = backupSvc.backupAll();
+      result = await backupSvc.backupAll();
     } else if (type === 'database') {
-      result = backupSvc.backupDatabase();
+      result = await backupSvc.backupDatabase();
     } else if (type === 'settings') {
       result = backupSvc.backupSettings();
     } else {
@@ -4576,10 +4576,13 @@ router.post('/backup/create', requireAdminSession, express.urlencoded({ extended
       return res.redirect('/admin/backup');
     }
 
-    if (result.success) {
-      req.session._msg = { type: 'success', text: `Backup berhasil dibuat: ${result.fileName}` };
+    if (result && result.success) {
+      const fileNames = (type === 'all')
+        ? `${result.database?.fileName} & ${result.settings?.fileName}`
+        : result.fileName;
+      req.session._msg = { type: 'success', text: `Backup berhasil dibuat: ${fileNames}` };
     } else {
-      req.session._msg = { type: 'error', text: `Gagal backup: ${result.error}` };
+      req.session._msg = { type: 'error', text: `Gagal backup: ${result?.error || 'Error tidak diketahui'}` };
     }
   } catch (e) {
     req.session._msg = { type: 'error', text: `Gagal: ${e.message}` };
@@ -4587,13 +4590,13 @@ router.post('/backup/create', requireAdminSession, express.urlencoded({ extended
   res.redirect('/admin/backup');
 });
 
-router.post('/backup/restore', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
+router.post('/backup/restore', requireAdminSession, express.urlencoded({ extended: true }), async (req, res) => {
   try {
     const { fileName, type } = req.body;
     let result;
 
     if (type === 'database') {
-      result = backupSvc.restoreDatabase(fileName);
+      result = await backupSvc.restoreDatabase(fileName);
     } else if (type === 'settings') {
       result = backupSvc.restoreSettings(fileName);
     } else {
@@ -4601,10 +4604,11 @@ router.post('/backup/restore', requireAdminSession, express.urlencoded({ extende
       return res.redirect('/admin/backup');
     }
 
-    if (result.success) {
-      req.session._msg = { type: 'success', text: `Restore berhasil: ${fileName}` };
+    if (result && result.success) {
+      const reloadInfo = result.isPm2 ? ' Layanan aplikasi sedang dimuat ulang oleh PM2...' : ' Silakan restart aplikasi jika perlu.';
+      req.session._msg = { type: 'success', text: `Restore berhasil dari: ${fileName}.${reloadInfo}` };
     } else {
-      req.session._msg = { type: 'error', text: `Gagal restore: ${result.error}` };
+      req.session._msg = { type: 'error', text: `Gagal restore: ${result?.error || 'Error tidak diketahui'}` };
     }
   } catch (e) {
     req.session._msg = { type: 'error', text: `Gagal: ${e.message}` };
@@ -4612,7 +4616,7 @@ router.post('/backup/restore', requireAdminSession, express.urlencoded({ extende
   res.redirect('/admin/backup');
 });
 
-router.post('/backup/upload-restore', requireAdminSession, upload.single('backupFile'), (req, res) => {
+router.post('/backup/upload-restore', requireAdminSession, upload.single('backupFile'), async (req, res) => {
   try {
     const file = req.file;
     if (!file || !file.buffer || !file.originalname) {
@@ -4635,7 +4639,7 @@ router.post('/backup/upload-restore', requireAdminSession, upload.single('backup
       savedFileName = `uploaded_db_${timestamp}_${originalName}`;
       const savePath = path.join(backupDir, savedFileName);
       fs.writeFileSync(savePath, file.buffer);
-      result = backupSvc.restoreDatabase(savedFileName);
+      result = await backupSvc.restoreDatabase(savedFileName);
     } else if (ext === '.json' || originalName.includes('settings')) {
       savedFileName = `uploaded_settings_${timestamp}_${originalName}`;
       const savePath = path.join(backupDir, savedFileName);
@@ -4655,9 +4659,10 @@ router.post('/backup/upload-restore', requireAdminSession, upload.single('backup
     }
 
     if (result && result.success) {
+      const reloadInfo = result.isPm2 ? ' Layanan aplikasi sedang dimuat ulang oleh PM2.' : '';
       req.session._msg = { 
         type: 'success', 
-        text: `File backup "${originalName}" berhasil di-upload dan di-restore! Backup otomatis sebelum restore telah dibuat (${result.preRestoreBackup || '-'}).` 
+        text: `File backup "${originalName}" berhasil di-upload dan di-restore! Backup keselamatan sebelum restore telah dibuat (${result.preRestoreBackup || '-'}).${reloadInfo}` 
       };
     } else {
       req.session._msg = { type: 'error', text: `Gagal restore: ${result ? result.error : 'Error tidak diketahui'}` };
@@ -4671,9 +4676,10 @@ router.post('/backup/upload-restore', requireAdminSession, upload.single('backup
 
 router.post('/backup/delete', requireAdminSession, express.urlencoded({ extended: true }), (req, res) => {
   try {
-    const { fileName } = req.body;
-    const fs = require('fs');
-    const path = require('path');
+    const rawFileName = req.body.fileName;
+    const fileName = path.basename(rawFileName || '');
+    if (!fileName) throw new Error('Nama file backup tidak valid');
+
     const backupDir = path.join(__dirname, '../backups');
     const backupFilePath = path.join(backupDir, fileName);
 
