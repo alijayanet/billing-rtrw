@@ -1008,8 +1008,11 @@ router.get('/voucher', async (req, res) => {
     }
   }
 
+  const gateway = resolveVoucherGateway();
+
   res.render('public_voucher', {
     settings,
+    gateway,
     profiles,
     paymentChannels,
     order,

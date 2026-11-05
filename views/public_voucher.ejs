@@ -322,7 +322,10 @@
 
             <div class="col-12 col-lg-5">
               <label class="muted small mb-1">Metode Pembayaran</label>
-              <% const hasStaticQris = (String(settings.qris_static_qr_url || '').trim() || String(settings.qris_static_payload || '').trim()) && (settings.qris_static_enabled !== false && settings.qris_static_enabled !== 'false' && settings.qris_static_enabled !== 0 && settings.qris_static_enabled !== '0'); %>
+              <% 
+                const hasStaticQris = (String(settings.qris_static_qr_url || '').trim() || String(settings.qris_static_payload || '').trim()) && (settings.qris_static_enabled !== false && settings.qris_static_enabled !== 'false' && settings.qris_static_enabled !== 0 && settings.qris_static_enabled !== '0');
+                const isQrisStatic = (typeof gateway !== 'undefined' && gateway === 'qris_static') || (!gateway && hasStaticQris);
+              %>
               <% if (!hasStaticQris && (!paymentChannels || paymentChannels.length === 0)) { %>
                 <input type="hidden" name="method" value="QRIS">
                 <div class="payment-methods-grid mt-1">
@@ -339,7 +342,32 @@
                     </div>
                   </div>
                 </div>
+              <% } else if (isQrisStatic) { %>
+                <!-- Mode QRIS Statis: Hanya gunakan QRIS Nominal Unik saja -->
+                <div class="payment-methods-grid mt-1">
+                  <input
+                    class="pm-radio"
+                    type="radio"
+                    name="method"
+                    id="pm_static"
+                    value="QRIS_STATIC"
+                    checked
+                    style="position:absolute;opacity:0;pointer-events:none"
+                  >
+                  <label class="pay-method-item" for="pm_static">
+                    <div class="p-icon"><i class="bi bi-qr-code-scan"></i></div>
+                    <div class="p-info">
+                      <span class="p-name">QRIS (Nominal Unik)</span>
+                      <span class="p-sub">
+                        <span class="p-chip">Otomatis / Real-Time</span>
+                        <span class="p-chip">Semua E-Wallet & Bank</span>
+                      </span>
+                    </div>
+                  </label>
+                </div>
               <% } else { %>
+                <!-- Mode Gateway Otomatis (Tripay, Midtrans, Xendit, Duitku) -->
+                <!-- Menampilkan semua channel pembayaran yang diaktifkan di dashboard merchant gateway -->
                 <div class="payment-methods-grid mt-1">
                   <% if (hasStaticQris) { %>
                     <input
@@ -348,25 +376,20 @@
                       name="method"
                       id="pm_static"
                       value="QRIS_STATIC"
-                      checked
                       style="position:absolute;opacity:0;pointer-events:none"
                     >
                     <label class="pay-method-item" for="pm_static">
                       <div class="p-icon"><i class="bi bi-qr-code-scan"></i></div>
                       <div class="p-info">
-                        <span class="p-name">QRIS (Nominal Unik)</span>
+                        <span class="p-name">QRIS Statis (Nominal Unik)</span>
                         <span class="p-sub">
-                          <span class="p-chip">Otomatis / Real-Time</span>
-                          <span class="p-chip">Semua E-Wallet & Bank</span>
+                          <span class="p-chip">Scan QRIS</span>
                         </span>
                       </div>
                     </label>
                   <% } %>
                   <% (paymentChannels || []).forEach((ch, idx) => {
                     const code = String(ch.code || '').toUpperCase();
-                    // Hapus Virtual Account yang tidak digunakan & duplikat QRIS jika QRIS Statis aktif
-                    if (['BCAVA', 'BNIVA', 'BRIVA', 'PERMATAVA', 'MANDIRIVA'].includes(code)) return;
-                    if (hasStaticQris && (code === 'QRIS' || code === 'QRIS_STATIC')) return;
                     const name = ch.name || code;
                     const group = String(ch.group || '').toLowerCase();
                     let icon = 'bi-wallet2';
