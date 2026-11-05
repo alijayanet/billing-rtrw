@@ -354,16 +354,19 @@
                     <label class="pay-method-item" for="pm_static">
                       <div class="p-icon"><i class="bi bi-qr-code-scan"></i></div>
                       <div class="p-info">
-                        <span class="p-name">QRIS Statis (Scan)</span>
+                        <span class="p-name">QRIS (Nominal Unik)</span>
                         <span class="p-sub">
-                          <span class="p-chip">Nominal unik</span>
-                          <span class="p-chip">E-Wallet</span>
+                          <span class="p-chip">Otomatis / Real-Time</span>
+                          <span class="p-chip">Semua E-Wallet & Bank</span>
                         </span>
                       </div>
                     </label>
                   <% } %>
-                  <% paymentChannels.forEach((ch, idx) => {
+                  <% (paymentChannels || []).forEach((ch, idx) => {
                     const code = String(ch.code || '').toUpperCase();
+                    // Hapus Virtual Account yang tidak digunakan & duplikat QRIS jika QRIS Statis aktif
+                    if (['BCAVA', 'BNIVA', 'BRIVA', 'PERMATAVA', 'MANDIRIVA'].includes(code)) return;
+                    if (hasStaticQris && (code === 'QRIS' || code === 'QRIS_STATIC')) return;
                     const name = ch.name || code;
                     const group = String(ch.group || '').toLowerCase();
                     let icon = 'bi-wallet2';

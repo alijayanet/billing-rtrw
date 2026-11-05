@@ -155,6 +155,11 @@ async function warmVoucherCache() {
 
     // 2. Warm payment channels cache
     const gateway = settings.default_gateway || 'tripay';
+    if (!gateway || gateway === 'qris_static') {
+      // QRIS Statis: Hanya gunakan QRIS Nominal Unik, tanpa Virtual Account tambahan
+      return;
+    }
+
     const gatewayEnabled = {
       tripay: settings.tripay_enabled && settings.tripay_api_key,
       midtrans: settings.midtrans_enabled && settings.midtrans_server_key,
@@ -176,19 +181,14 @@ async function warmVoucherCache() {
           logger.warn('[VoucherCacheWarmer] Tripay channels fetch failed: ' + e.message);
           channels = [];
         }
+      } else if (gateway === 'midtrans') {
+        channels = [{ code: 'SNAP', name: 'Semua Metode (Snap)', group: 'E-Wallet', active: true }];
+      } else if (gateway === 'xendit') {
+        channels = [{ code: 'XENDIT', name: 'Semua Metode', group: 'E-Wallet', active: true }];
+      } else if (gateway === 'duitku') {
+        channels = [{ code: 'DUITKU', name: 'Semua Metode', group: 'E-Wallet', active: true }];
       } else {
-        const base = [
-          { code: 'QRIS', name: 'QRIS', group: 'QRIS', active: true },
-          { code: 'BCAVA', name: 'BCA Virtual Account', group: 'Virtual Account', active: true },
-          { code: 'BNIVA', name: 'BNI Virtual Account', group: 'Virtual Account', active: true },
-          { code: 'BRIVA', name: 'BRI Virtual Account', group: 'Virtual Account', active: true },
-          { code: 'PERMATAVA', name: 'Permata Virtual Account', group: 'Virtual Account', active: true },
-          { code: 'MANDIRIVA', name: 'Mandiri Virtual Account', group: 'Virtual Account', active: true }
-        ];
-        if (gateway === 'midtrans') channels = [{ code: 'SNAP', name: 'Semua Metode (Snap)', group: 'E-Wallet', active: true }, ...base];
-        else if (gateway === 'xendit') channels = [{ code: 'XENDIT', name: 'Semua Metode', group: 'E-Wallet', active: true }, ...base];
-        else if (gateway === 'duitku') channels = [{ code: 'DUITKU', name: 'Semua Metode', group: 'E-Wallet', active: true }, ...base];
-        else channels = base;
+        channels = [];
       }
 
       global[PAYMENT_CACHE_KEY] = {
