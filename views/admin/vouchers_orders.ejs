@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="<%= lang || 'id' %>">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Riwayat Transaksi Voucher Online | <%= company %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    .mtabs { display: flex; gap: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .mtab { padding: 8px 14px; border-radius: 8px; cursor: pointer; color: var(--muted); transition: all 0.2s; font-weight: 700; text-decoration: none; }
+    .mtab:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+    .mtab.active { background: var(--primary); color: white; }
+    .badge-status { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+    .badge-fulfilled { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+    .badge-paid { background: rgba(14, 165, 233, 0.15); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.3); }
+    .badge-pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-expired { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+    .code-box { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: rgba(0,0,0,0.25); padding: 3px 8px; border-radius: 6px; font-weight: 700; border: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+<%- include('partials/sidebar', { activePage: 'voucher_packages', company }) %>
+<div class="mw">
+  <div class="topbar">
+    <div class="tb-title">
+      <button class="hb-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+      <i class="bi bi-clock-history"></i> Riwayat Transaksi Voucher Online
+    </div>
+    <div class="tb-right" style="display:flex;align-items:center;gap:15px">
+      <span class="adm-badge"><i class="bi bi-person-fill"></i> <%= (typeof session !== 'undefined' && session && session.isCashier) ? t('admin.role.cashier', 'Kasir') : t('admin.role.admin', 'Admin') %></span>
+      <a href="/admin/logout" class="btn btn-g btn-sm"><i class="bi bi-box-arrow-left"></i></a>
+    </div>
+  </div>
+  <div class="page">
+    
+    <% if (msg) { %>
+      <div class="alert <%= msg.type === 'success' ? 's' : 'd' %>"><%= msg.text %></div>
+    <% } %>
+
+    <div class="mtabs">
+      <a href="/admin/vouchers" class="mtab"><i class="bi bi-ticket-perforated"></i> Pembuatan Voucher (Batch)</a>
+      <a href="/admin/vouchers/packages" class="mtab"><i class="bi bi-ticket-detailed"></i> Konfigurasi Paket (Real-Time)</a>
+      <a href="/admin/vouchers/orders" class="mtab active"><i class="bi bi-clock-history"></i> Transaksi Voucher Online</a>
+    </div>
+
+    <!-- Stat Grid -->
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="sc p">
+        <i class="bi bi-cart-check sc-icon"></i>
+        <div class="sc-label">Total Transaksi</div>
+        <div class="sc-val" id="stat-total">0</div>
+      </div>
+      <div class="sc s">
+        <i class="bi bi-cash-stack sc-icon"></i>
+        <div class="sc-label">Total Omzet Online</div>
+        <div class="sc-val" id="stat-revenue">Rp 0</div>
+      </div>
+      <div class="sc w">
+        <i class="bi bi-check-circle-fill sc-icon"></i>
+        <div class="sc-label">Sukses / Aktif</div>
+        <div class="sc-val" id="stat-fulfilled">0</div>
+      </div>
+      <div class="sc d">
+        <i class="bi bi-hourglass-split sc-icon"></i>
+        <div class="sc-label">Pending / Kadaluarsa</div>
+        <div class="sc-val" id="stat-pending">0</div>
+      </div>
+    </div>
+
+    <!-- Filter & Table Card -->
+    <div class="card">
+      <div class="card-hd" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <h6><i class="bi bi-list-ul"></i> Daftar Transaksi Pembelian Voucher Online</h6>
+        
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <!-- Search box -->
+          <div style="position:relative;">
+            <input type="text" id="filter-search" class="fc" placeholder="Cari Kode / No HP / Paket..." style="width:230px; padding-left:30px;" onkeyup="if(event.key==='Enter') loadOrders(1)">
+            <i class="bi bi-search" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:12px;"></i>
+          </div>
+
+          <!-- Status Filter -->
+          <select id="filter-status" class="fs" style="width:140px;" onchange="loadOrders(1)">
+            <option value="">Semua Status</option>
+            <option value="fulfilled">Sukses (Fulfilled)</option>
+            <option value="paid">Lunas (Paid)</option>
+            <option value="pending">Pending</option>
+            <option value="expired">Kadaluarsa</option>
+          </select>
+
+          <!-- Router Filter -->
+          <% if (typeof routers !== 'undefined' && routers && routers.length > 0) { %>
+          <select id="filter-router" class="fs" style="width:150px;" onchange="loadOrders(1)">
+            <option value="">Semua Router</option>
+            <% routers.forEach(r => { %>
+              <option value="<%= r.id %>"><%= r.name %></option>
+            <% }) %>
+          </select>
+          <% } %>
+
+          <button class="btn btn-g btn-sm" onclick="loadOrders(1)" title="Segarkan Data">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="dtbl">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Waktu Transaksi</th>
+              <th>No. WhatsApp</th>
+              <th>Paket & Masa Aktif</th>
+              <th>Harga (Rp)</th>
+              <th>Kode Voucher</th>
+              <th>Password</th>
+              <th>Router</th>
+              <th>Metode</th>
+              <th>Status</th>
+              <th>Notif WA</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="orders-list">
+            <tr><td colspan="12" class="text-center text-muted" style="padding:24px;">Memuat data transaksi...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-top:1px solid var(--border);">
+        <div class="text-muted fs12" id="pagination-info">Menampilkan 0 data</div>
+        <div style="display:flex; gap:6px;" id="pagination-controls"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let currentPage = 1;
+
+  async function loadOrders(page = 1) {
+    currentPage = page;
+    const tbody = document.getElementById('orders-list');
+    tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted" style="padding:20px;"><i class="bi bi-arrow-repeat spin"></i> Memuat data transaksi...</td></tr>';
+
+    const search = document.getElementById('filter-search').value.trim();
+    const status = document.getElementById('filter-status').value;
+    const routerEl = document.getElementById('filter-router');
+    const routerId = routerEl ? routerEl.value : '';
+
+    const query = new URLSearchParams({
+      page: page,
+      q: search,
+      status: status,
+      router_id: routerId
+    });
+
+    try {
+      const res = await fetch(`/admin/api/vouchers/orders?${query.toString()}`);
+      const json = await res.json();
+
+      if (!json.ok) {
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center text-danger" style="padding:20px;">Gagal memuat data: ${json.error || 'Terjadi kesalahan'}</td></tr>`;
+        return;
+      }
+
+      // Update Stats
+      if (json.stats) {
+        document.getElementById('stat-total').innerText = Number(json.stats.total_orders || 0).toLocaleString('id-ID');
+        document.getElementById('stat-revenue').innerText = 'Rp ' + Number(json.stats.total_revenue || 0).toLocaleString('id-ID');
+        document.getElementById('stat-fulfilled').innerText = Number(json.stats.fulfilled_count || 0).toLocaleString('id-ID');
+        document.getElementById('stat-pending').innerText = Number((json.stats.pending_count || 0) + (json.stats.expired_count || 0)).toLocaleString('id-ID');
+      }
+
+      // Render Rows
+      const rows = json.rows || [];
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted" style="padding:24px;"><i class="bi bi-inbox" style="font-size:24px;display:block;margin-bottom:6px;"></i> Belum ada transaksi voucher online.</td></tr>';
+        document.getElementById('pagination-info').innerText = 'Menampilkan 0 data';
+        document.getElementById('pagination-controls').innerHTML = '';
+        return;
+      }
+
+      let html = '';
+      rows.forEach(r => {
+        let statusBadge = '';
+        if (r.status === 'fulfilled') {
+          statusBadge = '<span class="badge-status badge-fulfilled"><i class="bi bi-check-circle-fill"></i> Sukses</span>';
+        } else if (r.status === 'paid') {
+          statusBadge = '<span class="badge-status badge-paid"><i class="bi bi-wallet2"></i> Lunas</span>';
+        } else if (r.status === 'pending') {
+          statusBadge = '<span class="badge-status badge-pending"><i class="bi bi-hourglass-split"></i> Pending</span>';
+        } else {
+          statusBadge = `<span class="badge-status badge-expired"><i class="bi bi-x-circle"></i> ${r.status || 'Expired'}</span>`;
+        }
+
+        const buyerPhoneClean = String(r.buyer_phone || '').replace(/[^0-9]/g, '');
+        const waLink = buyerPhoneClean ? `https://wa.me/${buyerPhoneClean}` : null;
+        
+        const qrisAddon = (r.qris_amount_unique && r.qris_amount_unique > r.price) 
+          ? `<div style="font-size:11px;color:#94a3b8;">(QRIS: Rp ${Number(r.qris_amount_unique).toLocaleString('id-ID')})</div>` 
+          : '';
+
+        let waStatus = '-';
+        if (r.wa_sent === 1) {
+          waStatus = '<span style="color:#22c55e;font-size:12px;font-weight:600;"><i class="bi bi-check2-all"></i> Terkirim</span>';
+        } else if (r.wa_error) {
+          waStatus = `<span style="color:#ef4444;font-size:11px;" title="${r.wa_error}"><i class="bi bi-exclamation-triangle"></i> Gagal</span>`;
+        } else if (r.status === 'fulfilled') {
+          waStatus = '<span style="color:#f59e0b;font-size:11px;">Belum kirim</span>';
+        }
+
+        html += `
+          <tr>
+            <td><strong>#${r.id}</strong></td>
+            <td style="font-size:12px;white-space:nowrap;">
+              <div>${r.paid_at || r.created_at || '-'}</div>
+              <div style="font-size:10px;color:#94a3b8;">${r.time_ago || ''}</div>
+            </td>
+            <td>
+              ${waLink ? `<a href="${waLink}" target="_blank" class="text-decoration-none" style="color:#38bdf8;font-weight:600;"><i class="bi bi-whatsapp"></i> ${r.buyer_phone}</a>` : (r.buyer_phone || '-')}
+            </td>
+            <td>
+              <strong>${r.profile_name || '-'}</strong>
+              <span style="font-size:11px;color:#94a3b8;">(${r.validity || '-'})</span>
+            </td>
+            <td>
+              <strong>Rp ${Number(r.price || 0).toLocaleString('id-ID')}</strong>
+              ${qrisAddon}
+            </td>
+            <td>
+              ${r.voucher_code ? `<span class="code-box" style="color:#38bdf8;">${r.voucher_code}</span>` : '<span class="text-muted">-</span>'}
+            </td>
+            <td>
+              ${r.voucher_password ? `<span class="code-box" style="color:#a78bfa;">${r.voucher_password}</span>` : '<span class="text-muted">-</span>'}
+            </td>
+            <td style="font-size:12px;">${r.router_name || 'Router #' + (r.router_id || '-')}</td>
+            <td><span class="pill" style="font-size:11px;padding:2px 8px;">${(r.payment_gateway || 'QRIS').toUpperCase()}</span></td>
+            <td>${statusBadge}</td>
+            <td>${waStatus}</td>
+            <td>
+              ${(r.status === 'fulfilled' && buyerPhoneClean) ? `
+                <button class="btn btn-g btn-sm" style="padding:3px 8px;font-size:11px;" onclick="resendVoucherWA(${r.id})" title="Kirim Ulang Kode Voucher ke WhatsApp">
+                  <i class="bi bi-send"></i> Kirim WA
+                </button>
+              ` : '-'}
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+
+      // Update Pagination
+      const pagination = json.pagination || {};
+      const totalPages = pagination.totalPages || 1;
+      document.getElementById('pagination-info').innerText = `Menampilkan ${rows.length} dari total ${pagination.total || 0} transaksi (Hal ${page} dari ${totalPages})`;
+
+      let pageControls = '';
+      if (page > 1) {
+        pageControls += `<button class="btn btn-g btn-sm" onclick="loadOrders(${page - 1})"><i class="bi bi-chevron-left"></i></button>`;
+      }
+      pageControls += `<span class="btn btn-g btn-sm active" style="pointer-events:none;">${page}</span>`;
+      if (page < totalPages) {
+        pageControls += `<button class="btn btn-g btn-sm" onclick="loadOrders(${page + 1})"><i class="bi bi-chevron-right"></i></button>`;
+      }
+      document.getElementById('pagination-controls').innerHTML = pageControls;
+
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="12" class="text-center text-danger" style="padding:20px;">Error: ${err.message}</td></tr>`;
+    }
+  }
+
+  async function resendVoucherWA(orderId) {
+    if (!confirm(`Kirim ulang detail voucher ke WhatsApp pembeli untuk Pesanan #${orderId}?`)) return;
+    try {
+      const res = await fetch(`/admin/api/vouchers/orders/${orderId}/resend-wa`, { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        alert('Berhasil! Pesan WhatsApp berisi kode voucher telah dikirim ulang ke pembeli.');
+        loadOrders(currentPage);
+      } else {
+        alert('Gagal mengirim WhatsApp: ' + (data.error || 'Terjadi kesalahan'));
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadOrders(1);
+  });
+</script>
+</body>
+</html>

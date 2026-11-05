@@ -2754,6 +2754,140 @@ router.post('/api/vouchers/packages/:id/delete', requireAdminSession, (req, res)
   }
 });
 
+// ─── VOUCHER ONLINE TRANSACTIONS (PUBLIC VOUCHER ORDERS) ───────────────────
+router.get('/vouchers/orders', requireAdminSession, requireSidebarMenuAccess('voucher_packages'), (req, res) => {
+  const selectedRouterId = req.selectedRouterId || (req.query.router_id ? Number(req.query.router_id) : null);
+  const routers = db.prepare('SELECT id, name FROM routers WHERE is_active = 1').all();
+  res.render('admin/vouchers_orders', {
+    title: 'Riwayat Transaksi Voucher Online',
+    company: company(),
+    activePage: 'voucher_packages',
+    routers,
+    selectedRouterId,
+    msg: flashMsg(req)
+  });
+});
+
+router.get('/api/vouchers/orders', requireAdminSession, (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+    const status = String(req.query.status || '').trim();
+    const routerId = req.query.router_id ? Number(req.query.router_id) : null;
+    const q = String(req.query.q || '').trim();
+
+    const where = [];
+    const params = [];
+
+    if (status) {
+      where.push('pvo.status = ?');
+      params.push(status);
+    }
+    if (routerId && routerId > 0) {
+      where.push('pvo.router_id = ?');
+      params.push(routerId);
+    }
+    if (q) {
+      where.push('(pvo.voucher_code LIKE ? OR pvo.buyer_phone LIKE ? OR pvo.profile_name LIKE ? OR CAST(pvo.id AS TEXT) LIKE ?)');
+      params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
+    }
+
+    const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+    // Summary statistics
+    const statsRow = db.prepare(`
+      SELECT 
+        COUNT(*) as total_orders,
+        SUM(CASE WHEN status IN ('paid', 'fulfilled') THEN price ELSE 0 END) as total_revenue,
+        SUM(CASE WHEN status = 'fulfilled' THEN 1 ELSE 0 END) as fulfilled_count,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+        SUM(CASE WHEN status = 'expired' THEN 1 ELSE 0 END) as expired_count
+      FROM public_voucher_orders
+    `).get();
+
+    // Total count for current filter
+    const totalCount = db.prepare(`
+      SELECT COUNT(*) as cnt 
+      FROM public_voucher_orders pvo
+      ${whereSql}
+    `).get(...params).cnt;
+
+    // Paginated list
+    const rows = db.prepare(`
+      SELECT pvo.*, r.name as router_name
+      FROM public_voucher_orders pvo
+      LEFT JOIN routers r ON r.id = pvo.router_id
+      ${whereSql}
+      ORDER BY pvo.id DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, limit, offset);
+
+    // Format dates to local
+    const formattedRows = rows.map(r => {
+      const displayDate = r.paid_at || r.created_at;
+      return {
+        ...r,
+        created_at: r.created_at ? formatDateLocal(r.created_at, 'YYYY-MM-DD HH:mm:ss') : null,
+        paid_at: r.paid_at ? formatDateLocal(r.paid_at, 'YYYY-MM-DD HH:mm:ss') : null,
+        fulfilled_at: r.fulfilled_at ? formatDateLocal(r.fulfilled_at, 'YYYY-MM-DD HH:mm:ss') : null,
+        time_ago: displayDate ? formatDateLocal(displayDate, 'DD MMM YYYY, HH:mm') : '-'
+      };
+    });
+
+    res.json({
+      ok: true,
+      rows: formattedRows,
+      stats: statsRow || {},
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit) || 1
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+router.post('/api/vouchers/orders/:id/resend-wa', requireAdminSession, async (req, res) => {
+  try {
+    const orderId = Number(req.params.id);
+    const order = db.prepare('SELECT * FROM public_voucher_orders WHERE id = ?').get(orderId);
+    if (!order) return res.status(404).json({ ok: false, error: 'Pesanan voucher tidak ditemukan' });
+    if (!order.buyer_phone) return res.status(400).json({ ok: false, error: 'Nomor WhatsApp pembeli tidak tercatat' });
+    if (!order.voucher_code) return res.status(400).json({ ok: false, error: 'Kode voucher belum digenerate untuk pesanan ini' });
+
+    const { sendWA, whatsappStatus } = await import('../services/whatsappBot.mjs');
+    if (whatsappStatus.connection !== 'open') {
+      return res.status(400).json({ ok: false, error: 'Bot WhatsApp sedang tidak terhubung' });
+    }
+
+    const gateway = (order.payment_gateway || 'QRIS').toUpperCase();
+    const msg =
+      `🎫 *KIRIM ULANG VOUCHER HOTSPOT*\n\n` +
+      `✅ Pembayaran diterima via *${gateway}*\n` +
+      `📦 Paket: *${order.profile_name}* (${order.validity || '-'})\n` +
+      `💰 Harga: Rp ${Number(order.price || 0).toLocaleString('id-ID')}\n\n` +
+      `👤 User: *${order.voucher_code}*\n` +
+      `🔑 Pass: *${order.voucher_password || order.voucher_code}*\n\n` +
+      `Terima kasih telah menggunakan layanan kami.`;
+
+    await sendWA(order.buyer_phone, msg);
+
+    db.prepare(`
+      UPDATE public_voucher_orders
+      SET wa_sent = 1, wa_sent_at = (NOW_LOCAL()), wa_error = '', updated_at = (NOW_LOCAL())
+      WHERE id = ?
+    `).run(orderId);
+
+    res.json({ ok: true, message: 'Voucher berhasil dikirim ulang ke WhatsApp' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ─── BILLING ───────────────────────────────────────────────────────────────
 router.get('/billing', requireAdminSession, requireSidebarMenuAccess('billing'), (req, res) => {
   const timeInfo = getCurrentTimeInfo();
