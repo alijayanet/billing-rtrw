@@ -290,6 +290,161 @@
           </div>
         </div>
 
+        <!-- Kustomisasi Beranda & Portal Pelanggan -->
+        <div class="card mb16">
+          <div class="card-hd">
+            <h6 style="margin:0"><i class="bi bi-window-desktop"></i> Kustomisasi Beranda & Portal Pelanggan (/customer/login)</h6>
+          </div>
+          <div class="card-bd settings-grid">
+            <!-- Kolom 1: Banner Pengumuman & Status Jaringan -->
+            <div>
+              <h6 style="font-size:13px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">
+                <i class="bi bi-megaphone"></i> Banner Pengumuman & Status Jaringan
+              </h6>
+
+              <div class="form-row">
+                <div class="fg">
+                  <label class="fl">Banner Pengumuman Portal</label>
+                  <select class="fs" name="portal_banner_enabled">
+                    <option value="false" <%= !settings.portal_banner_enabled ? 'selected' : '' %>>Nonaktif</option>
+                    <option value="true" <%= settings.portal_banner_enabled ? 'selected' : '' %>>Aktif (Tampilkan di Beranda)</option>
+                  </select>
+                </div>
+                <div class="fg">
+                  <label class="fl">Tipe / Warna Banner</label>
+                  <select class="fs" name="portal_banner_type">
+                    <option value="info" <%= (settings.portal_banner_type === 'info' || !settings.portal_banner_type) ? 'selected' : '' %>>Info (Biru)</option>
+                    <option value="warning" <%= settings.portal_banner_type === 'warning' ? 'selected' : '' %>>Peringatan / Maintenance (Kuning)</option>
+                    <option value="danger" <%= settings.portal_banner_type === 'danger' ? 'selected' : '' %>>Gangguan Jaringan (Merah)</option>
+                    <option value="success" <%= settings.portal_banner_type === 'success' ? 'selected' : '' %>>Promo / Berita Baik (Hijau)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="fg">
+                <label class="fl">Teks Pengumuman / Info Gangguan</label>
+                <textarea class="fc" name="portal_banner_text" rows="3" placeholder="Contoh: Jadwal pemeliharaan jaringan kabel fiber optik wilayah Sektor 2 pada Kamis dini hari 01.00 - 04.00 WIB. Mohon maaf atas ketidaknyamanannya."><%= settings.portal_banner_text || '' %></textarea>
+                <div style="font-size:10px; color:var(--muted); margin-top:4px">
+                  Teks ini akan tampil paling atas sebagai banner perhatian bagi setiap pengunjung atau pelanggan yang membuka halaman web.
+                </div>
+              </div>
+
+              <div class="form-row" style="margin-top:16px">
+                <div class="fg">
+                  <label class="fl"><i class="bi bi-activity"></i> Status Jaringan</label>
+                  <select class="fs" name="portal_network_status">
+                    <option value="normal" <%= (settings.portal_network_status === 'normal' || !settings.portal_network_status) ? 'selected' : '' %>>🟢 Normal (Semua Server Stabil)</option>
+                    <option value="maintenance" <%= settings.portal_network_status === 'maintenance' ? 'selected' : '' %>>🟠 Pemeliharaan Terjadwal</option>
+                    <option value="issue" <%= settings.portal_network_status === 'issue' ? 'selected' : '' %>>🔴 Sedang Ada Kendala Teknis</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="fg">
+                <label class="fl">Kustom Keterangan Status Jaringan (Opsional)</label>
+                <input class="fc" name="portal_network_status_text" value="<%= settings.portal_network_status_text || '' %>" placeholder="Kosongkan untuk teks otomatis bawaan sistem">
+              </div>
+
+              <h6 style="font-size:13px;color:var(--muted);margin-top:20px;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">
+                <i class="bi bi-geo-alt"></i> Lokasi & Media Sosial
+              </h6>
+
+              <div class="fg">
+                <label class="fl">Link Google Maps Kantor</label>
+                <input class="fc" name="social_maps_url" value="<%= settings.social_maps_url || '' %>" placeholder="https://maps.google.com/?q=-6.123,106.123">
+                <div style="font-size:10px; color:var(--muted); margin-top:4px">Link ini akan muncul di kartu Kontak Kantor agar pelanggan bisa langsung membuka navigasi Google Maps.</div>
+              </div>
+
+              <div class="form-row">
+                <div class="fg">
+                  <label class="fl"><i class="bi bi-instagram"></i> Instagram</label>
+                  <input class="fc" name="social_instagram" value="<%= settings.social_instagram || '' %>" placeholder="https://instagram.com/alijayanet">
+                </div>
+                <div class="fg">
+                  <label class="fl"><i class="bi bi-facebook"></i> Facebook</label>
+                  <input class="fc" name="social_facebook" value="<%= settings.social_facebook || '' %>" placeholder="https://facebook.com/alijayanet">
+                </div>
+              </div>
+
+              <div class="fg">
+                <label class="fl"><i class="bi bi-tiktok"></i> TikTok</label>
+                <input class="fc" name="social_tiktok" value="<%= settings.social_tiktok || '' %>" placeholder="https://tiktok.com/@alijayanet">
+              </div>
+            </div>
+
+            <!-- Kolom 2: Slogan, Hero & Highlight Statistik -->
+            <div>
+              <h6 style="font-size:13px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">
+                <i class="bi bi-card-heading"></i> Slogan & Konten Hero Promosi
+              </h6>
+
+              <div class="fg">
+                <label class="fl">Tagline Badge Kecil</label>
+                <input class="fc" name="portal_hero_badge" value="<%= settings.portal_hero_badge || '' %>" placeholder="Internet Fiber Optic Super Cepat & Unlimited">
+                <div style="font-size:10px; color:var(--muted); margin-top:4px">Tampil di atas judul utama (Contoh: Promo Ramadhan: Bebas Biaya Pasang!).</div>
+              </div>
+
+              <div class="fg">
+                <label class="fl">Judul Utama (Hero Title)</label>
+                <input class="fc" name="portal_hero_title" value="<%= settings.portal_hero_title || '' %>" placeholder="Nikmati Koneksi Internet Terbaik Tanpa Batas Kuota">
+              </div>
+
+              <div class="fg">
+                <label class="fl">Deskripsi Pengantar (Hero Subtitle)</label>
+                <textarea class="fc" name="portal_hero_subtitle" rows="3" placeholder="Selamat datang di portal resmi... Kami menyediakan jaringan internet ultra cepat, stabil, dan terjangkau..."><%= settings.portal_hero_subtitle || '' %></textarea>
+              </div>
+
+              <h6 style="font-size:13px;color:var(--muted);margin-top:20px;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">
+                <i class="bi bi-award"></i> 4 Poin Highlight Statistik (Di Bawah Hero)
+              </h6>
+
+              <div class="form-row">
+                <div class="fg">
+                  <label class="fl">Poin 1: Nilai</label>
+                  <input class="fc" name="portal_stat_1_val" value="<%= settings.portal_stat_1_val || '' %>" placeholder="100%">
+                </div>
+                <div class="fg">
+                  <label class="fl">Poin 1: Keterangan</label>
+                  <input class="fc" name="portal_stat_1_label" value="<%= settings.portal_stat_1_label || '' %>" placeholder="Fiber Optic">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="fg">
+                  <label class="fl">Poin 2: Nilai</label>
+                  <input class="fc" name="portal_stat_2_val" value="<%= settings.portal_stat_2_val || '' %>" placeholder="No FUP">
+                </div>
+                <div class="fg">
+                  <label class="fl">Poin 2: Keterangan</label>
+                  <input class="fc" name="portal_stat_2_label" value="<%= settings.portal_stat_2_label || '' %>" placeholder="Bebas Kuota">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="fg">
+                  <label class="fl">Poin 3: Nilai</label>
+                  <input class="fc" name="portal_stat_3_val" value="<%= settings.portal_stat_3_val || '' %>" placeholder="99.9%">
+                </div>
+                <div class="fg">
+                  <label class="fl">Poin 3: Keterangan</label>
+                  <input class="fc" name="portal_stat_3_label" value="<%= settings.portal_stat_3_label || '' %>" placeholder="Uptime SLA">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="fg">
+                  <label class="fl">Poin 4: Nilai</label>
+                  <input class="fc" name="portal_stat_4_val" value="<%= settings.portal_stat_4_val || '' %>" placeholder="24/7">
+                </div>
+                <div class="fg">
+                  <label class="fl">Poin 4: Keterangan</label>
+                  <input class="fc" name="portal_stat_4_label" value="<%= settings.portal_stat_4_label || '' %>" placeholder="Bantuan CS">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="card mb16">
           <div class="card-hd"><h6><i class="bi bi-whatsapp"></i> <%= t('admin.settings.whatsapp.title', 'Pengaturan WhatsApp') %></h6></div>
           <div class="card-bd settings-grid">

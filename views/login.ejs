@@ -77,7 +77,7 @@
 
     /* Navbar */
     .custom-navbar {
-      background: rgba(15, 23, 42, 0.92);
+      background: rgba(15, 23, 42, 0.94);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border-color);
@@ -120,6 +120,69 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 22px rgba(99, 102, 241, 0.5);
       color: #fff;
+    }
+
+    /* Live Network Pulse Dot */
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulseAnimation 2s infinite;
+    }
+    @keyframes pulseAnimation {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.25); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    /* Announcement Banner */
+    .portal-announcement-banner {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      font-size: 0.92rem;
+      position: relative;
+      z-index: 1020;
+    }
+
+    /* Mobile Quick Actions Bar */
+    .mobile-action-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .mobile-action-item {
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 12px 6px;
+      text-align: center;
+      text-decoration: none;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .mobile-action-item:hover, .mobile-action-item:active {
+      background: rgba(99, 102, 241, 0.3);
+      border-color: rgba(99, 102, 241, 0.6);
+      color: #ffffff;
+      transform: translateY(-2px);
+    }
+
+    .mobile-action-item i {
+      font-size: 1.35rem;
+    }
+
+    .mobile-action-item span {
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
     }
 
     /* Hero Section */
@@ -401,6 +464,10 @@
       text-decoration: none;
       text-align: center;
       transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
     .btn-pkg-action:hover {
@@ -408,6 +475,31 @@
       border-color: transparent;
       color: #ffffff;
       box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-pkg-wa {
+      background: rgba(37, 211, 102, 0.15);
+      border: 1px solid rgba(37, 211, 102, 0.35);
+      color: #4ade80;
+      border-radius: 12px;
+      padding: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      text-align: center;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .btn-pkg-wa:hover {
+      background: #25d366;
+      border-color: #25d366;
+      color: #ffffff;
+      box-shadow: 0 6px 18px rgba(37, 211, 102, 0.35);
     }
 
     /* Features Highlight Cards */
@@ -489,6 +581,54 @@
       flex-shrink: 0;
     }
 
+    /* Floating WhatsApp Button */
+    .floating-wa-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #25d366;
+      color: #ffffff !important;
+      border-radius: 50px;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(37, 211, 102, 0.4);
+      z-index: 999;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .floating-wa-btn:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 14px 30px rgba(37, 211, 102, 0.55);
+      color: #ffffff;
+    }
+
+    /* Social Media Pills */
+    .social-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid var(--border-color);
+      color: #e2e8f0;
+      padding: 6px 14px;
+      border-radius: 30px;
+      font-size: 0.88rem;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .social-pill:hover {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: rgba(99, 102, 241, 0.5);
+      color: #ffffff;
+      transform: translateY(-2px);
+    }
+
     /* Footer */
     .site-footer {
       background: #070a12;
@@ -537,10 +677,10 @@
         font-size: 2.2rem;
       }
       .hero-section {
-        padding: 30px 0 50px;
+        padding: 25px 0 50px;
       }
       .login-card-container {
-        margin-top: 40px;
+        margin-top: 35px;
       }
       .section-title {
         font-size: 1.8rem;
@@ -560,11 +700,36 @@
       .hero-stats {
         grid-template-columns: 1fr 1fr;
       }
+      .floating-wa-btn span {
+        display: none;
+      }
+      .floating-wa-btn {
+        padding: 12px 14px;
+        border-radius: 50%;
+      }
     }
   </style>
 </head>
 
 <body>
+
+  <% 
+    // Status Jaringan Dinamis
+    const netStatus = settings.portal_network_status || 'normal';
+    let netBadgeClass = 'bg-success bg-opacity-20 text-success border-success border-opacity-30';
+    let netDotClass = 'bg-success';
+    let netDefaultText = 'Semua Layanan Jaringan Normal';
+    if (netStatus === 'maintenance') {
+      netBadgeClass = 'bg-warning bg-opacity-20 text-warning border-warning border-opacity-30';
+      netDotClass = 'bg-warning';
+      netDefaultText = 'Pemeliharaan Jaringan Terjadwal';
+    } else if (netStatus === 'issue') {
+      netBadgeClass = 'bg-danger bg-opacity-20 text-danger border-danger border-opacity-30';
+      netDotClass = 'bg-danger';
+      netDefaultText = 'Sedang Ada Kendala Teknis';
+    }
+    const netText = (settings.portal_network_status_text || '').trim() || netDefaultText;
+  %>
 
   <!-- Header / Navbar Section -->
   <nav class="navbar navbar-expand-lg sticky-top custom-navbar">
@@ -573,6 +738,12 @@
         <img src="/img/logo.png" alt="Logo" onerror="this.style.display='none'">
         <span class="fw-bold fs-5 text-white"><%= settings.company_header || 'Portal ISP' %></span>
       </a>
+
+      <!-- Network Status Badge in Navbar (Desktop) -->
+      <div class="d-none d-lg-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill border small fw-medium ms-2 <%= netBadgeClass %>">
+        <span class="pulse-dot <%= netDotClass %>"></span>
+        <span><%= netText %></span>
+      </div>
 
       <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
         aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
@@ -613,31 +784,91 @@
     </div>
   </nav>
 
+  <!-- Dynamic Announcement / Maintenance Banner -->
+  <% if (settings.portal_banner_enabled && settings.portal_banner_text) { 
+    const bType = settings.portal_banner_type || 'info';
+    let alertCls = 'bg-info bg-opacity-15 text-info border-info border-opacity-30';
+    let bIcon = 'bi-info-circle-fill';
+    if (bType === 'warning') {
+      alertCls = 'bg-warning bg-opacity-20 text-warning border-warning border-opacity-40';
+      bIcon = 'bi-exclamation-triangle-fill';
+    } else if (bType === 'danger') {
+      alertCls = 'bg-danger bg-opacity-20 text-danger border-danger border-opacity-40';
+      bIcon = 'bi-exclamation-octagon-fill';
+    } else if (bType === 'success') {
+      alertCls = 'bg-success bg-opacity-20 text-success border-success border-opacity-40';
+      bIcon = 'bi-megaphone-fill';
+    }
+  %>
+    <div class="portal-announcement-banner border-bottom py-2 px-3 <%= alertCls %>" id="portalAnnouncement">
+      <div class="container d-flex align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-2 small fw-semibold">
+          <i class="bi <%= bIcon %> fs-6 flex-shrink-0"></i>
+          <span><%= settings.portal_banner_text %></span>
+        </div>
+        <button type="button" class="btn-close btn-close-white small flex-shrink-0" style="font-size:0.75rem;" onclick="document.getElementById('portalAnnouncement').style.display='none'"></button>
+      </div>
+    </div>
+  <% } %>
+
   <!-- Hero & Login Section -->
   <section class="hero-section" id="hero">
     <div class="container">
+
+      <!-- Mobile Quick Actions & Status (Visible only on mobile/tablet) -->
+      <div class="d-block d-lg-none mb-4">
+        <!-- Mobile Network Status Badge -->
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill border small fw-medium mb-3 <%= netBadgeClass %>">
+          <span class="pulse-dot <%= netDotClass %>"></span>
+          <span><%= netText %></span>
+        </div>
+
+        <div class="mobile-action-bar">
+          <a href="#login-section" class="mobile-action-item">
+            <i class="bi bi-box-arrow-in-right text-primary"></i>
+            <span>Masuk</span>
+          </a>
+          <a href="/customer/check-billing" class="mobile-action-item">
+            <i class="bi bi-receipt text-info"></i>
+            <span>Cek Tagihan</span>
+          </a>
+          <a href="/customer/voucher" class="mobile-action-item">
+            <i class="bi bi-ticket-perforated text-warning"></i>
+            <span>Beli Voucher</span>
+          </a>
+          <a href="#packages" class="mobile-action-item">
+            <i class="bi bi-wifi text-success"></i>
+            <span>Paket</span>
+          </a>
+        </div>
+      </div>
+
       <div class="row align-items-center">
 
-        <!-- Left Column: Company Value Proposition -->
+        <!-- Left Column: Company Value Proposition (Editable) -->
         <div class="col-lg-7 mb-5 mb-lg-0">
           <div class="hero-badge">
             <i class="bi bi-lightning-charge-fill text-warning"></i>
-            <span>Internet Fiber Optic Super Cepat & Unlimited</span>
+            <span><%= settings.portal_hero_badge || 'Internet Fiber Optic Super Cepat & Unlimited' %></span>
           </div>
 
           <h1 class="hero-title">
-            Nikmati Koneksi Internet Terbaik Tanpa Batas Kuota
+            <%= settings.portal_hero_title || 'Nikmati Koneksi Internet Terbaik Tanpa Batas Kuota' %>
           </h1>
 
           <p class="hero-subtitle">
-            Selamat datang di portal resmi <strong><%= settings.company_header %></strong>. Kami menyediakan jaringan internet ultra cepat, stabil, dan terjangkau untuk kebutuhan rumah tangga, bisnis, gaming, hingga hiburan keluarga Anda.
+            <% if (settings.portal_hero_subtitle) { %>
+              <%= settings.portal_hero_subtitle %>
+            <% } else { %>
+              Selamat datang di portal resmi <strong><%= settings.company_header || 'Portal ISP' %></strong>. Kami menyediakan jaringan internet ultra cepat, stabil, dan terjangkau untuk kebutuhan rumah tangga, bisnis, gaming, hingga hiburan keluarga Anda.
+            <% } %>
           </p>
 
           <div class="d-flex flex-wrap gap-3 mb-4" style="max-width: 620px;">
-            <a href="/customer/register" class="btn btn-primary btn-lg rounded-3 fw-bold px-4 py-3 shadow-lg flex-fill d-inline-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%); border: none; min-width: 260px;">
+            <a href="/customer/register" class="btn btn-primary btn-lg rounded-3 fw-bold px-4 py-3 shadow-lg flex-fill d-inline-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%); border: none; min-width: 240px;">
               <i class="bi bi-person-plus-fill me-2 fs-5"></i> Daftar Pasang Baru
             </a>
-            <button type="button" id="btn-install-pwa-hero" class="btn btn-warning btn-lg rounded-3 fw-bold px-4 py-3 shadow-lg text-dark flex-fill d-inline-flex align-items-center justify-content-center" style="min-width: 260px;" onclick="triggerPwaInstall()">
+            <button type="button" id="btn-install-pwa-hero" class="btn btn-warning btn-lg rounded-3 fw-bold px-4 py-3 shadow-lg text-dark flex-fill d-inline-flex align-items-center justify-content-center" style="min-width: 240px;" onclick="triggerPwaInstall()">
               <i class="bi bi-download me-2 fs-5"></i> Install Aplikasi Pelanggan
             </button>
             <a href="/customer/check-billing" class="btn btn-outline-light btn-lg rounded-3 fw-bold px-4 py-3 w-100 d-inline-flex align-items-center justify-content-center mt-1" style="border-color: rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.05);">
@@ -645,23 +876,23 @@
             </a>
           </div>
 
-          <!-- Highlight Badges -->
+          <!-- Highlight Badges (Editable) -->
           <div class="hero-stats">
             <div class="stat-item">
-              <div class="stat-number"><i class="bi bi-speedometer2 text-info me-1"></i> 100%</div>
-              <div class="stat-label">Fiber Optic</div>
+              <div class="stat-number"><i class="bi bi-speedometer2 text-info me-1"></i> <%= settings.portal_stat_1_val || '100%' %></div>
+              <div class="stat-label"><%= settings.portal_stat_1_label || 'Fiber Optic' %></div>
             </div>
             <div class="stat-item">
-              <div class="stat-number"><i class="bi bi-infinity text-success me-1"></i> No FUP</div>
-              <div class="stat-label">Bebas Kuota</div>
+              <div class="stat-number"><i class="bi bi-infinity text-success me-1"></i> <%= settings.portal_stat_2_val || 'No FUP' %></div>
+              <div class="stat-label"><%= settings.portal_stat_2_label || 'Bebas Kuota' %></div>
             </div>
             <div class="stat-item">
-              <div class="stat-number"><i class="bi bi-shield-lock-fill text-warning me-1"></i> 99.9%</div>
-              <div class="stat-label">Uptime SLA</div>
+              <div class="stat-number"><i class="bi bi-shield-lock-fill text-warning me-1"></i> <%= settings.portal_stat_3_val || '99.9%' %></div>
+              <div class="stat-label"><%= settings.portal_stat_3_label || 'Uptime SLA' %></div>
             </div>
             <div class="stat-item">
-              <div class="stat-number"><i class="bi bi-headset text-primary me-1"></i> 24/7</div>
-              <div class="stat-label">Bantuan CS</div>
+              <div class="stat-number"><i class="bi bi-headset text-primary me-1"></i> <%= settings.portal_stat_4_val || '24/7' %></div>
+              <div class="stat-label"><%= settings.portal_stat_4_label || 'Bantuan CS' %></div>
             </div>
           </div>
         </div>
@@ -674,7 +905,7 @@
                 <img src="/img/logo.png" alt="Logo" style="width:40px; height:40px; object-fit:contain;" onerror="this.src='/favicon.ico'; this.onerror=null;">
               </div>
               <h4 class="fw-bold mb-1 text-white"><%= t('customer.portal_title', 'Portal Pelanggan') %></h4>
-              <p class="small text-white opacity-75 mb-0"><%= settings.company_header %></p>
+              <p class="small text-white opacity-75 mb-0"><%= settings.company_header || 'Portal Pelanggan' %></p>
             </div>
 
             <div class="login-card-body">
@@ -686,9 +917,13 @@
                   </label>
                 </div>
 
-                <div class="text-center mb-3 small" style="color: #cbd5e1;">
-                  <i class="bi bi-info-circle me-1"></i>
-                  Masukkan ID pelanggan / Nomor WhatsApp terdaftar
+                <div class="d-flex justify-content-between align-items-center mb-3 small" style="color: #cbd5e1;">
+                  <span><i class="bi bi-info-circle me-1"></i> Masukkan ID pelanggan / HP</span>
+                  <% if (settings.company_phone) { %>
+                    <a href="https://wa.me/<%= String(settings.company_phone).replace(/D/g,'') %>?text=<%= encodeURIComponent('Halo CS ' + (settings.company_header || 'Alijaya') + ', saya lupa ID/Tag Pelanggan saya. Mohon bantuannya.') %>" target="_blank" rel="noopener" class="text-decoration-none fw-semibold" style="color:#a5b4fc">
+                      Lupa ID?
+                    </a>
+                  <% } %>
                 </div>
 
                 <% if (settings.login_otp_enabled) { %>
@@ -794,6 +1029,12 @@
                 <a href="/customer/register?package=<%= encodeURIComponent(p.name) %>" class="btn-pkg-action">
                   <i class="bi bi-cart-plus me-1"></i> Pilih Paket Ini
                 </a>
+
+                <% if (settings.company_phone) { %>
+                  <a href="https://wa.me/<%= String(settings.company_phone).replace(/D/g,'') %>?text=<%= encodeURIComponent('Halo CS ' + (settings.company_header || 'Admin') + ', saya ingin bertanya & berlangganan Paket ' + p.name + ' (Rp ' + Number(p.price||0).toLocaleString('id-ID') + '/bln). Mohon infonya.') %>" target="_blank" rel="noopener" class="btn-pkg-wa">
+                    <i class="bi bi-whatsapp"></i> Tanya via WhatsApp
+                  </a>
+                <% } %>
               </div>
             </div>
           <% }); %>
@@ -807,7 +1048,7 @@
     <div class="container">
       <div class="text-center">
         <span class="section-title-badge"><i class="bi bi-star me-1"></i> Keunggulan Layanan</span>
-        <h2 class="section-title">Mengapa Memilih <%= settings.company_header %>?</h2>
+        <h2 class="section-title">Mengapa Memilih <%= settings.company_header || 'Kami' %>?</h2>
         <p class="section-subtitle">
           Kami berkomitmen menghadirkan pengalaman berinternet terbaik tanpa hambatan dengan teknologi mutakhir dan pelayanan profesional.
         </p>
@@ -921,7 +1162,7 @@
 
         <% if (settings.company_phone) { %>
           <div class="col-md-6 col-lg-3">
-            <a href="https://wa.me/<%= String(settings.company_phone).replace(/\D/g,'') %>" target="_blank" rel="noopener" class="text-decoration-none info-card-link">
+            <a href="https://wa.me/<%= String(settings.company_phone).replace(/D/g,'') %>" target="_blank" rel="noopener" class="text-decoration-none info-card-link">
               <div class="glass-card info-card">
                 <div class="info-icon">
                   <i class="bi bi-whatsapp text-primary fs-3"></i>
@@ -944,7 +1185,7 @@
       <div class="row g-4 align-items-center">
         <div class="col-lg-5">
           <span class="section-title-badge"><i class="bi bi-building me-1"></i> Informasi Perusahaan</span>
-          <h2 class="section-title mb-3"><%= settings.company_header %></h2>
+          <h2 class="section-title mb-3"><%= settings.company_header || 'Layanan Kami' %></h2>
           <p class="leading-relaxed" style="color: #cbd5e1;">
             Kami siap memberikan pelayanan internet terbaik dengan kemudahan akses dan fleksibilitas tinggi. Jangan ragu untuk menghubungi layanan pelanggan kami jika memerlukan bantuan.
           </p>
@@ -954,7 +1195,36 @@
               <i class="bi bi-geo-alt fs-4" style="color: #a5b4fc;"></i>
               <div>
                 <h6 class="fw-bold mb-1 text-white">Alamat Kantor</h6>
-                <p class="small mb-0" style="color: #cbd5e1;"><%= settings.company_address %></p>
+                <p class="small mb-2" style="color: #cbd5e1;"><%= settings.company_address %></p>
+                <% if (settings.social_maps_url) { %>
+                  <a href="<%= settings.social_maps_url %>" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm rounded-pill px-3 py-1 fw-semibold" style="font-size:0.8rem">
+                    <i class="bi bi-geo-alt-fill me-1"></i> Buka Petunjuk Maps
+                  </a>
+                <% } %>
+              </div>
+            </div>
+          <% } %>
+
+          <!-- Social Media Links (if configured) -->
+          <% if (settings.social_instagram || settings.social_facebook || settings.social_tiktok) { %>
+            <div class="mt-4 pt-2">
+              <h6 class="small fw-bold text-white mb-2"><i class="bi bi-share me-1 text-info"></i> Ikuti Media Sosial Kami:</h6>
+              <div class="d-flex flex-wrap gap-2">
+                <% if (settings.social_instagram) { %>
+                  <a href="<%= settings.social_instagram %>" target="_blank" rel="noopener" class="social-pill">
+                    <i class="bi bi-instagram text-danger"></i> Instagram
+                  </a>
+                <% } %>
+                <% if (settings.social_facebook) { %>
+                  <a href="<%= settings.social_facebook %>" target="_blank" rel="noopener" class="social-pill">
+                    <i class="bi bi-facebook text-primary"></i> Facebook
+                  </a>
+                <% } %>
+                <% if (settings.social_tiktok) { %>
+                  <a href="<%= settings.social_tiktok %>" target="_blank" rel="noopener" class="social-pill">
+                    <i class="bi bi-tiktok text-light"></i> TikTok
+                  </a>
+                <% } %>
               </div>
             </div>
           <% } %>
@@ -975,7 +1245,7 @@
                 <div class="glass-card p-4 h-100">
                   <i class="bi bi-whatsapp fs-3 text-success mb-2 d-block"></i>
                   <h5 class="fw-bold text-white fs-6 mb-1">WhatsApp Customer Service</h5>
-                  <a href="https://wa.me/<%= String(settings.company_phone).replace(/\D/g,'') %>" target="_blank" rel="noopener" class="text-decoration-none fw-bold" style="color: #a5b4fc;">
+                  <a href="https://wa.me/<%= String(settings.company_phone).replace(/D/g,'') %>" target="_blank" rel="noopener" class="text-decoration-none fw-bold" style="color: #a5b4fc;">
                     <%= settings.company_phone %>
                   </a>
                 </div>
@@ -1007,6 +1277,14 @@
     </div>
   </section>
 
+  <!-- Floating WhatsApp Quick Support Button -->
+  <% if (settings.company_phone) { %>
+    <a href="https://wa.me/<%= String(settings.company_phone).replace(/D/g,'') %>?text=<%= encodeURIComponent('Halo CS ' + (settings.company_header || 'Admin') + ', saya butuh bantuan mengenai internet/portal.') %>" target="_blank" rel="noopener" class="floating-wa-btn" title="Chat Customer Service via WhatsApp">
+      <i class="bi bi-whatsapp fs-5"></i>
+      <span>Bantuan CS</span>
+    </a>
+  <% } %>
+
   <!-- Site Footer -->
   <footer class="site-footer">
     <div class="container">
@@ -1014,11 +1292,18 @@
         <div class="col-lg-4">
           <div class="footer-brand d-flex align-items-center gap-2 mb-3">
             <img src="/img/logo.png" alt="Logo" onerror="this.style.display='none'">
-            <span class="fw-bold fs-5 text-white"><%= settings.company_header %></span>
+            <span class="fw-bold fs-5 text-white"><%= settings.company_header || 'Portal ISP' %></span>
           </div>
           <p class="small mb-3" style="color: #cbd5e1; max-width: 320px;">
             Penyedia layanan internet fiber optic handal dan terpercaya untuk memenuhi kebutuhan konektivitas digital Anda.
           </p>
+          <% if (settings.social_instagram || settings.social_facebook || settings.social_tiktok) { %>
+            <div class="d-flex align-items-center gap-3 mt-2">
+              <% if (settings.social_instagram) { %><a href="<%= settings.social_instagram %>" target="_blank" rel="noopener" class="text-white opacity-75 hover-opacity-100 fs-5"><i class="bi bi-instagram"></i></a><% } %>
+              <% if (settings.social_facebook) { %><a href="<%= settings.social_facebook %>" target="_blank" rel="noopener" class="text-white opacity-75 hover-opacity-100 fs-5"><i class="bi bi-facebook"></i></a><% } %>
+              <% if (settings.social_tiktok) { %><a href="<%= settings.social_tiktok %>" target="_blank" rel="noopener" class="text-white opacity-75 hover-opacity-100 fs-5"><i class="bi bi-tiktok"></i></a><% } %>
+            </div>
+          <% } %>
         </div>
 
         <div class="col-6 col-lg-4">
@@ -1046,7 +1331,7 @@
 
       <div class="footer-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
-          &copy; <%= new Date().getFullYear() %> <strong><%= settings.company_header %></strong>. All rights reserved.
+          &copy; <%= new Date().getFullYear() %> <strong><%= settings.company_header || 'Portal ISP' %></strong>. All rights reserved.
         </div>
         <div class="small">
           Portal Pelanggan Internet v2.0
@@ -1088,7 +1373,7 @@
         </div>
         <div class="modal-body p-4">
           <p class="text-slate-300 small mb-3">
-            Nikmati akses instan ke <strong>Portal Pelanggan <%= settings.company_header %></strong> langsung dari layar utama HP / Komputer Anda tanpa perlu membuka browser tiap kali ingin cek tagihan/bayar!
+            Nikmati akses instan ke <strong>Portal Pelanggan <%= settings.company_header || 'Portal ISP' %></strong> langsung dari layar utama HP / Komputer Anda tanpa perlu membuka browser tiap kali ingin cek tagihan/bayar!
           </p>
 
           <!-- Android / Chrome / Edge Instructions -->

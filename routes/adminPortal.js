@@ -4614,6 +4614,7 @@ router.post('/settings', requireAdminSession, express.urlencoded({ extended: tru
     }
     newSettings.auto_backup_enabled = (newSettings.auto_backup_enabled === 'true');
     newSettings.use_builtin_acs = (newSettings.use_builtin_acs === 'true' || newSettings.use_builtin_acs === true);
+    newSettings.portal_banner_enabled = (newSettings.portal_banner_enabled === 'true' || newSettings.portal_banner_enabled === true);
 
     // AI Provider & API Settings
     if (newSettings.ai_provider) newSettings.ai_provider = String(newSettings.ai_provider).trim().toLowerCase();
