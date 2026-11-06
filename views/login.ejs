@@ -122,6 +122,55 @@
       color: #fff;
     }
 
+    /* Live Network Status Badge - High Contrast & Crisp */
+    .net-badge-base {
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      letter-spacing: 0.2px;
+      transition: all 0.3s ease;
+    }
+    .net-badge-normal {
+      background: rgba(16, 185, 129, 0.16) !important;
+      border: 1px solid rgba(52, 211, 153, 0.45) !important;
+    }
+    .net-badge-normal .net-label {
+      color: #6ee7b7 !important; /* Hijau mint cerah, sangat kontras & terbaca */
+      font-weight: 700 !important;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    .net-badge-normal .pulse-dot {
+      background-color: #34d399 !important;
+      box-shadow: 0 0 10px #34d399 !important;
+    }
+
+    .net-badge-warning {
+      background: rgba(245, 158, 11, 0.16) !important;
+      border: 1px solid rgba(251, 191, 36, 0.45) !important;
+    }
+    .net-badge-warning .net-label {
+      color: #fde047 !important; /* Kuning cerah */
+      font-weight: 700 !important;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    .net-badge-warning .pulse-dot {
+      background-color: #facc15 !important;
+      box-shadow: 0 0 10px #facc15 !important;
+    }
+
+    .net-badge-danger {
+      background: rgba(239, 68, 68, 0.16) !important;
+      border: 1px solid rgba(248, 113, 113, 0.45) !important;
+    }
+    .net-badge-danger .net-label {
+      color: #fca5a5 !important; /* Merah muda cerah */
+      font-weight: 700 !important;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    .net-badge-danger .pulse-dot {
+      background-color: #f87171 !important;
+      box-shadow: 0 0 10px #f87171 !important;
+    }
+
     /* Live Network Pulse Dot */
     .pulse-dot {
       width: 8px;
@@ -129,6 +178,7 @@
       border-radius: 50%;
       display: inline-block;
       animation: pulseAnimation 2s infinite;
+      flex-shrink: 0;
     }
     @keyframes pulseAnimation {
       0% { transform: scale(0.95); opacity: 0.8; }
@@ -716,16 +766,13 @@
   <% 
     // Status Jaringan Dinamis
     const netStatus = settings.portal_network_status || 'normal';
-    let netBadgeClass = 'bg-success bg-opacity-20 text-success border-success border-opacity-30';
-    let netDotClass = 'bg-success';
+    let netBadgeClass = 'net-badge-normal';
     let netDefaultText = 'Semua Layanan Jaringan Normal';
     if (netStatus === 'maintenance') {
-      netBadgeClass = 'bg-warning bg-opacity-20 text-warning border-warning border-opacity-30';
-      netDotClass = 'bg-warning';
+      netBadgeClass = 'net-badge-warning';
       netDefaultText = 'Pemeliharaan Jaringan Terjadwal';
     } else if (netStatus === 'issue') {
-      netBadgeClass = 'bg-danger bg-opacity-20 text-danger border-danger border-opacity-30';
-      netDotClass = 'bg-danger';
+      netBadgeClass = 'net-badge-danger';
       netDefaultText = 'Sedang Ada Kendala Teknis';
     }
     const netText = (settings.portal_network_status_text || '').trim() || netDefaultText;
@@ -740,9 +787,9 @@
       </a>
 
       <!-- Network Status Badge in Navbar (Desktop) -->
-      <div class="d-none d-lg-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill border small fw-medium ms-2 <%= netBadgeClass %>">
-        <span class="pulse-dot <%= netDotClass %>"></span>
-        <span><%= netText %></span>
+      <div class="d-none d-lg-inline-flex align-items-center gap-2 rounded-pill net-badge-base ms-2 <%= netBadgeClass %>">
+        <span class="pulse-dot"></span>
+        <span class="net-label"><%= netText %></span>
       </div>
 
       <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
@@ -818,9 +865,9 @@
       <!-- Mobile Quick Actions & Status (Visible only on mobile/tablet) -->
       <div class="d-block d-lg-none mb-4">
         <!-- Mobile Network Status Badge -->
-        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill border small fw-medium mb-3 <%= netBadgeClass %>">
-          <span class="pulse-dot <%= netDotClass %>"></span>
-          <span><%= netText %></span>
+        <div class="d-inline-flex align-items-center gap-2 rounded-pill net-badge-base mb-3 <%= netBadgeClass %>">
+          <span class="pulse-dot"></span>
+          <span class="net-label"><%= netText %></span>
         </div>
 
         <div class="mobile-action-bar">
