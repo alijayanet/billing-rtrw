@@ -214,7 +214,7 @@ async function getAdminGlobalContext(userQuestion) {
 /**
  * Buat System Instruction Terpadu untuk AI
  */
-function buildSystemInstruction(isAdmin, customerContext, adminContext, senderName) {
+function buildSystemInstruction(isAdmin, customerContext, adminContext, senderName, contextSource = "") {
   const knowledge = loadKnowledgeBase();
 
   if (isAdmin) {
@@ -232,19 +232,28 @@ PEDOMAN UTAMA & ATURAN JAWABAN:
    - Jika admin menanyakan ringkasan (misal: "berapa yang isolir?", "siapa saja yang belum bayar?", "total uang tunggakan?"), rangkum dengan angka pasti dan sebutkan nama-nama pelanggan secara rapi.
 4. SISTEM, TEKNIS, & TROUBLESHOOTING JARINGAN:
    - Jika admin menanyakan kendala teknis (MikroTik API timeout, redaman jelek/LOS, isolir bypass, webhook payment gateway, dll.), berikan diagnosis penyebab dan solusi konkret mengacu pada DOKUMENTASI SISTEM & PANDUAN PEMECAHAN MASALAH di bawah.
-5. EKSEKUSI PERINTAH ADMINISTRATIF VIA TOOLS:
-   - Anda DILENGKAPI FUNCTION TOOLS untuk mengeksekusi aksi administratif. Jika pesan admin mengandung instruksi / perintah tindakan (tambah pelanggan, hapus pelanggan, reboot/restart modem ONU, ganti password/SSID WiFi, lunasi tagihan, isolir, buka isolir, kick user aktif, buat voucher hotspot, generate invoice bulanan, cek saldo digiflazz, atau top up agent), PANGGIL FUNCTION TOOL YANG SESUAI dengan parameter yang diekstrak dari percakapan.
+5. EKSEKUSI PERINTAH ADMINISTRATIF & FULL AGENTIC SYSADMIN TOOLS:
+   - Anda DILENGKAPI DENGAN 20 FUNCTION TOOLS untuk mengontrol server, MikroTik, dan billing secara penuh:
+     * 'run_server_command': Menjalankan perintah terminal/bash Linux (seperti: pm2 status/reload, git status/pull, free -m, df -h, uptime, systemctl status, ping, netstat).
+     * 'inspect_server_logs': Membaca & mendiagnosa log error (logs/error.log, logs/app.log, PM2 logs).
+     * 'check_server_resources': Mengecek beban CPU, RAM, Disk, Uptime, PM2, dan Database.
+     * 'run_mikrotik_cli': Menjalankan perintah CLI RouterOS langsung ke MikroTik (/system resource print, /interface print, dll).
+     * 'auto_heal_network': Memperbaiki otomatis sinkronisasi data billing & MikroTik.
+     * Operasional: 'add_customer', 'reboot_onu', 'update_wifi_password', 'update_wifi_ssid', 'mark_invoice_paid', 'isolate_customer', 'unisolate_customer', 'kick_pppoe_user', 'create_hotspot_voucher', 'check_security_status'.
+   - Jika admin meminta tindakan, diagnosa, atau cek server, PANGGIL FUNCTION TOOL YANG SESUAI secara mandiri dan laporkan hasilnya dengan cerdas.
    - Untuk hapus pelanggan: SELALU panggil tool 'delete_customer_request' agar sistem meminta konfirmasi 2 langkah yang aman.
    - Untuk tambah pelanggan: Panggil 'add_customer' dengan mengekstrak data dari pesan admin.
    - Jika admin HANYA bertanya informasi tanpa memerintahkan perubahan data/eksekusi aksi, JANGAN panggil tool pengubah data, melainkan berikan jawaban teks langsung.
-6. FORMAT LISAN NATURAL (VOICE & CHAT READY - TANPA SIMBOL & TANPA EMOJI):
+${contextSource === 'telegram_admin' ? `6. FORMAT JAWABAN TELEGRAM ADMIN (MARKDOWN AKTIF & RAPI):
+   - Anda sedang berinteraksi langsung dengan Pemilik / Sysadmin di Telegram. GUNAKAN FORMATTING MARKDOWN TELEGRAM (*bold*, _italic_, \`code\`, \`\`\`code block\`\`\`) untuk keluaran perintah terminal, log, atau rincian teknis agar mudah dibaca.
+   - Diberikan izin menggunakan simbol / bullet point yang memperjelas struktur data teknis.` : `6. FORMAT LISAN NATURAL (VOICE & CHAT READY - TANPA SIMBOL & TANPA EMOJI):
    - Jawaban Anda akan dibacakan langsung oleh mesin Text-to-Speech (TTS) dan ditampilkan pada aplikasi mobile.
    - DILARANG KERAS MENGGUNAKAN SIMBOL ATAU EMOJI APAPUN (seperti lingkaran warna 🟢, 🔴, 🟡, ⚪, peringatan ⚠️, sinyal 📡, centang ✅, silang ❌, robot 🤖, dll.) karena akan dibaca salah oleh mesin suara menjadi "lingkaran hijau besar", "lingkaran merah", dll.
    - DILARANG MENGGUNAKAN KARAKTER MARKDOWN KAKU seperti bullet points (•, -, *), tanda pagar (#), tanda bintang ganda, backticks, atau tabel.
    - Jangan menyajikan data teknis mentah baris-demi-baris yang kaku. SEDERHANAKAN DATA dan rangkum menjadi kalimat percakapan yang mengalir enak didengar.
    - Tambahkan logat bicara yang santun, luwes, hangat, dan ramah seperti asisten pribadi profesional, jangan kaku atau robotik.
    - DILARANG KERAS menggunakan header formal di awal pesan atau template penutup klise di akhir pesan (seperti "Semoga membantu", "Ada yang bisa dibantu lagi").
-   - Langsung berikan penjelasan atau ringkasan data ke inti jawaban secara bersahabat.
+   - Langsung berikan penjelasan atau ringkasan data ke inti jawaban secara bersahabat.`}
 
 7. PENYEDERHANAAN DAFTAR PANJANG (DATA DISAJIKAN RINGKAS & LISAN):
    - Jika data yang ditanyakan berjumlah banyak (seperti daftar penunggak, pelanggan aktif, dll.), DILARANG KERAS menyebutkan puluhan nama satu per satu karena akan terlalu panjang dan melelahkan saat didengarkan.
@@ -335,11 +344,11 @@ function convertGeminiToolsToOpenAI(declarations) {
 /**
  * Panggil Google Gemini API
  */
-async function callGeminiApi(apiKey, userQuestion, senderName = 'Member', customerContext = null, isAdmin = false, adminContext = null) {
+async function callGeminiApi(apiKey, userQuestion, senderName = 'Member', customerContext = null, isAdmin = false, adminContext = null, contextSource = "") {
   const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   const preferredModel = getSetting('gemini_model', 'gemini-2.5-flash');
   const modelList = [preferredModel, ...models.filter(m => m !== preferredModel)];
-  const systemInstruction = buildSystemInstruction(isAdmin, customerContext, adminContext, senderName);
+  const systemInstruction = buildSystemInstruction(isAdmin, customerContext, adminContext, senderName, contextSource);
 
   let lastError = null;
 
@@ -431,9 +440,10 @@ async function callOpenAiCompatibleApi({
   senderName = 'Member',
   customerContext = null,
   isAdmin = false,
-  adminContext = null
+  adminContext = null,
+  contextSource = ""
 }) {
-  const systemInstruction = buildSystemInstruction(isAdmin, customerContext, adminContext, senderName);
+  const systemInstruction = buildSystemInstruction(isAdmin, customerContext, adminContext, senderName, contextSource);
   const cleanBaseUrl = String(baseUrl || 'https://api.openai.com/v1').trim().replace(/\/+$/, '');
   const url = `${cleanBaseUrl}/chat/completions`;
 
@@ -762,7 +772,7 @@ async function askAi({ question, senderName, customerContext = null, isAdmin = f
     const apiKey = getSetting('gemini_api_key', '');
     if (apiKey && apiKey.trim()) {
       try {
-        aiReply = await callGeminiApi(apiKey.trim(), cleanQ, senderName, customerContext, isAdmin, adminContext);
+        aiReply = await callGeminiApi(apiKey.trim(), cleanQ, senderName, customerContext, isAdmin, adminContext, extraContext?.contextSource || "");
       } catch (err) {
         logger.error(`[TelegramAI] Gagal call Gemini API: ${err.message}. Menggunakan fallback jawaban lokal.`);
       }
@@ -805,7 +815,8 @@ async function askAi({ question, senderName, customerContext = null, isAdmin = f
           senderName,
           customerContext,
           isAdmin,
-          adminContext
+          adminContext,
+          contextSource: extraContext?.contextSource || ""
         });
       } catch (err) {
         logger.error(`[TelegramAI] Gagal call AI (${provider}): ${err.message}`);
@@ -825,18 +836,33 @@ async function askAi({ question, senderName, customerContext = null, isAdmin = f
 
   // Jika API berhasil memberikan respon (baik function tool maupun teks)
   if (aiReply) {
+    const isTgAdmin = (extraContext?.contextSource === 'telegram_admin');
     if (typeof aiReply === 'object' && aiReply?.type === 'function_call') {
       const toolResult = await executeAdminTool(aiReply.functionCall.name, aiReply.functionCall.args, extraContext);
+      if (isTgAdmin) {
+        return typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult, null, 2);
+      }
       return cleanAiResponse(toolResult);
     }
     if (typeof aiReply === 'object' && aiReply?.type === 'text') {
+      if (isTgAdmin) {
+        return aiReply.text;
+      }
       return cleanAiResponse(aiReply.text);
     }
-    return cleanAiResponse(typeof aiReply === 'string' ? aiReply : (aiReply?.text || JSON.stringify(aiReply)));
+    const rawOut = typeof aiReply === 'string' ? aiReply : (aiReply?.text || JSON.stringify(aiReply));
+    if (isTgAdmin) {
+      return rawOut;
+    }
+    return cleanAiResponse(rawOut);
   }
 
   // Jika API key belum diatur atau semua panggilan API gagal, gunakan offline knowledge base
-  return cleanAiResponse(getOfflineAnswer(cleanQ, customerContext, isAdmin, adminContext));
+  const offlineAns = getOfflineAnswer(cleanQ, customerContext, isAdmin, adminContext);
+  if (extraContext?.contextSource === 'telegram_admin') {
+    return offlineAns;
+  }
+  return cleanAiResponse(offlineAns);
 }
 
 /**

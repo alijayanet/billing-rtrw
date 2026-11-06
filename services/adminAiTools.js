@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const db = require('../config/database');
 const customerSvc = require('./customerService');
 const billingSvc = require('./billingService');
@@ -189,6 +192,48 @@ const adminToolDeclarations = [
     parameters: {
       type: 'OBJECT',
       properties: {}
+    }
+  },
+  {
+    name: 'run_server_command',
+    description: 'Menjalankan perintah shell/terminal Linux server yang aman (seperti: pm2 status, pm2 reload billing, git status, git pull, free -m, df -h, uptime, systemctl status freeradius, ping, ip addr) untuk diagnosa dan pemeliharaan server secara mandiri',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        command: { type: 'STRING', description: 'Perintah shell Linux yang ingin dijalankan (contoh: "pm2 status", "git status", "free -m", "df -h", "uptime", "systemctl status freeradius")' }
+      },
+      required: ['command']
+    }
+  },
+  {
+    name: 'inspect_server_logs',
+    description: 'Membaca dan menganalisis log server (logs/app.log, logs/error.log, atau log PM2) untuk mendiagnosa error, crash, atau kendala teknis pada sistem',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        logType: { type: 'STRING', description: 'Tipe log yang ingin diperiksa: "error" (default), "app", "pm2", "webhook"' },
+        lines: { type: 'INTEGER', description: 'Jumlah baris terakhir yang ingin dibaca (default: 30, max: 80)' }
+      }
+    }
+  },
+  {
+    name: 'check_server_resources',
+    description: 'Mengecek kesehatan menyeluruh server fisik/VPS hosting (CPU load, penggunaan RAM, sisa kapasitas harddisk, uptime OS, status PM2 process, dan database)',
+    parameters: {
+      type: 'OBJECT',
+      properties: {}
+    }
+  },
+  {
+    name: 'run_mikrotik_cli',
+    description: 'Menjalankan perintah CLI RouterOS MikroTik langsung via API/Terminal (seperti /system resource print, /interface print, /ip hotspot active print, /ip pppoe-server print, /ping count=3 address=8.8.8.8)',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        routerId: { type: 'INTEGER', description: 'ID Router MikroTik (opsional, jika tidak disebutkan gunakan router aktif pertama)' },
+        command: { type: 'STRING', description: 'Perintah RouterOS yang ingin dijalankan (contoh: "/system resource print", "/interface print")' }
+      },
+      required: ['command']
     }
   }
 ];
@@ -570,6 +615,211 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
           resp += `Tercatat ${recentAlerts.length} riwayat insiden keamanan terbaru pada audit sistem.`;
         }
         return resp;
+      }
+
+      // 17. Menjalankan Perintah Terminal Linux / Server (Sysadmin Agent)
+      case 'run_server_command': {
+        const cmd = String(args.command || '').trim();
+        if (!cmd) {
+          return 'Mohon sebutkan perintah terminal yang ingin dijalankan.';
+        }
+
+        // Security Guardrails: blacklist dangerous destructive commands
+        const dangerousPatterns = [
+          /\brm\s+-[rf]{1,2}\s+[\/\*]/i,
+          /\bmkfs\b/i,
+          /\bdd\s+if=/i,
+          />\s*\/dev\/sd/i,
+          /\bchmod\s+-R\s+777\s+\//i,
+          /\bchown\s+-R\s+root\s+\//i,
+          /\bshutdown\b/i,
+          /\bpoweroff\b/i,
+          /\binit\s+0\b/i,
+          /\bpasswd\b/i,
+          /:{\s*:\s*\|\s*:\s*&\s*}\s*;\s*:/
+        ];
+
+        if (dangerousPatterns.some(p => p.test(cmd))) {
+          return `⚠️ Perintah "${cmd}" diblokir oleh sistem keamanan demi mencegah kerusakan permanen pada sistem operasi.`;
+        }
+
+        const { exec } = require('child_process');
+        const rootDir = path.join(__dirname, '..');
+
+        const res = await new Promise((resolve) => {
+          exec(cmd, {
+            cwd: rootDir,
+            timeout: 25000,
+            maxBuffer: 1024 * 512,
+            env: {
+              ...process.env,
+              PATH: `${process.env.PATH || ''}:/usr/local/bin:/usr/bin:/bin`
+            }
+          }, (err, stdout, stderr) => {
+            resolve({
+              err: err ? err.message : null,
+              stdout: String(stdout || '').trim(),
+              stderr: String(stderr || '').trim()
+            });
+          });
+        });
+
+        let out = `💻 *Hasil Eksekusi Terminal:*
+\`$ ${cmd}\`
+
+`;
+        if (res.stdout) {
+          out += `\`\`\`
+${res.stdout.slice(0, 3000)}
+\`\`\``;
+        } else if (res.stderr) {
+          out += `⚠️ *Stderr:* \`\`\`
+${res.stderr.slice(0, 1500)}
+\`\`\``;
+        } else if (res.err) {
+          out += `❌ *Error:* \`${res.err}\``;
+        } else {
+          out += `✅ Perintah selesai dijalankan tanpa keluaran teks.`;
+        }
+        return out;
+      }
+
+      // 18. Membaca & Menganalisis Log Server (Log Diagnostics)
+      case 'inspect_server_logs': {
+        const logType = String(args.logType || 'error').toLowerCase();
+        const maxLines = Math.min(Math.max(Number(args.lines) || 30, 5), 80);
+        const rootDir = path.join(__dirname, '..');
+
+        if (logType === 'pm2') {
+          const { exec } = require('child_process');
+          const pm2Log = await new Promise((resolve) => {
+            exec(`pm2 logs billing --lines ${maxLines} --nostream`, { timeout: 10000 }, (err, stdout, stderr) => {
+              resolve(String(stdout || stderr || err?.message || 'Tidak ada log PM2.').trim());
+            });
+          });
+          return `📋 *Log PM2 Billing (${maxLines} baris terakhir):*
+\`\`\`
+${pm2Log.slice(-3000)}
+\`\`\``;
+        }
+
+        let filePath = path.join(rootDir, 'logs/error.log');
+        let label = 'Error Log';
+        if (logType === 'app') {
+          filePath = path.join(rootDir, 'logs/app.log');
+          label = 'App Log';
+        } else if (logType === 'webhook') {
+          const rows = db.prepare('SELECT id, service, content, parsed_amount, parsed_ok, created_at FROM webhook_payment_notifs ORDER BY id DESC LIMIT ?').all(maxLines);
+          if (!rows || rows.length === 0) return 'Belum ada catatan log webhook di database.';
+          let text = `📋 *Log Notifikasi Webhook Terakhir (${rows.length}):*
+`;
+          rows.forEach(r => {
+            text += `• [${r.created_at}] ${r.service}: ${(r.content || '').slice(0, 80)} (Parsed: ${r.parsed_amount || 'gagal'})
+`;
+          });
+          return text;
+        }
+
+        if (!fs.existsSync(filePath)) {
+          return `File log ${label} (${path.basename(filePath)}) belum tersedia atau masih kosong.`;
+        }
+
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const linesArr = raw.split(/\r?\n/).filter(Boolean);
+        const tailLines = linesArr.slice(-maxLines).join('\n');
+        return `📋 *${label} (${maxLines} baris terakhir):*
+\`\`\`
+${tailLines.slice(-3000) || '(Log kosong)'}
+\`\`\``;
+      }
+
+      // 19. Cek Kesehatan & Kapasitas Resource Server (Hardware & Software)
+      case 'check_server_resources': {
+        const totalMem = Math.round(os.totalmem() / (1024 * 1024));
+        const freeMem = Math.round(os.freemem() / (1024 * 1024));
+        const usedMem = totalMem - freeMem;
+        const memPercent = Math.round((usedMem / totalMem) * 100);
+
+        const uptimeHours = (os.uptime() / 3600).toFixed(1);
+        const loadAvg = os.loadavg().map(l => l.toFixed(2)).join(', ');
+        const cpus = os.cpus();
+        const cpuModel = cpus && cpus[0] ? cpus[0].model.trim() : 'Unknown CPU';
+
+        let diskInfo = '-';
+        try {
+          const { execSync } = require('child_process');
+          diskInfo = execSync('df -h / | tail -1', { timeout: 3000 }).toString().trim();
+        } catch (_) {}
+
+        let custCount = 0;
+        let unpaidCount = 0;
+        let activeVouchers = 0;
+        try {
+          custCount = db.prepare('SELECT COUNT(*) as c FROM customers').get()?.c || 0;
+          unpaidCount = db.prepare("SELECT COUNT(*) as c FROM invoices WHERE status != 'paid'").get()?.c || 0;
+          activeVouchers = db.prepare("SELECT COUNT(*) as c FROM public_voucher_orders WHERE status = 'fulfilled'").get()?.c || 0;
+        } catch (_) {}
+
+        return `🖥️ *STATUS & KESEHATAN SERVER:*
+` +
+               `• OS: ${os.type()} ${os.release()} (${os.arch()})
+` +
+               `• Uptime: ${uptimeHours} jam
+` +
+               `• CPU: ${cpuModel} (${cpus.length} Cores)
+` +
+               `• Load Average: ${loadAvg}
+` +
+               `• Memori RAM: ${usedMem} MB / ${totalMem} MB (${memPercent}% terpakai)
+` +
+               `• Kapasitas Disk (/): ${diskInfo}
+` +
+               `• Database Billing: ${custCount} pelanggan, ${unpaidCount} invoice unpaid, ${activeVouchers} voucher aktif
+` +
+               `• Node.js: ${process.version}
+` +
+               `• Status: ✅ Seluruh layanan inti berjalan normal.`;
+      }
+
+      // 20. Eksekusi CLI RouterOS MikroTik Langsung
+      case 'run_mikrotik_cli': {
+        const rawCmd = String(args.command || '').trim();
+        if (!rawCmd) return 'Mohon sebutkan perintah RouterOS MikroTik yang ingin dijalankan.';
+
+        let routerId = args.routerId ? Number(args.routerId) : null;
+        if (!routerId) {
+          const firstRouter = db.prepare('SELECT id FROM routers WHERE is_active = 1 ORDER BY id ASC LIMIT 1').get();
+          if (firstRouter) routerId = firstRouter.id;
+        }
+
+        if (!routerId) return 'Tidak ditemukan router MikroTik yang aktif di database.';
+
+        const router = db.prepare('SELECT * FROM routers WHERE id = ?').get(routerId);
+        if (!router) return `Router MikroTik dengan ID ${routerId} tidak ditemukan.`;
+
+        const cleanCmd = rawCmd.replace(/^\//, '');
+        const words = cleanCmd.split(/\s+/).filter(Boolean);
+        const apiWords = ['/' + words.join('/')];
+
+        try {
+          const { client, api } = await mikrotikService.getConnection(routerId);
+          const res = await api.send(apiWords);
+          await api.close().catch(() => {});
+
+          if (!res || res.length === 0) {
+            return `✅ Perintah \`/${cleanCmd}\` pada Router *${router.name || router.host}* berhasil dijalankan (hasil kosong).`;
+          }
+
+          let out = `📡 *Hasil MikroTik CLI (\`/${cleanCmd}\` - ${router.name}):*
+\`\`\`
+`;
+          out += JSON.stringify(res.slice(0, 15), null, 2);
+          out += `
+\`\`\``;
+          return out;
+        } catch (mErr) {
+          return `❌ Gagal menjalankan perintah pada MikroTik ${router.name}: ${mErr.message}`;
+        }
       }
 
       default:

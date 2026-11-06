@@ -351,14 +351,55 @@ function initTelegram() {
     const isMentioned = botUsername && lowerText.includes(`@${botUsername}`);
     const isReplyToBot = msg.reply_to_message && msg.reply_to_message.from && botMe && msg.reply_to_message.from.id === botMe.id;
     const isAskCommand = /^\/(?:tanya|ask|ai)(?:@\w+)?(?:\s+|$)/i.test(text);
+    const isPrivAdmin = !isGroup && isAdmin(msg);
     const isGroupTrigger = isGroup && (isMentioned || isReplyToBot || isAskCommand);
-    const isPrivateTrigger = !isGroup && (isAskCommand || !text.startsWith('/'));
+    const isPrivateTrigger = isPrivAdmin && (!text.startsWith('/') || isAskCommand);
 
-    if (isGroupTrigger || isPrivateTrigger) {
+    if (isPrivAdmin && isPrivateTrigger) {
+      // 1. Jalur Full Agentic AI untuk Admin di Private Chat (Selalu Aktif & Responsif Bebas Prefix)
+      let cleanQuestion = text
+        .replace(/^\/(?:tanya|ask|ai)(?:@\w+)?\s*/i, '')
+        .trim();
+
+      if (!cleanQuestion) {
+        return bot.sendMessage(msg.chat.id, 'Halo Admin! Ada yang bisa saya bantu atau periksa di server hari ini?', {
+          parse_mode: 'Markdown',
+          reply_to_message_id: msg.message_id
+        });
+      }
+
+      bot.sendChatAction(msg.chat.id, 'typing').catch(() => {});
+
+      try {
+        const answer = await telegramAi.askAi({
+          question: cleanQuestion,
+          senderName: msg.from.first_name || 'Admin',
+          isAdmin: true,
+          extraContext: {
+            contextSource: 'telegram_admin',
+            chatId: msg.chat.id
+          }
+        });
+
+        await bot.sendMessage(msg.chat.id, answer, {
+          parse_mode: 'Markdown',
+          reply_to_message_id: msg.message_id
+        }).catch(async () => {
+          await bot.sendMessage(msg.chat.id, answer, {
+            reply_to_message_id: msg.message_id
+          }).catch(() => {});
+        });
+      } catch (err) {
+        logger.error(`[TelegramBot] Error AI response: ${err.message}`);
+        bot.sendMessage(msg.chat.id, '⚠️ Maaf, sedang terjadi kendala memproses instruksi. Silakan coba kembali.', { reply_to_message_id: msg.message_id }).catch(() => {});
+      }
+      return;
+    } else if (isGroupTrigger) {
+      // 2. Jalur Grup / Anggota Umum
       const isAiEnabled = getSetting('telegram_group_ai_enabled', true);
       if (!isAiEnabled) {
         if (isAskCommand || isMentioned) {
-          bot.sendMessage(msg.chat.id, 'ℹ️ Fitur Asisten AI grup sedang dinonaktifkan di pengaturan.', { reply_to_message_id: msg.message_id }).catch(() => {});
+          bot.sendMessage(msg.chat.id, 'Fitur Asisten AI grup sedang dinonaktifkan di pengaturan.', { reply_to_message_id: msg.message_id }).catch(() => {});
         }
         return;
       }
@@ -369,7 +410,7 @@ function initTelegram() {
         .trim();
 
       if (!cleanQuestion) {
-        return bot.sendMessage(msg.chat.id, '💡 Silakan tulis pertanyaan setelah perintah. Contoh: `/tanya bagaimana cara isolir otomatis?`', {
+        return bot.sendMessage(msg.chat.id, 'Silakan tulis pertanyaan setelah perintah. Contoh: `/tanya bagaimana cara bayar tagihan?`', {
           parse_mode: 'Markdown',
           reply_to_message_id: msg.message_id
         });
@@ -378,11 +419,13 @@ function initTelegram() {
       bot.sendChatAction(msg.chat.id, 'typing').catch(() => {});
 
       try {
-        const isPrivAdmin = msg.chat.type === 'private' && isAdmin(msg);
         const answer = await telegramAi.askAi({
           question: cleanQuestion,
           senderName: msg.from.first_name || 'Rekan',
-          isAdmin: Boolean(isPrivAdmin)
+          isAdmin: false,
+          extraContext: {
+            contextSource: 'telegram_group'
+          }
         });
 
         await bot.sendMessage(msg.chat.id, answer, {
