@@ -39,7 +39,18 @@ function initTelegram() {
     return; 
   }
 
-  bot = new TelegramBot(token, { polling: true });
+  bot = new TelegramBot(token, {
+    polling: {
+      interval: 300,
+      autoStart: true,
+      params: {
+        timeout: 10
+      }
+    },
+    request: {
+      family: 4
+    }
+  });
   
   bot.getMe().then(me => {
     botMe = me;
@@ -1315,7 +1326,7 @@ async function sendAdminVoiceNotification(text, caption = '') {
     if (!activeBot) {
       const token = getSetting('telegram_bot_token', '');
       if (token) {
-        activeBot = new TelegramBot(token);
+        activeBot = new TelegramBot(token, { request: { family: 4 } });
       }
     }
     if (!activeBot) return false;
@@ -1368,7 +1379,7 @@ async function sendAdminMessage(text, options = {}) {
     if (!activeBot) {
       const token = getSetting('telegram_bot_token', '');
       if (token) {
-        activeBot = new TelegramBot(token);
+        activeBot = new TelegramBot(token, { request: { family: 4 } });
       }
     }
     if (!activeBot) return false;
