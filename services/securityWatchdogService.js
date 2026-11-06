@@ -501,6 +501,7 @@ class SecurityWatchdogService {
 
           for (const f of failures) {
             const msg = f.message || '';
+            const lowerMsg = msg.toLowerCase();
             const topics = f.topicsRaw || '';
 
             // 1. Coba regex Admin Login Failure:
