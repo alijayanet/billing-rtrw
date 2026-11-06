@@ -41,18 +41,21 @@ function initTelegram() {
 
   bot = new TelegramBot(token, { polling: true });
   
-  // Clear webhook to ensure polling works (Sync)
-  bot.deleteWebHook().then(() => {
-    bot.getMe().then(me => {
-      botMe = me;
-      logger.info(`Telegram Bot: Terhubung sebagai @${me.username} (ID: ${me.id})`);
-    }).catch(e => logger.error('Telegram Bot Error (getMe):', e.message));
-  }).catch(e => logger.error('Telegram Bot Error (deleteWebHook):', e.message));
+  bot.getMe().then(me => {
+    botMe = me;
+    logger.info(`Telegram Bot: Terhubung sebagai @${me.username} (ID: ${me.id})`);
+  }).catch(e => logger.warn(`Telegram Bot getMe warn: ${e.message}`));
 
-  // Middleware Admin Check (Fetch latest ID every time)
+  bot.deleteWebHook().catch(() => {});
+
+  // Middleware Admin Check (Fetch latest ID every time, dukung multiple ID dipisah koma)
   const isAdmin = (msg) => {
-    const currentAdminId = getSetting('telegram_admin_id', '').toString();
-    return msg.from.id.toString() === currentAdminId;
+    if (!msg) return false;
+    const rawSetting = String(getSetting('telegram_admin_id', '') || getSetting('telegram_admin_chat_id', '') || '');
+    const adminIds = rawSetting.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+    const fromId = msg.from && msg.from.id != null ? String(msg.from.id).trim() : '';
+    const chatId = msg.chat && msg.chat.id != null ? String(msg.chat.id).trim() : '';
+    return (fromId && adminIds.includes(fromId)) || (chatId && adminIds.includes(chatId));
   };
 
   // Helper Mikhmon Parser
@@ -304,6 +307,37 @@ function initTelegram() {
   });
 
   bot.on('message', async (msg) => {
+    const fromId = msg.from ? msg.from.id : null;
+    const fromName = msg.from ? (msg.from.first_name || msg.from.username || msg.from.id) : 'unknown';
+    const chatType = msg.chat ? msg.chat.type : 'unknown';
+    logger.info(`[TelegramBot] Pesan masuk dari ${fromName} (${fromId}) [chat: ${msg.chat?.id}, type: ${chatType}, isAdmin: ${isAdmin(msg)}]: "${(msg.text || '').slice(0, 60)}"`);
+
+    // Helper kirim aman ber-chunking dan fallback jika markdown gagal
+    const safeSendMessage = async (chatId, text, options = {}) => {
+      if (!bot || !chatId || !text) return false;
+      const str = String(text);
+      const maxLen = 4000;
+      const chunks = [];
+      if (str.length <= maxLen) {
+        chunks.push(str);
+      } else {
+        for (let i = 0; i < str.length; i += maxLen) {
+          chunks.push(str.slice(i, i + maxLen));
+        }
+      }
+
+      for (const chunk of chunks) {
+        try {
+          await bot.sendMessage(chatId, chunk, { parse_mode: 'Markdown', ...options });
+        } catch (mdErr) {
+          await bot.sendMessage(chatId, chunk, { ...options }).catch((err2) => {
+            logger.error(`[TelegramBot] Gagal kirim pesan ke ${chatId}: ${err2.message}`);
+          });
+        }
+      }
+      return true;
+    };
+
     // 1. Sambutan Member Baru di Grup
     if (msg.new_chat_members && msg.new_chat_members.length > 0) {
       const isWelcomeOn = getSetting('telegram_welcome_enabled', true);
@@ -381,17 +415,12 @@ function initTelegram() {
           }
         });
 
-        await bot.sendMessage(msg.chat.id, answer, {
-          parse_mode: 'Markdown',
+        await safeSendMessage(msg.chat.id, answer, {
           reply_to_message_id: msg.message_id
-        }).catch(async () => {
-          await bot.sendMessage(msg.chat.id, answer, {
-            reply_to_message_id: msg.message_id
-          }).catch(() => {});
         });
       } catch (err) {
         logger.error(`[TelegramBot] Error AI response: ${err.message}`);
-        bot.sendMessage(msg.chat.id, '⚠️ Maaf, sedang terjadi kendala memproses instruksi. Silakan coba kembali.', { reply_to_message_id: msg.message_id }).catch(() => {});
+        safeSendMessage(msg.chat.id, `⚠️ Maaf, sedang terjadi kendala memproses instruksi: ${err.message}`, { reply_to_message_id: msg.message_id });
       }
       return;
     } else if (isGroupTrigger) {
@@ -428,18 +457,12 @@ function initTelegram() {
           }
         });
 
-        await bot.sendMessage(msg.chat.id, answer, {
-          parse_mode: 'Markdown',
+        await safeSendMessage(msg.chat.id, answer, {
           reply_to_message_id: msg.message_id
-        }).catch(async () => {
-          // Fallback tanpa formatting jika ada karakter yang tidak sengaja merusak Markdown parser
-          await bot.sendMessage(msg.chat.id, answer, {
-            reply_to_message_id: msg.message_id
-          }).catch(() => {});
         });
       } catch (err) {
         logger.error(`[TelegramBot] Error AI response: ${err.message}`);
-        bot.sendMessage(msg.chat.id, '❌ Maaf, sedang terjadi kendala memproses jawaban. Silakan coba kembali.', { reply_to_message_id: msg.message_id }).catch(() => {});
+        safeSendMessage(msg.chat.id, '❌ Maaf, sedang terjadi kendala memproses jawaban. Silakan coba kembali.', { reply_to_message_id: msg.message_id });
       }
       return;
     }
@@ -1280,12 +1303,13 @@ function generateTtsAudio(text) {
 }
 
 /**
- * Kirim Pesan Suara (Voice Note / Audio) ke Telegram Admin
+ * Kirim Pesan Suara (Voice Note / Audio) ke Telegram Admin (Dukung multiple ID dipisah koma)
  */
 async function sendAdminVoiceNotification(text, caption = '') {
   try {
-    const adminId = getSetting('telegram_admin_id', '');
-    if (!adminId) return false;
+    const raw = String(getSetting('telegram_admin_id', '') || getSetting('telegram_admin_chat_id', '') || '');
+    const targets = raw.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+    if (targets.length === 0) return false;
 
     let activeBot = bot;
     if (!activeBot) {
@@ -1301,30 +1325,30 @@ async function sendAdminVoiceNotification(text, caption = '') {
 
     const formattedCaption = caption || `🔔 *NOTIFIKASI TRANSAKSI MASUK*\n\n💬 _${text}_`;
 
-    try {
-      await activeBot.sendVoice(adminId, audioBuf, {
-        caption: formattedCaption,
-        parse_mode: 'Markdown'
-      }, {
-        filename: 'notif_dana.ogg',
-        contentType: 'audio/ogg'
-      });
-      logger.info(`[Telegram TTS] Voice note berhasil dikirim ke Admin (${adminId}): "${text}"`);
-      return true;
-    } catch (voiceErr) {
-      logger.warn('[Telegram TTS] sendVoice fallback to sendAudio: ' + voiceErr.message);
-      await activeBot.sendAudio(adminId, audioBuf, {
-        caption: formattedCaption,
-        title: 'Notifikasi Transaksi Masuk',
-        performer: getSetting('company_header', 'Billing RTRW'),
-        parse_mode: 'Markdown'
-      }, {
-        filename: 'notif_transaksi.mp3',
-        contentType: 'audio/mpeg'
-      });
-      logger.info(`[Telegram TTS] Audio MP3 berhasil dikirim ke Admin (${adminId}): "${text}"`);
-      return true;
+    for (const target of targets) {
+      try {
+        await activeBot.sendVoice(target, audioBuf, {
+          caption: formattedCaption,
+          parse_mode: 'Markdown'
+        }, {
+          filename: 'notif_dana.ogg',
+          contentType: 'audio/ogg'
+        });
+        logger.info(`[Telegram TTS] Voice note berhasil dikirim ke Admin (${target}): "${text}"`);
+      } catch (voiceErr) {
+        logger.warn('[Telegram TTS] sendVoice fallback to sendAudio: ' + voiceErr.message);
+        await activeBot.sendAudio(target, audioBuf, {
+          caption: formattedCaption,
+          title: 'Notifikasi Transaksi Masuk',
+          performer: getSetting('company_header', 'Billing RTRW'),
+          parse_mode: 'Markdown'
+        }, {
+          filename: 'notif_transaksi.mp3',
+          contentType: 'audio/mpeg'
+        }).catch(() => {});
+      }
     }
+    return true;
   } catch (err) {
     logger.error('[Telegram TTS] Gagal mengirim notifikasi suara: ' + err.message);
     return false;
@@ -1332,12 +1356,13 @@ async function sendAdminVoiceNotification(text, caption = '') {
 }
 
 /**
- * Kirim Pesan Teks Siaga / Notifikasi Langsung ke Telegram Admin
+ * Kirim Pesan Teks Siaga / Notifikasi Langsung ke Telegram Admin (Dukung multiple ID dipisah koma)
  */
 async function sendAdminMessage(text, options = {}) {
   try {
-    const adminId = getSetting('telegram_admin_id', '') || getSetting('telegram_admin_chat_id', '') || getSetting('telegram_chat_id', '');
-    if (!adminId) return false;
+    const raw = String(getSetting('telegram_admin_id', '') || getSetting('telegram_admin_chat_id', '') || getSetting('telegram_chat_id', '') || '');
+    const targets = raw.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+    if (targets.length === 0) return false;
 
     let activeBot = bot;
     if (!activeBot) {
@@ -1348,13 +1373,31 @@ async function sendAdminMessage(text, options = {}) {
     }
     if (!activeBot) return false;
 
-    await activeBot.sendMessage(adminId, text, {
-      parse_mode: 'Markdown',
-      ...options
-    }).catch(async (e) => {
-      // Fallback tanpa markdown jika formatting mengandung karakter tak ter-escape
-      await activeBot.sendMessage(adminId, text, { ...options }).catch(() => {});
-    });
+    const str = String(text || '');
+    const maxLen = 4000;
+    const chunks = [];
+    if (str.length <= maxLen) {
+      chunks.push(str);
+    } else {
+      for (let i = 0; i < str.length; i += maxLen) {
+        chunks.push(str.slice(i, i + maxLen));
+      }
+    }
+
+    for (const target of targets) {
+      for (const chunk of chunks) {
+        try {
+          await activeBot.sendMessage(target, chunk, {
+            parse_mode: 'Markdown',
+            ...options
+          });
+        } catch (e) {
+          await activeBot.sendMessage(target, chunk, { ...options }).catch((err2) => {
+            logger.warn(`[TelegramBot] Gagal kirim ke ${target}: ${err2.message}`);
+          });
+        }
+      }
+    }
     return true;
   } catch (err) {
     logger.warn('[TelegramBot] sendAdminMessage error: ' + err.message);
