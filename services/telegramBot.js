@@ -1331,10 +1331,42 @@ async function sendAdminVoiceNotification(text, caption = '') {
   }
 }
 
+/**
+ * Kirim Pesan Teks Siaga / Notifikasi Langsung ke Telegram Admin
+ */
+async function sendAdminMessage(text, options = {}) {
+  try {
+    const adminId = getSetting('telegram_admin_id', '') || getSetting('telegram_admin_chat_id', '') || getSetting('telegram_chat_id', '');
+    if (!adminId) return false;
+
+    let activeBot = bot;
+    if (!activeBot) {
+      const token = getSetting('telegram_bot_token', '');
+      if (token) {
+        activeBot = new TelegramBot(token);
+      }
+    }
+    if (!activeBot) return false;
+
+    await activeBot.sendMessage(adminId, text, {
+      parse_mode: 'Markdown',
+      ...options
+    }).catch(async (e) => {
+      // Fallback tanpa markdown jika formatting mengandung karakter tak ter-escape
+      await activeBot.sendMessage(adminId, text, { ...options }).catch(() => {});
+    });
+    return true;
+  } catch (err) {
+    logger.warn('[TelegramBot] sendAdminMessage error: ' + err.message);
+    return false;
+  }
+}
+
 // Export for manual re-init from settings & external triggers
 module.exports = {
   initTelegram,
   sendAdminVoiceNotification,
+  sendAdminMessage,
   generateTtsAudio,
   terbilang
 };

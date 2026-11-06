@@ -235,6 +235,26 @@ const adminToolDeclarations = [
       },
       required: ['command']
     }
+  },
+  {
+    name: 'scan_mikrotik_security',
+    description: 'Memindai log MikroTik sekarang secara real-time untuk mendeteksi anomali serangan brute force Hotspot (percobaan tebak voucher acak) atau brute force login admin (SSH, Winbox, API, Telnet, WebFig), dan langsung memblokir penyerang serta melaporkan hasilnya',
+    parameters: {
+      type: 'OBJECT',
+      properties: {}
+    }
+  },
+  {
+    name: 'unblock_security_target',
+    description: 'Membuka blokir IP address atau MAC address yang sebelumnya diblokir oleh sistem keamanan AI di MikroTik (Hotspot IP-Binding / Firewall Blacklist) maupun di aplikasi billing',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        target: { type: 'STRING', description: 'Alamat IP (contoh: "192.168.100.242") atau MAC Address (contoh: "26:BD:26:2A:C3:47") yang ingin dibuka blokirnya' },
+        routerId: { type: 'INTEGER', description: 'ID Router MikroTik tertentu (opsional, jika kosong buka di semua router)' }
+      },
+      required: ['target']
+    }
   }
 ];
 
@@ -598,23 +618,48 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
       // 16. Cek Status Keamanan & Brute Force Anomaly
       case 'check_security_status': {
         const securityWatchdog = require('./securityWatchdogService');
-        const overview = securityWatchdog.getSecurityOverview();
-        const blockedCount = overview.activeBlockedIps ? overview.activeBlockedIps.length : 0;
+        const overview = await securityWatchdog.getDetailedSecurityStatus();
+        const appBlockedCount = overview.appBlockedIps ? overview.appBlockedIps.length : 0;
+        const mtIpCount = overview.mikrotikBlockedIps ? overview.mikrotikBlockedIps.length : 0;
+        const mtMacCount = overview.mikrotikBlockedMacs ? overview.mikrotikBlockedMacs.length : 0;
         const recentAlerts = overview.recentAlerts || [];
 
-        if (blockedCount === 0 && recentAlerts.length === 0) {
-          return 'Status keamanan sistem saat ini aman dan terkendali. Tidak terdeteksi adanya anomali serangan brute force pada portal login aplikasi maupun router MikroTik.';
+        let out = `🛡️ *LAPORAN KEAMANAN SISTEM & MIKROTIK:*\n\n` +
+                  `• Status: *${(appBlockedCount + mtIpCount + mtMacCount) > 0 ? '🛡️ MENJAGA (AKTIF DIBLOKIR)' : '✅ AMAN & TERKENDALI'}*\n` +
+                  `• Blacklist IP Firewall MikroTik: *${mtIpCount} IP*\n` +
+                  `• Blocked MAC Hotspot MikroTik: *${mtMacCount} MAC*\n` +
+                  `• IP Terblokir Portal Web: *${appBlockedCount} IP*\n`;
+
+        if (mtMacCount > 0) {
+          out += `\n📱 *Daftar MAC Hotspot yang Diblokir (Brute Force):*\n`;
+          overview.mikrotikBlockedMacs.slice(0, 10).forEach(m => {
+            out += `• \`${m.mac}\` [${m.router}] - ${m.comment || 'Blocked'}\n`;
+          });
         }
 
-        let resp = `Laporan keamanan sistem: Saat ini status sistem adalah ${overview.status === 'warning' ? 'waspada' : 'aman'}. `;
-        if (blockedCount > 0) {
-          const ipList = overview.activeBlockedIps.map(b => `${b.ip} (tersisa ${b.remainingSeconds} detik)`).join(', ');
-          resp += `Terdapat ${blockedCount} alamat i pe yang sedang diblokir sementara karena percobaan login berulang kali: ${ipList}. `;
+        if (mtIpCount > 0) {
+          out += `\n🌐 *Daftar IP Blacklist MikroTik:*\n`;
+          overview.mikrotikBlockedIps.slice(0, 10).forEach(i => {
+            out += `• \`${i.address}\` [${i.router}] - ${i.comment || i.list}\n`;
+          });
         }
+
+        if (appBlockedCount > 0) {
+          out += `\n💻 *Daftar IP Diblokir Web App:*\n`;
+          overview.appBlockedIps.forEach(a => {
+            out += `• \`${a.ip}\` (tersisa ${a.remainingSeconds} detik)\n`;
+          });
+        }
+
         if (recentAlerts.length > 0) {
-          resp += `Tercatat ${recentAlerts.length} riwayat insiden keamanan terbaru pada audit sistem.`;
+          out += `\n📋 *5 Insiden Keamanan Terakhir:*\n`;
+          recentAlerts.slice(0, 5).forEach(al => {
+            out += `• [${al.created_at || '-'}] *${al.action}*: ${al.entity_id || '-'} (${al.ip_address || '-'})\n`;
+          });
         }
-        return resp;
+
+        out += `\n_💡 Tips: Ketik "Buka blokir [IP/MAC]" untuk mencabut blokir target tertentu._`;
+        return out;
       }
 
       // 17. Menjalankan Perintah Terminal Linux / Server (Sysadmin Agent)
@@ -820,6 +865,42 @@ ${tailLines.slice(-3000) || '(Log kosong)'}
         } catch (mErr) {
           return `❌ Gagal menjalankan perintah pada MikroTik ${router.name}: ${mErr.message}`;
         }
+      }
+
+      // 21. Pindai Keamanan Log MikroTik Sekarang (On-Demand Scan)
+      case 'scan_mikrotik_security': {
+        const securityWatchdog = require('./securityWatchdogService');
+        const res = await securityWatchdog.scanMikrotikLoginFailures({ manual: true });
+
+        let out = `🔍 *HASIL PEMINDAIAN LOG KEAMANAN MIKROTIK:*\n\n` +
+                  `• Router Dipindai: *${res.scannedRouters} router*\n` +
+                  `• Log Kegagalan Ditemukan: *${res.totalFailuresFound} log*\n` +
+                  `• Ancaman Brute Force Terdeteksi: *${res.threatsDetected.length} ancaman*\n` +
+                  `• Tindakan Auto-Block: *${res.blockedCount} target dieksekusi*\n\n`;
+
+        if (res.threatsDetected.length === 0) {
+          out += `✅ *Aman!* Tidak ditemukan adanya indikasi serangan brute force yang melampaui batas toleransi pada router MikroTik saat ini.`;
+        } else {
+          out += `⚠️ *Rincian Ancaman yang Terdeteksi & Ditindak:*\n`;
+          res.threatsDetected.forEach(t => {
+            out += `• [${t.router}] *${t.type.toUpperCase()}* (${t.service}): IP \`${t.ip}\` | MAC: \`${t.mac}\` (${t.count}x gagal, target: ${t.targets})\n`;
+          });
+          out += `\n_Seluruh penyerang telah otomatis dimasukkan ke blacklist firewall & IP-Binding blokir._`;
+        }
+        return out;
+      }
+
+      // 22. Buka Blokir IP / MAC Address di MikroTik & Billing
+      case 'unblock_security_target': {
+        const target = String(args.target || '').trim();
+        if (!target) return 'Mohon sebutkan alamat IP atau MAC address yang ingin dibuka blokirnya.';
+
+        const securityWatchdog = require('./securityWatchdogService');
+        const result = await securityWatchdog.unblockMikrotikTarget({
+          target,
+          routerId: args.routerId ? Number(args.routerId) : null
+        });
+        return result.message || 'Proses buka blokir selesai.';
       }
 
       default:
