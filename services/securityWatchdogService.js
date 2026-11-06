@@ -537,23 +537,56 @@ class SecurityWatchdogService {
             // 2. Coba regex Hotspot Login Failure:
             // "->: 99285 (192.168.100.242): login failed: invalid username or password"
             // "yogi55 (192.168.100.88): login failed: invalid username or password"
-            const hotspotMatch = msg.match(/(?:->:\s*)?(\S+)\s*\(([0-9a-fA-F.:]+)\):\s*login failed:\s*(.+)/i) ||
-                                 msg.match(/login failed:\s*(?:user\s+(\S+)\s+)?(?:from\s+)?([0-9a-fA-F.:]+)?(?:\s*\((.+)\))?/i);
+            const isHotspotTopic = topics.includes('hotspot') || lowerMsg.includes('hotspot');
 
-            if (hotspotMatch || topics.includes('hotspot')) {
+            if (isHotspotTopic || lowerMsg.includes('login failed')) {
+              // 2a. ABAIKAN aktivitas normal / cache / relogin / limit sesi (BUKAN brute force):
+              const isBenignHotspot = 
+                lowerMsg.includes('no more sessions') ||
+                lowerMsg.includes('already authorizing') ||
+                lowerMsg.includes('mac-cookie') ||
+                lowerMsg.includes('cookie') ||
+                lowerMsg.includes('session limit') ||
+                lowerMsg.includes('uptime limit') ||
+                lowerMsg.includes('traffic limit') ||
+                lowerMsg.includes('logged in') ||
+                lowerMsg.includes('logged out');
+
+              if (isBenignHotspot) {
+                // Abaikan aktivitas normal user
+                continue;
+              }
+
+              // 2b. HANYA proses jika kegagalan karena kredensial salah / user tidak ditemukan
+              const isCredentialFailure = 
+                lowerMsg.includes('invalid username or password') ||
+                lowerMsg.includes('user not found') ||
+                lowerMsg.includes('invalid password') ||
+                lowerMsg.includes('cannot find user');
+
+              if (!isCredentialFailure) {
+                // Bukan kesalahan username/password, abaikan
+                continue;
+              }
+
+              const hotspotMatch = msg.match(/(?:->:\s*)?(\S+)\s*\(([0-9a-fA-F.:]+)\):\s*login failed:\s*(.+)/i) ||
+                                   msg.match(/login failed:\s*(?:user\s+(\S+)\s+)?(?:from\s+)?([0-9a-fA-F.:]+)?(?:\s*\((.+)\))?/i);
+
               let targetUser = 'voucher-hotspot';
               let attackerIp = '';
-              let reason = 'login failed';
+              let reason = 'invalid username or password';
 
               if (hotspotMatch) {
                 targetUser = hotspotMatch[1] || 'voucher-hotspot';
                 attackerIp = String(hotspotMatch[2] || '').replace(/^::ffff:/, '').trim();
                 reason = hotspotMatch[3] || 'invalid username or password';
               } else {
-                // Fallback pencarian IP di dalam kurung
                 const ipInParen = msg.match(/\(([0-9a-fA-F.:]+)\)/);
                 if (ipInParen) attackerIp = ipInParen[1];
               }
+
+              // Bersihkan format username dari karakter sisa regex
+              targetUser = targetUser.replace(/^[->:\s]+/, '').replace(/[:\s]+$/, '').trim();
 
               if (attackerIp && attackerIp !== '127.0.0.1' && attackerIp !== 'localhost') {
                 if (!failuresByIp.has(attackerIp)) {
@@ -577,12 +610,36 @@ class SecurityWatchdogService {
             }
           }
 
-          // Periksa setiap IP yang melampaui ambang batas (Threshold)
+          // Periksa setiap IP yang melampaui kriteria serangan brute force
           const now = Date.now();
           for (const [attackerIp, data] of failuresByIp.entries()) {
-            const threshold = data.type === 'admin' ? adminThreshold : hotspotThreshold;
+            let isThreat = false;
+            let threatReason = '';
 
-            if (data.count >= threshold) {
+            if (data.type === 'admin') {
+              // Serangan Admin Management (Winbox, SSH, Telnet, API, WebFig): 3x gagal
+              if (data.count >= adminThreshold) {
+                isThreat = true;
+                threatReason = `Brute force login admin (${data.service.toUpperCase()}) sebanyak ${data.count}x percobaan`;
+              }
+            } else if (data.type === 'hotspot') {
+              // Serangan Hotspot Brute Force (Tebak Voucher / User Acak):
+              // HANYA JIKA mencoba BEBERAPA USERNAME/VOUCHER BERBEDA (minimal 3 user berbeda dan minimal 3x gagal)
+              const distinctUsersCount = data.targets.size;
+              const minDistinctUsers = Math.max(Number(getSetting('security_hotspot_distinct_users', 3)) || 3, 2);
+              const minAttempts = Math.max(Number(getSetting('security_hotspot_threshold', 3)) || 3, 2);
+
+              if (distinctUsersCount >= minDistinctUsers && data.count >= minAttempts) {
+                isThreat = true;
+                threatReason = `Mencoba login Hotspot acak dengan ${distinctUsersCount} user/voucher berbeda (${data.count}x gagal)`;
+              } else {
+                // Jika hanya 1 atau 2 user (seperti user 'ompong' mencoba ulang atau cache peramban),
+                // BUKAN serangan acak, sehingga JANGAN DIBLOKIR.
+                logger.info(`[SecurityWatchdog] IP ${attackerIp} diabaikan: hanya mencoba ${distinctUsersCount} user (${Array.from(data.targets).join(', ')}), bukan brute force acak.`);
+              }
+            }
+
+            if (isThreat) {
               const cacheKey = `${r.id}:${attackerIp}`;
               const lastAlert = mikrotikAlertCache.get(cacheKey) || 0;
 
