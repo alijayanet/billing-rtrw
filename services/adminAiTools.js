@@ -255,6 +255,19 @@ const adminToolDeclarations = [
       },
       required: ['target']
     }
+  },
+  {
+    name: 'configure_security_policy',
+    description: 'Mengatur kebijakan pengamanan brute force sistem: mengaktifkan atau menonaktifkan pemblokiran otomatis (auto-block / jangan blokir), mengatur ambang batas (threshold) kesalahan login untuk Hotspot dan Admin, atau melihat kebijakan keamanan yang sedang berlaku',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        autoBlock: { type: 'BOOLEAN', description: 'Status pemblokiran otomatis: true untuk mengaktifkan auto-block, false untuk mematikan auto-block / jangan blokir (hanya pantau & kirim notifikasi tanpa memblokir IP/MAC)' },
+        adminThreshold: { type: 'INTEGER', description: 'Ambang batas kegagalan login admin sebelum diblokir (angka, contoh: 5)' },
+        hotspotThreshold: { type: 'INTEGER', description: 'Ambang batas kegagalan login Hotspot sebelum diblokir (angka, contoh: 5)' },
+        hotspotDistinctUsers: { type: 'INTEGER', description: 'Batas minimal variasi nama user/voucher acak yang dicoba sebelum dicap penyerang (angka, contoh: 3)' }
+      }
+    }
   }
 ];
 
@@ -623,9 +636,14 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
         const mtIpCount = overview.mikrotikBlockedIps ? overview.mikrotikBlockedIps.length : 0;
         const mtMacCount = overview.mikrotikBlockedMacs ? overview.mikrotikBlockedMacs.length : 0;
         const recentAlerts = overview.recentAlerts || [];
+        const policy = overview.policy || {};
+        const isAutoBlock = policy.autoBlockEnabled !== false;
 
         let out = `🛡️ *LAPORAN KEAMANAN SISTEM & MIKROTIK:*\n\n` +
-                  `• Status: *${(appBlockedCount + mtIpCount + mtMacCount) > 0 ? '🛡️ MENJAGA (AKTIF DIBLOKIR)' : '✅ AMAN & TERKENDALI'}*\n` +
+                  `• Status Pengamanan: *${(appBlockedCount + mtIpCount + mtMacCount) > 0 ? '🛡️ MENJAGA (AKTIF DIBLOKIR)' : '✅ AMAN & TERKENDALI'}*\n` +
+                  `• Auto-Block: *${isAutoBlock ? '🟢 AKTIF (Blokir Otomatis)' : '🔴 NONAKTIF (Hanya Notifikasi)'}*\n` +
+                  `• Batas Gagal Hotspot: *${policy.hotspotThreshold || 5}x (min. ${policy.hotspotDistinctUsers || 3} user acak)*\n` +
+                  `• Batas Gagal Admin: *${policy.adminThreshold || 5}x percobaan*\n` +
                   `• Blacklist IP Firewall MikroTik: *${mtIpCount} IP*\n` +
                   `• Blocked MAC Hotspot MikroTik: *${mtMacCount} MAC*\n` +
                   `• IP Terblokir Portal Web: *${appBlockedCount} IP*\n`;
@@ -901,6 +919,58 @@ ${tailLines.slice(-3000) || '(Log kosong)'}
           routerId: args.routerId ? Number(args.routerId) : null
         });
         return result.message || 'Proses buka blokir selesai.';
+      }
+
+      // 23. Konfigurasi Kebijakan Keamanan & Auto-Block
+      case 'configure_security_policy': {
+        const { getSetting, saveSettings } = require('../config/settingsManager');
+        const updates = {};
+        const changes = [];
+
+        if (args.autoBlock !== undefined) {
+          const val = Boolean(args.autoBlock);
+          updates.security_auto_block_enabled = val;
+          changes.push(`Pemblokiran Otomatis (Auto-Block): *${val ? '🟢 DIAKTIFKAN' : '🔴 DINONAKTIFKAN (Hanya Pantau & Kirim Notifikasi, Tanpa Memblokir)'}*`);
+        }
+
+        if (args.adminThreshold !== undefined) {
+          const num = Math.max(Number(args.adminThreshold) || 5, 2);
+          updates.security_admin_threshold = num;
+          changes.push(`Ambang Batas Login Admin: *${num} kali kegagalan*`);
+        }
+
+        if (args.hotspotThreshold !== undefined) {
+          const num = Math.max(Number(args.hotspotThreshold) || 5, 2);
+          updates.security_hotspot_threshold = num;
+          changes.push(`Ambang Batas Login Hotspot: *${num} kali kegagalan*`);
+        }
+
+        if (args.hotspotDistinctUsers !== undefined) {
+          const num = Math.max(Number(args.hotspotDistinctUsers) || 3, 2);
+          updates.security_hotspot_distinct_users = num;
+          changes.push(`Batas Variasi User Acak Hotspot: *${num} user berbeda*`);
+        }
+
+        if (Object.keys(updates).length === 0) {
+          const curAuto = getSetting('security_auto_block_enabled', true);
+          const curAdmin = getSetting('security_admin_threshold', 5);
+          const curHotspot = getSetting('security_hotspot_threshold', 5);
+          const curDistinct = getSetting('security_hotspot_distinct_users', 3);
+
+          return `🛡️ *STATUS KEBIJAKAN PENGAMANAN BRUTE FORCE:*\n\n` +
+                 `• Pemblokiran Otomatis: *${curAuto ? '🟢 AKTIF' : '🔴 NONAKTIF (Hanya Pantau & Notifikasi)'}*\n` +
+                 `• Toleransi Gagal Admin: *${curAdmin} kali*\n` +
+                 `• Toleransi Gagal Hotspot: *${curHotspot} kali*\n` +
+                 `• Minimal Variasi User Acak Hotspot: *${curDistinct} user berbeda*\n\n` +
+                 `_💡 Anda dapat mengubahnya kapan saja dengan perintah seperti: "nonaktifkan auto block", "jangan blokir otomatis", "aktifkan blokir otomatis", atau "atur batas blokir jadi 5 kali"._`;
+        }
+
+        const ok = saveSettings(updates);
+        if (!ok) return '❌ Gagal menyimpan pengaturan kebijakan keamanan ke server.';
+
+        return `✅ *KEBIJAKAN KEAMANAN BERHASIL DIPERBARUI:*\n\n` +
+               changes.map(c => `• ${c}`).join('\n') +
+               `\n\n_Pengaturan telah disimpan secara permanen di server dan langsung diterapkan._`;
       }
 
       default:

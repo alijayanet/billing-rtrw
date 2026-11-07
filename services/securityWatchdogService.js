@@ -440,8 +440,8 @@ class SecurityWatchdogService {
       const mt = require('./mikrotikService');
       const routers = db.prepare("SELECT id, name, host FROM routers WHERE is_active = 1").all() || [];
       const autoBlockEnabled = getSetting('security_auto_block_enabled', true);
-      const hotspotThreshold = Math.max(Number(getSetting('security_hotspot_threshold', 4)) || 4, 2);
-      const adminThreshold = Math.max(Number(getSetting('security_admin_threshold', 3)) || 3, 2);
+      const hotspotThreshold = Math.max(Number(getSetting('security_hotspot_threshold', 5)) || 5, 2);
+      const adminThreshold = Math.max(Number(getSetting('security_admin_threshold', 5)) || 5, 2);
 
       for (const r of routers) {
         summary.scannedRouters++;
@@ -618,17 +618,17 @@ class SecurityWatchdogService {
             let threatReason = '';
 
             if (data.type === 'admin') {
-              // Serangan Admin Management (Winbox, SSH, Telnet, API, WebFig): 3x gagal
+              // Serangan Admin Management (Winbox, SSH, Telnet, API, WebFig): adminThreshold gagal
               if (data.count >= adminThreshold) {
                 isThreat = true;
                 threatReason = `Brute force login admin (${data.service.toUpperCase()}) sebanyak ${data.count}x percobaan`;
               }
             } else if (data.type === 'hotspot') {
               // Serangan Hotspot Brute Force (Tebak Voucher / User Acak):
-              // HANYA JIKA mencoba BEBERAPA USERNAME/VOUCHER BERBEDA (minimal 3 user berbeda dan minimal 3x gagal)
+              // HANYA JIKA mencoba BEBERAPA USERNAME/VOUCHER BERBEDA (minimal minDistinctUsers berbeda dan minimal hotspotThreshold gagal)
               const distinctUsersCount = data.targets.size;
               const minDistinctUsers = Math.max(Number(getSetting('security_hotspot_distinct_users', 3)) || 3, 2);
-              const minAttempts = Math.max(Number(getSetting('security_hotspot_threshold', 3)) || 3, 2);
+              const minAttempts = hotspotThreshold;
 
               if (distinctUsersCount >= minDistinctUsers && data.count >= minAttempts) {
                 isThreat = true;
@@ -685,7 +685,9 @@ class SecurityWatchdogService {
 
                 // 1. ANNOUNCEMENT VOICE VIA SOUNDBOX (SPEAKER KASIR / ADMIN)
                 const attackTypeLabel = data.type === 'hotspot' ? 'hotspot voucher' : `admin ${data.service}`;
-                const speechText = `Peringatan darurat! Terdeteksi serangan brute force login ${attackTypeLabel} pada router MikroTik ${r.name} dari alamat i pe ${ipSpoken}. Sistem telah memblokir akses tersebut secara otomatis.`;
+                const speechText = autoBlockEnabled
+                  ? `Peringatan darurat! Terdeteksi serangan brute force login ${attackTypeLabel} pada router MikroTik ${r.name} dari alamat i pe ${ipSpoken}. Sistem telah memblokir akses tersebut secara otomatis.`
+                  : `Peringatan siaga! Terdeteksi aktivitas brute force login ${attackTypeLabel} pada router MikroTik ${r.name} dari alamat i pe ${ipSpoken}. Pemblokiran otomatis saat ini dinonaktifkan.`;
                 
                 soundboxSvc.queueSoundboxEvent({
                   type: 'security_alert',
@@ -696,12 +698,20 @@ class SecurityWatchdogService {
                 });
 
                 // 2. KIRIM NOTIFIKASI SIAGA KE TELEGRAM ADMIN & WHATSAPP
-                const actionListText = actionResults.length > 0 
+                const actionListText = autoBlockEnabled && actionResults.length > 0 
                   ? actionResults.map(a => `• ✅ ${a}`).join('\n')
-                  : '• ⚠️ Auto-block dinonaktifkan di pengaturan.';
+                  : '• ⚠️ Auto-block dinonaktifkan di pengaturan (Hanya pantau & notifikasi, target tidak diblokir).';
+
+                const alertHeader = autoBlockEnabled
+                  ? `🚨 *PERINGATAN KEAMANAN (BRUTE FORCE DIBLOKIR OTOMATIS)*`
+                  : `⚠️ *PERINGATAN KEAMANAN (BRUTE FORCE TERDETEKSI - AUTO BLOCK OFF)*`;
+
+                const alertTip = autoBlockEnabled
+                  ? `_💡 Tips Admin: Untuk membuka blokir kembali, Anda cukup chat bot: "Buka blokir IP ${attackerIp}" atau "Buka blokir MAC ${macAddress || ''}"_`
+                  : `_💡 Tips Admin: Auto-block sedang nonaktif. Jika ingin memblokirnya manual, chat bot: "Blokir IP ${attackerIp}". Untuk mengaktifkan kembali blokir otomatis, chat: "Aktifkan auto block"._`;
 
                 const alertMessage = 
-                  `🚨 *PERINGATAN KEAMANAN (BRUTE FORCE DIBLOKIR OTOMATIS)*\n\n` +
+                  `${alertHeader}\n\n` +
                   `Sistem mendeteksi aktivitas mencurigakan pada Router *${r.name}* (${r.host}):\n\n` +
                   `🛡️ *Kategori Serangan:* ${data.type === 'hotspot' ? '🔥 Hotspot Login Brute Force' : '⚠️ Admin Management Brute Force'}\n` +
                   `🌐 *Alamat IP Penyerang:* \`${attackerIp}\`\n` +
@@ -710,14 +720,16 @@ class SecurityWatchdogService {
                   `👤 *Target User / Voucher:* \`${targetsStr.slice(0, 100)}\`\n` +
                   `📊 *Jumlah Percobaan Gagal:* *${data.count} kali*\n` +
                   `⏱️ *Waktu Deteksi:* ${new Date().toLocaleString('id-ID')}\n\n` +
-                  `*Tindakan Pencegahan AI:*\n${actionListText}\n\n` +
-                  `_💡 Tips Admin: Untuk membuka blokir kembali, Anda cukup chat bot: "Buka blokir IP ${attackerIp}" atau "Buka blokir MAC ${macAddress || ''}"_`;
+                  `*Status Tindakan:*\n${actionListText}\n\n` +
+                  alertTip;
 
                 await this._notifyAdmin(alertMessage);
 
                 // 3. CATAT KE AUDIT TRAIL
                 this._recordAudit({
-                  action: data.type === 'hotspot' ? 'HOTSPOT_BRUTE_FORCE_BLOCKED' : 'ROUTER_BRUTE_FORCE_BLOCKED',
+                  action: autoBlockEnabled 
+                    ? (data.type === 'hotspot' ? 'HOTSPOT_BRUTE_FORCE_BLOCKED' : 'ROUTER_BRUTE_FORCE_BLOCKED')
+                    : (data.type === 'hotspot' ? 'HOTSPOT_BRUTE_FORCE_DETECTED' : 'ROUTER_BRUTE_FORCE_DETECTED'),
                   entity_type: 'mikrotik_intrusion',
                   entity_id: `${r.name}:${attackerIp}:${macAddress || 'no-mac'}`,
                   details: {
@@ -729,6 +741,7 @@ class SecurityWatchdogService {
                     service: data.service,
                     count: data.count,
                     targets: Array.from(data.targets),
+                    autoBlockEnabled,
                     actionsTaken: actionResults
                   },
                   ip_address: attackerIp
@@ -820,6 +833,12 @@ class SecurityWatchdogService {
 
     return {
       status: (mikrotikBlockedIps.length > 0 || mikrotikBlockedMacs.length > 0 || appBlocked.length > 0) ? 'guarded' : 'secure',
+      policy: {
+        autoBlockEnabled: getSetting('security_auto_block_enabled', true),
+        hotspotThreshold: Math.max(Number(getSetting('security_hotspot_threshold', 5)) || 5, 2),
+        adminThreshold: Math.max(Number(getSetting('security_admin_threshold', 5)) || 5, 2),
+        hotspotDistinctUsers: Math.max(Number(getSetting('security_hotspot_distinct_users', 3)) || 3, 2)
+      },
       appBlockedIps: appBlocked,
       mikrotikBlockedIps,
       mikrotikBlockedMacs,

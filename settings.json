@@ -93,5 +93,8 @@
   "wa_gateway_type": "baileys",
   "fonnte_token": "",
   "fonnte_api_url": "https://api.fonnte.com/send",
-  "whatsapp_ai_enabled": "admin_only"
+  "whatsapp_ai_enabled": "admin_only",
+  "security_auto_block_enabled": true,
+  "security_admin_threshold": 5,
+  "security_hotspot_threshold": 5
 }
