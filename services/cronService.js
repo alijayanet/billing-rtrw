@@ -726,6 +726,29 @@ function startCronJobs() {
     }
   });
 
+  // 11. Smart Outage Watchdog - Deteksi Pemadaman Massal / Kabel Putus (Setiap 3 Menit)
+  cron.schedule('*/3 * * * *', async () => {
+    try {
+      const outageWatchdog = require('./outageWatchdogService');
+      await outageWatchdog.scanNetworkOutages();
+    } catch (e) {
+      logger.error(`[CRON-OUTAGE-WATCHDOG] Error: ${e.message}`);
+    }
+  });
+
+  // 12. Morning Executive Briefing - Laporan Pagi Otomatis (Setiap Hari Pukul 07:30 WIB)
+  cron.schedule('30 7 * * *', async () => {
+    try {
+      const isEnabled = getSetting('morning_briefing_enabled', true);
+      if (isEnabled !== false && isEnabled !== 'false') {
+        const morningBriefing = require('./morningBriefingService');
+        await morningBriefing.sendMorningBriefing();
+      }
+    } catch (e) {
+      logger.error(`[CRON-MORNING-BRIEFING] Error: ${e.message}`);
+    }
+  });
+
   logger.info('[CRON] Semua tugas penjadwalan telah aktif.');
 }
 

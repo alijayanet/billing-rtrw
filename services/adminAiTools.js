@@ -268,6 +268,42 @@ const adminToolDeclarations = [
         hotspotDistinctUsers: { type: 'INTEGER', description: 'Batas minimal variasi nama user/voucher acak yang dicoba sebelum dicap penyerang (angka, contoh: 3)' }
       }
     }
+  },
+  {
+    name: 'get_morning_briefing',
+    description: 'Menampilkan laporan ringkasan eksekutif pagi (Morning Executive Briefing): ringkasan omzet & keuangan harian/bulanan, tagihan tertunda, kesehatan sesi PPPoE aktif MikroTik, status ONT & redaman optik kritis di ACS, status keamanan brute-force, dan tiket komplain aktif',
+    parameters: {
+      type: 'OBJECT',
+      properties: {}
+    }
+  },
+  {
+    name: 'check_network_outages',
+    description: 'Memeriksa dan menganalisis apakah sedang terjadi gangguan massal, kabel feeder/distribusi ODP putus, atau banyak pelanggan terputus serentak pada klaster ODP/Area tertentu',
+    parameters: {
+      type: 'OBJECT',
+      properties: {}
+    }
+  },
+  {
+    name: 'quick_provision_customer_ont',
+    description: 'Aktivasi cepat pelanggan baru & registrasi ONT/ONU langsung dari chat Telegram untuk teknisi lapangan: mendaftarkan data pelanggan, memilih ODP, membuat secret PPPoE di MikroTik, menghubungkan serial number ONT di ACS, dan mengatur SSID/WiFi',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        name: { type: 'STRING', description: 'Nama lengkap pelanggan baru (contoh: "Bpk Rahmat")' },
+        phone: { type: 'STRING', description: 'Nomor WhatsApp atau HP pelanggan (contoh: "08123456789")' },
+        address: { type: 'STRING', description: 'Alamat tempat pemasangan (contoh: "Blok C No. 12 RT 03")' },
+        packageName: { type: 'STRING', description: 'Nama paket internet atau kecepatan (contoh: "20 Mbps", "Paket Home 10M", atau harga "150000")' },
+        serialNumber: { type: 'STRING', description: 'Serial Number ONT / ONU baru (contoh: "ZTEGCB86524A" atau "ALCLB1234567")' },
+        odpName: { type: 'STRING', description: 'Nama atau nomor ODP tempat kabel dicolokkan (contoh: "ODP-01" atau "1")' },
+        wifiSsid: { type: 'STRING', description: 'Nama SSID WiFi pelanggan baru jika ingin langsung diset (contoh: "Rahmat_Net")' },
+        wifiPassword: { type: 'STRING', description: 'Password WiFi jika ingin langsung diset (contoh: "12345678")' },
+        pppoeUser: { type: 'STRING', description: 'Username PPPoE kustom (opsional, jika kosong otomatis digenerate dari nama)' },
+        pppoePass: { type: 'STRING', description: 'Password PPPoE kustom (opsional, jika kosong otomatis dibuatkan aman)' }
+      },
+      required: ['name']
+    }
   }
 ];
 
@@ -971,6 +1007,171 @@ ${tailLines.slice(-3000) || '(Log kosong)'}
         return `✅ *KEBIJAKAN KEAMANAN BERHASIL DIPERBARUI:*\n\n` +
                changes.map(c => `• ${c}`).join('\n') +
                `\n\n_Pengaturan telah disimpan secara permanen di server dan langsung diterapkan._`;
+      }
+
+      // 24. Morning Executive Briefing
+      case 'get_morning_briefing': {
+        const morningBriefing = require('./morningBriefingService');
+        return await morningBriefing.getFormattedBriefing();
+      }
+
+      // 25. Cek Gangguan Jalur / Kabel Putus Massal
+      case 'check_network_outages': {
+        const outageWatchdog = require('./outageWatchdogService');
+        return await outageWatchdog.getOutageStatusReport();
+      }
+
+      // 26. Aktivasi Cepat ONT & Pelanggan Baru (Teknisi Lapangan)
+      case 'quick_provision_customer_ont': {
+        const { name, phone, address, packageName, serialNumber, odpName, wifiSsid, wifiPassword, pppoeUser, pppoePass } = args;
+        if (!name || !name.trim()) {
+          return 'Mohon sebutkan minimal nama pelanggan baru yang ingin diaktivasi.';
+        }
+
+        // 1. Validasi / Pilih Paket
+        const allPkgs = customerSvc.getAllPackages();
+        let pkg = null;
+        if (packageName) {
+          const cleanPkg = String(packageName).toLowerCase().trim();
+          pkg = allPkgs.find(p => p.name.toLowerCase() === cleanPkg) ||
+                allPkgs.find(p => p.name.toLowerCase().includes(cleanPkg)) ||
+                allPkgs.find(p => String(p.price) === cleanPkg.replace(/\D/g, ''));
+        }
+        if (!pkg && allPkgs.length > 0) {
+          pkg = allPkgs[0];
+        }
+        if (!pkg) {
+          return '❌ Paket internet belum tersedia di sistem. Mohon buat paket layanan terlebih dahulu.';
+        }
+
+        // 2. Validasi / Pilih ODP
+        let odpId = null;
+        let odpData = null;
+        if (odpName) {
+          const cleanOdp = String(odpName).toLowerCase().trim();
+          const allOdps = db.prepare('SELECT id, name, olt_id, pon_port FROM odps').all() || [];
+          odpData = allOdps.find(o => o.name.toLowerCase() === cleanOdp || String(o.id) === cleanOdp || o.name.toLowerCase().includes(cleanOdp));
+          if (odpData) {
+            odpId = odpData.id;
+          }
+        }
+
+        // 3. Username & Password PPPoE
+        let cleanPppoe = (pppoeUser || name.toLowerCase().replace(/[^a-z0-9]/g, '')).trim();
+        if (!cleanPppoe || cleanPppoe.length < 3) cleanPppoe = 'user' + Math.floor(1000 + Math.random() * 9000);
+        
+        const existingPppoe = db.prepare('SELECT id FROM customers WHERE pppoe_username = ?').get(cleanPppoe);
+        if (existingPppoe) {
+          cleanPppoe += Math.floor(10 + Math.random() * 89);
+        }
+        const cleanPass = (pppoePass || cleanPppoe + Math.floor(100 + Math.random() * 900)).trim();
+
+        // 4. Pilih Router
+        const routerRow = db.prepare('SELECT id, name FROM routers WHERE is_active = 1 LIMIT 1').get();
+        const routerId = routerRow ? routerRow.id : null;
+        const routerName = routerRow ? routerRow.name : 'MikroTik Utama';
+
+        const today = new Date().toISOString().slice(0, 10);
+        const cleanSn = serialNumber ? String(serialNumber).trim().toUpperCase() : '';
+
+        // 5. Simpan Pelanggan ke Database
+        const newCustData = {
+          name: name.trim(),
+          phone: phone ? String(phone).replace(/\D/g, '') : '',
+          email: '',
+          address: address ? String(address).trim() : '',
+          area: odpData ? odpData.name : '',
+          package_id: pkg.id,
+          router_id: routerId,
+          olt_id: odpData ? odpData.olt_id : null,
+          odp_id: odpId,
+          pon_port: odpData ? odpData.pon_port : '',
+          connection_type: 'pppoe',
+          pppoe_username: cleanPppoe,
+          pppoe_password: cleanPass,
+          genieacs_tag: cleanSn,
+          status: 'active',
+          install_date: today,
+          auto_isolate: 1,
+          isolate_day: 10
+        };
+
+        const res = customerSvc.createCustomer(newCustData);
+        const newCustId = res.lastInsertRowid;
+
+        // 6. Buat Secret PPPoE di Router MikroTik
+        let mtStatus = 'Lewati (tidak ada router aktif)';
+        if (routerId) {
+          try {
+            await mikrotikService.createPppoeSecret({
+              username: cleanPppoe,
+              password: cleanPass,
+              profile: pkg.name,
+              routerId: routerId
+            });
+            mtStatus = `✅ Dibuatkan di ${routerName} (Profil: ${pkg.name})`;
+          } catch (err) {
+            logger.warn(`[quick_provision] Gagal buat secret mikrotik: ${err.message}`);
+            mtStatus = `⚠️ Gagal otomatis: ${err.message}`;
+          }
+        }
+
+        // 7. Binding ONT di ACS & Set WiFi jika ada
+        let acsStatus = 'Tidak ada serial number';
+        if (cleanSn) {
+          try {
+            const dev = db.prepare('SELECT id, tags, params FROM acs_devices WHERE serial_number = ? OR id = ?').get(cleanSn, cleanSn);
+            if (dev) {
+              let tags = [];
+              try { tags = JSON.parse(dev.tags || '[]'); } catch (_) {}
+              if (!tags.includes(name.trim())) tags.push(name.trim());
+              if (!tags.includes(`customer_${newCustId}`)) tags.push(`customer_${newCustId}`);
+              db.prepare('UPDATE acs_devices SET tags = ? WHERE id = ?').run(JSON.stringify(tags), dev.id);
+              acsStatus = `✅ Terhubung di Built-in ACS (${dev.id})`;
+
+              // Konfigurasi WiFi jika diminta
+              if (wifiSsid || wifiPassword) {
+                const acsServerSvc = require('./acsServerService');
+                const wifiPayload = {};
+                if (wifiSsid) {
+                  wifiPayload['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID'] = wifiSsid;
+                }
+                if (wifiPassword) {
+                  wifiPayload['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase'] = wifiPassword;
+                }
+                acsServerSvc.createBuiltinTask(dev.id, 'setParameterValues', wifiPayload);
+                acsStatus += ` (WiFi: ${wifiSsid || 'Default'} disinkronkan)`;
+              }
+            } else {
+              acsStatus = `⚠️ Serial number ${cleanSn} belum terdeteksi inform di ACS (akan otomatis terikat saat ONT pertama kali online)`;
+            }
+          } catch (err) {
+            acsStatus = `⚠️ Gagal update tags ACS: ${err.message}`;
+          }
+        }
+
+        // 8. Generate Tagihan Pertama
+        try {
+          billingSvc.ensureCurrentInvoice(newCustId);
+        } catch (_) {}
+
+        // Format Konfirmasi Aktivasi untuk Teknisi
+        return `⚡ *AKTIVASI PELANGGAN & ONT BERHASIL!*\n\n` +
+               `• *ID Pelanggan:* #${newCustId}\n` +
+               `• *Nama:* ${newCustData.name}\n` +
+               `• *No. WhatsApp:* ${newCustData.phone || '-'}\n` +
+               `• *Alamat:* ${newCustData.address || '-'}\n` +
+               `• *Paket:* ${pkg.name} (Rp ${Number(pkg.price || 0).toLocaleString('id-ID')}/bln)\n` +
+               `• *Titik ODP:* ${odpData ? odpData.name : '-'}\n\n` +
+               `🔐 *AKUN INTERNET PPPOE:*\n` +
+               `• Username: \`${cleanPppoe}\`\n` +
+               `• Password: \`${cleanPass}\`\n` +
+               `• Status MikroTik: ${mtStatus}\n\n` +
+               `📡 *MODEM / ONT TR-069:*\n` +
+               `• Serial Number: \`${cleanSn || '(Belum diisi)'}\`\n` +
+               `• Status ACS: ${acsStatus}\n` +
+               (wifiSsid ? `• WiFi SSID: *${wifiSsid}* (Password: \`${wifiPassword || 'Tidak diubah'}\`)\n` : '') +
+               `\n_Tagihan pertama periode berjalan sudah diterbitkan secara otomatis._`;
       }
 
       default:
