@@ -711,7 +711,7 @@ class SecurityWatchdogService {
                 SELECT id FROM audit_trail 
                 WHERE (ip_address = ? OR entity_id LIKE '%' || ? || '%')
                   AND action LIKE '%BRUTE_FORCE%' 
-                  AND created_at >= datetime('now', '-6 hours', 'localtime')
+                  AND created_at >= datetime('now', '-6 hours')
                 LIMIT 1
               `).get(attackerIp, attackerIp);
 
