@@ -182,11 +182,10 @@ class MorningBriefingService {
   formatBriefingMessage(m) {
     const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 
-    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const tz = getSetting('timezone', 'Asia/Jakarta') || 'Asia/Jakarta';
     const now = new Date();
-    const dateStr = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('id-ID', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('id-ID', { timeZone: tz, hour: '2-digit', minute: '2-digit' }).replace('.', ':');
 
     let msg = `☀️ *MORNING EXECUTIVE BRIEFING — ALIJAYA NET*\n`;
     msg += `📅 *${dateStr}* | ⏰ *${timeStr} WIB*\n\n`;

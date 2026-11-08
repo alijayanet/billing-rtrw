@@ -57,8 +57,17 @@ function addMessageVariation(message, index) {
 }
 
 function startCronJobs() {
+  const tz = getSetting('timezone', 'Asia/Jakarta') || 'Asia/Jakarta';
+  const cronOptions = { scheduled: true, timezone: tz };
+  logger.info(`[CRON] Memulai penjadwalan tugas otomatis dengan zona waktu: ${tz}`);
+
+  // Helper agar semua tugas cron otomatis terikat ke zona waktu yang benar (WIB / Asia/Jakarta)
+  const scheduleJob = (pattern, fn) => {
+    return cron.schedule(pattern, fn, cronOptions);
+  };
+
   // 0. Cleanup otomatis pesanan voucher & topup pending yang kadaluarsa setiap 10 menit
-  cron.schedule('*/10 * * * *', () => {
+  scheduleJob('*/10 * * * *', () => {
     try {
       const uniqueCodeService = require('./uniqueCodeService');
       const res = uniqueCodeService.cleanupExpiredPendingOrders();
@@ -71,7 +80,7 @@ function startCronJobs() {
   });
 
   // 1. Generate Tagihan Otomatis setiap tanggal 1 jam 00:01
-  cron.schedule('1 0 1 * *', () => {
+  scheduleJob('1 0 1 * *', () => {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
@@ -86,7 +95,7 @@ function startCronJobs() {
   });
 
   // 2. Isolir Otomatis setiap hari jam 02:00
-  cron.schedule('0 2 * * *', async () => {
+  scheduleJob('0 2 * * *', async () => {
     const now = new Date();
     const today = now.getDate();
     logger.info(`[CRON] Menjalankan pengecekan isolir otomatis harian (Tanggal ${today})`);
@@ -149,7 +158,7 @@ function startCronJobs() {
     logger.info(`[CRON] Selesai pengecekan isolir. Total ${isolatedCount} pelanggan baru di-isolir.`);
   });
 
-  cron.schedule('0 9 * * *', async () => {
+  scheduleJob('0 9 * * *', async () => {
     const enabled = getSetting('whatsapp_auto_billing_enabled', false);
     const waEnabled = getSetting('whatsapp_enabled', false);
     const billingEnabled = getSetting('whatsapp_billing_to_customer_enabled', true);
@@ -413,7 +422,7 @@ function startCronJobs() {
   });
 
   // 4. Jam Kalong (Night Speed) Start - Jam 00:00
-  cron.schedule('0 0 * * *', async () => {
+  scheduleJob('0 0 * * *', async () => {
     logger.info('[CRON] Memulai Jam Kalong (Night Speed) - Ganti Profile...');
     try {
       let count = 0;
@@ -453,7 +462,7 @@ function startCronJobs() {
   });
 
   // 5. Jam Kalong (Night Speed) End - Jam 06:00
-  cron.schedule('0 6 * * *', async () => {
+  scheduleJob('0 6 * * *', async () => {
     logger.info('[CRON] Mengakhiri Jam Kalong (Night Speed) - Kembali ke Profile Normal...');
     try {
       let count = 0;
@@ -493,7 +502,7 @@ function startCronJobs() {
   });
 
   // 6. Track Usage Pelanggan (Data Traffic) - Setiap 10 Menit
-  cron.schedule('*/10 * * * *', async () => {
+  scheduleJob('*/10 * * * *', async () => {
     const enabled = getSetting('usage_tracking_enabled', true);
     if (!enabled) return;
 
@@ -551,7 +560,7 @@ function startCronJobs() {
   });
 
   // 7. FUP (Fair Usage Policy) Check - Setiap Jam
-  cron.schedule('0 * * * *', async () => {
+  scheduleJob('0 * * * *', async () => {
     logger.info('[CRON] Mengecek FUP Pelanggan...');
     try {
       const now = new Date();
@@ -602,7 +611,7 @@ function startCronJobs() {
   });
 
   // 8. Auto-Refresh ACS Devices & Sync IPs - Setiap 5 Menit
-  cron.schedule('*/5 * * * *', async () => {
+  scheduleJob('*/5 * * * *', async () => {
     const enabled = getSetting('use_builtin_acs', false) === true || getSetting('use_builtin_acs', false) === 'true';
     if (!enabled) return;
 
@@ -701,7 +710,7 @@ function startCronJobs() {
   });
 
   // 9. Autonomous AI Self-Healing & Network Watchdog (Setiap 30 Menit)
-  cron.schedule('*/30 * * * *', async () => {
+  scheduleJob('*/30 * * * *', async () => {
     const isEnabled = getSetting('ai_self_healing_enabled', true) === true || getSetting('ai_self_healing_enabled', true) === 'true';
     if (!isEnabled) return;
 
@@ -717,7 +726,7 @@ function startCronJobs() {
   });
 
   // 10. AI Security Watchdog - Deteksi Brute Force MikroTik (Setiap 2 Menit)
-  cron.schedule('*/2 * * * *', async () => {
+  scheduleJob('*/2 * * * *', async () => {
     try {
       const securityWatchdog = require('./securityWatchdogService');
       await securityWatchdog.scanMikrotikLoginFailures();
@@ -727,7 +736,7 @@ function startCronJobs() {
   });
 
   // 11. Smart Outage Watchdog - Deteksi Pemadaman Massal / Kabel Putus (Setiap 3 Menit)
-  cron.schedule('*/3 * * * *', async () => {
+  scheduleJob('*/3 * * * *', async () => {
     try {
       const outageWatchdog = require('./outageWatchdogService');
       await outageWatchdog.scanNetworkOutages();
@@ -737,7 +746,7 @@ function startCronJobs() {
   });
 
   // 12. Morning Executive Briefing - Laporan Pagi Otomatis (Setiap Hari Pukul 07:30 WIB)
-  cron.schedule('30 7 * * *', async () => {
+  scheduleJob('30 7 * * *', async () => {
     try {
       const isEnabled = getSetting('morning_briefing_enabled', true);
       if (isEnabled !== false && isEnabled !== 'false') {
