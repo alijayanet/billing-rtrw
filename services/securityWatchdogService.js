@@ -198,7 +198,7 @@ class SecurityWatchdogService {
   /**
    * Resolusi Alamat MAC dari Alamat IP (via Hotspot Host, DHCP Lease, atau ARP Table)
    */
-  async resolveMacFromIp(conn, ip) {
+  async resolveMacFromIp(conn, ip, logs = []) {
     if (!ip) return null;
     try {
       // 1. Cek tabel Hotspot Host
@@ -227,6 +227,29 @@ class SecurityWatchdogService {
         const mac = (matchArp['mac-address'] || matchArp.macAddress || '').toUpperCase();
         if (mac) return mac;
       }
+
+      // 4. Fallback scan dari log buffer DHCP (misal: "dhcp1 assigned 192.168.100.136 to CA:32:A4:EA:B1:78")
+      if (Array.isArray(logs) && logs.length > 0) {
+        for (let i = logs.length - 1; i >= 0; i--) {
+          const m = logs[i].message || '';
+          if (m.includes(ip) && (m.includes('assigned') || m.includes('deassigned') || m.includes('dhcp'))) {
+            const macMatch = m.match(/([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2})/);
+            if (macMatch) return macMatch[0].toUpperCase();
+          }
+        }
+      }
+
+      // 5. Fallback dari riwayat audit_trail sebelumnya untuk IP ini
+      try {
+        const prevAudit = db.prepare("SELECT entity_id FROM audit_trail WHERE ip_address = ? AND action LIKE '%BRUTE_FORCE%' AND entity_id NOT LIKE '%no-mac' ORDER BY id DESC LIMIT 1").get(ip);
+        if (prevAudit && prevAudit.entity_id) {
+          const parts = prevAudit.entity_id.split(':');
+          const possibleMac = parts.slice(2).join(':');
+          if (/^([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2})$/.test(possibleMac)) {
+            return possibleMac.toUpperCase();
+          }
+        }
+      } catch (_) {}
     } catch (err) {
       logger.warn(`[SecurityWatchdog] Gagal resolusi MAC dari IP ${ip}: ${err.message}`);
     }
@@ -238,6 +261,7 @@ class SecurityWatchdogService {
    */
   async blockMikrotikTarget({ conn, routerId, routerName, ip, mac, reason, count, targets, service }) {
     const actionsTaken = [];
+    let isNewlyBlocked = false;
     const targetsStr = Array.from(targets).slice(0, 3).join(', ') || 'unknown';
 
     try {
@@ -259,12 +283,14 @@ class SecurityWatchdogService {
             comment: `AI_BLOCKED: Hotspot Brute Force (${count}x gagal, user: ${targetsStr})`
           });
           actionsTaken.push(`MAC ${mac} dimasukkan ke Hotspot IP-Binding (type: blocked)`);
+          isNewlyBlocked = true;
         } else if (existingBinding.type !== 'blocked') {
           await ipBindingMenu.set({
             type: 'blocked',
             comment: `AI_BLOCKED: Hotspot Brute Force (${count}x gagal, user: ${targetsStr})`
           }, existingBinding['.id']);
           actionsTaken.push(`MAC ${mac} diperbarui ke type: blocked di IP-Binding`);
+          isNewlyBlocked = true;
         } else {
           actionsTaken.push(`MAC ${mac} sudah berstatus blocked`);
         }
@@ -309,6 +335,7 @@ class SecurityWatchdogService {
             comment: `AI_BLOCKED: ${service.toUpperCase()} (${count}x gagal, user: ${targetsStr})`
           });
           actionsTaken.push(`IP ${ip} dimasukkan ke Firewall Address-List 'BLACKLIST_BRUTEFORCE' (timeout 1 hari)`);
+          isNewlyBlocked = true;
         } else {
           actionsTaken.push(`IP ${ip} sudah terdaftar di Blacklist Firewall`);
         }
@@ -321,7 +348,7 @@ class SecurityWatchdogService {
       actionsTaken.push(`Error blokir: ${err.message}`);
     }
 
-    return actionsTaken;
+    return { actionsTaken, isNewlyBlocked };
   }
 
   /**
@@ -645,7 +672,7 @@ class SecurityWatchdogService {
               const lastAlert = mikrotikAlertCache.get(cacheKey) || 0;
 
               // Resolusi Alamat MAC
-              const macAddress = await this.resolveMacFromIp(conn, attackerIp);
+              const macAddress = await this.resolveMacFromIp(conn, attackerIp, logs);
               const targetsStr = Array.from(data.targets).join(', ');
               const reasonsStr = Array.from(data.reasons).join('; ') || 'invalid credential';
 
@@ -661,8 +688,9 @@ class SecurityWatchdogService {
 
               // Eksekusi Pemblokiran Otomatis di MikroTik jika diaktifkan
               let actionResults = [];
+              let isNewlyBlocked = false;
               if (autoBlockEnabled) {
-                actionResults = await this.blockMikrotikTarget({
+                const blockRes = await this.blockMikrotikTarget({
                   conn,
                   routerId: r.id,
                   routerName: r.name,
@@ -673,11 +701,28 @@ class SecurityWatchdogService {
                   targets: data.targets,
                   service: data.service
                 });
-                summary.blockedCount++;
+                actionResults = blockRes.actionsTaken || [];
+                isNewlyBlocked = blockRes.isNewlyBlocked || false;
+                if (isNewlyBlocked) summary.blockedCount++;
               }
 
-              // Debounce alert per IP router tiap 15 menit agar admin tidak dibanjiri spam
-              if (now - lastAlert > 15 * 60 * 1000) {
+              // DEDUKLIKASI PINTAR: Cek apakah target ini sudah pernah di-alert dalam 6 jam terakhir
+              const hasRecentAlertInDb = db.prepare(`
+                SELECT id FROM audit_trail 
+                WHERE (ip_address = ? OR entity_id LIKE '%' || ? || '%')
+                  AND action LIKE '%BRUTE_FORCE%' 
+                  AND created_at >= datetime('now', '-6 hours', 'localtime')
+                LIMIT 1
+              `).get(attackerIp, attackerIp);
+
+              const isDuplicate = !isNewlyBlocked && (hasRecentAlertInDb || (now - lastAlert <= 6 * 60 * 60 * 1000));
+              if (isDuplicate) {
+                logger.info(`[SecurityWatchdog] Target ${attackerIp} sudah berstatus terblokir di MikroTik dan alert sudah terkirim sebelumnya. Melewati pengiriman ulang alert Telegram.`);
+                continue;
+              }
+
+              // Catat waktu alert
+              if (now - lastAlert > 15 * 60 * 1000 || isNewlyBlocked) {
                 mikrotikAlertCache.set(cacheKey, now);
 
                 const ipSpoken = formatIpForSpeech(attackerIp);
