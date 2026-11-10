@@ -104,14 +104,14 @@
                         <input class="fc" name="q" value="<%= (typeof searchQuery !== 'undefined' && searchQuery) ? searchQuery : '' %>" placeholder="Cari SN, Pelanggan, PPPoE, SSID, IP...">
                     </div>
                     <select class="fs" id="acsFilter" name="acs" style="width:200px" onchange="this.form.submit()">
-                        <option value="all">All ACS Servers</option>
+                        <option value="all" <%= (!selectedAcsId || selectedAcsId === 'all') ? 'selected' : '' %>>All ACS Servers</option>
                         <% acsServers.forEach(s => { %>
                             <option value="<%= s.id %>" <%= String(selectedAcsId) === String(s.id) ? 'selected' : '' %>><%= s.name %></option>
                         <% }); %>
                     </select>
                     <button class="btn btn-g btn-sm" type="submit"><i class="bi bi-search"></i> Cari</button>
                     <% if (typeof searchQuery !== 'undefined' && searchQuery) { %>
-                        <a href="/admin/acs<%= selectedAcsId ? '?acs=' + selectedAcsId : '' %>" class="btn btn-g btn-sm"><i class="bi bi-x"></i> Reset</a>
+                        <a href="/admin/acs<%= (selectedAcsId && selectedAcsId !== 'all') ? '?acs=' + selectedAcsId : '' %>" class="btn btn-g btn-sm"><i class="bi bi-x"></i> Reset</a>
                     <% } %>
                 </form>
                 

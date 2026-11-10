@@ -1219,7 +1219,7 @@ router.get('/', async (req, res) => {
         const activeServers = acsServers.length > 0 ? acsServers :
             (legacyACS.acs_url ? [{ id: 'legacy', name: 'Default ACS', url: legacyACS.acs_url, username: legacyACS.acs_user, password: legacyACS.acs_pass }] : []);
 
-        const selectedAcsId = req.query.acs || (activeServers[0]?.id);
+        const selectedAcsId = req.query.acs || 'all';
         const targetServers = selectedAcsId && selectedAcsId !== 'all' ? activeServers.filter(s => String(s.id) === String(selectedAcsId)) : activeServers;
 
         let allDevices = [];
