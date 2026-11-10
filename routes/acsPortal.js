@@ -364,11 +364,16 @@ function getNestedValue(obj, path) {
             if (!current) return null;
             current = current[part];
         }
-        if (current && typeof current === 'object' && '_value' in current) {
-            return current._value;
-        }
-        if (current && typeof current === 'object' && current.hasOwnProperty('_value')) {
-            return current._value;
+        if (current && typeof current === 'object') {
+            if ('_value' in current) {
+                let val = current._value;
+                while (val && typeof val === 'object' && '_value' in val) {
+                    val = val._value;
+                }
+                return (typeof val === 'object' && val !== null) ? null : val;
+            }
+            // Node parameter GenieACS tanpa _value (misal {_object:false, _writable:true})
+            return null;
         }
         return current;
     } catch (e) {
@@ -447,8 +452,18 @@ function getWildcardMatches(device, path) {
         
         if (index === parts.length) {
             let val = current;
-            if (typeof current === 'object' && '_value' in current) {
-                val = current._value;
+            if (typeof current === 'object' && current !== null) {
+                if ('_value' in current) {
+                    val = current._value;
+                    while (val && typeof val === 'object' && '_value' in val) {
+                        val = val._value;
+                    }
+                } else if ('_object' in current || '_writable' in current) {
+                    val = null;
+                }
+            }
+            if (typeof val === 'object' && val !== null) {
+                val = null;
             }
             results.push({
                 path: currentPathParts.join('.'),
@@ -486,12 +501,20 @@ function getDeviceParameterValue(device, keys, filterFn) {
     for (const key of keys) {
         const matches = getWildcardMatches(device, key);
         for (const match of matches) {
+            let val = match.value;
+            if (val === null || val === undefined) continue;
+            if (typeof val === 'object') {
+                if ('_value' in val) val = val._value;
+                else continue;
+            }
+            if (val === null || val === undefined || typeof val === 'object') continue;
+
             if (filterFn) {
-                if (filterFn(match.path, match.value, device)) {
-                    return match.value;
+                if (filterFn(match.path, val, device)) {
+                    return val;
                 }
-            } else if (match.value !== undefined && match.value !== null && match.value !== '') {
-                return match.value;
+            } else if (val !== '') {
+                return val;
             }
         }
     }
@@ -499,6 +522,7 @@ function getDeviceParameterValue(device, keys, filterFn) {
 }
 
 function extractPppoeIp(d) {
+    if (!d) return '-';
     // 1. Cek VirtualParameters dari GenieACS
     const vpKeys = [
         'VirtualParameters.pppoeIP',
@@ -508,15 +532,16 @@ function extractPppoeIp(d) {
         'VirtualParameters.pppoe_ip'
     ];
     for (const k of vpKeys) {
-        const val = getNestedValue(d, k);
-        if (val && typeof val === 'string' && val.trim() && val !== '-' && val !== '0.0.0.0' && val !== 'N/A') {
+        let val = getNestedValue(d, k);
+        if (val && typeof val === 'object' && '_value' in val) val = val._value;
+        if (typeof val === 'string' && val.trim() && val.trim() !== '-' && val.trim() !== '0.0.0.0' && val.trim() !== 'N/A') {
             return val.trim();
         }
     }
 
     // 2. Cek TR-069 tree parameters
-    const ip = getDeviceParameterValue(d, PPPOE_IP_KEYS, (matchedPath, value, device) => {
-        if (!value || value === '0.0.0.0' || value === '-') return false;
+    const rawIp = getDeviceParameterValue(d, PPPOE_IP_KEYS, (matchedPath, value, device) => {
+        if (!value || typeof value !== 'string' || value === '0.0.0.0' || value === '-') return false;
         
         if (matchedPath.includes('WANPPPConnection.')) {
             const connectionTypePath = matchedPath.replace('ExternalIPAddress', 'ConnectionType');
@@ -528,12 +553,19 @@ function extractPppoeIp(d) {
         return true;
     });
     
-    if (ip) return ip;
-    if (d._ip && d._ip !== '-' && d._ip !== '0.0.0.0') return d._ip;
+    let ip = rawIp;
+    if (ip && typeof ip === 'object' && '_value' in ip) ip = ip._value;
+    if (typeof ip === 'string' && ip.trim() && ip.trim() !== '-' && ip.trim() !== '0.0.0.0') {
+        return ip.trim();
+    }
+    if (typeof d._ip === 'string' && d._ip.trim() && d._ip.trim() !== '-' && d._ip.trim() !== '0.0.0.0') {
+        return d._ip.trim();
+    }
     return '-';
 }
 
 function extractPppoeUser(d) {
+    if (!d) return '-';
     // 1. Cek VirtualParameters dari GenieACS
     const vpKeys = [
         'VirtualParameters.pppoeUsername2',
@@ -544,15 +576,16 @@ function extractPppoeUser(d) {
         'VirtualParameters.username'
     ];
     for (const k of vpKeys) {
-        const val = getNestedValue(d, k);
-        if (val && typeof val === 'string' && val.trim() && val !== '-' && val !== 'N/A') {
+        let val = getNestedValue(d, k);
+        if (val && typeof val === 'object' && '_value' in val) val = val._value;
+        if (typeof val === 'string' && val.trim() && val.trim() !== '-' && val.trim() !== 'N/A') {
             return val.trim();
         }
     }
 
     // 2. Cek TR-069 tree parameters
-    const user = getDeviceParameterValue(d, PPPOE_USER_KEYS, (matchedPath, value, device) => {
-        if (!value || value === '-') return false;
+    const rawUser = getDeviceParameterValue(d, PPPOE_USER_KEYS, (matchedPath, value, device) => {
+        if (!value || typeof value !== 'string' || value === '-') return false;
         
         if (matchedPath.includes('WANPPPConnection.')) {
             const connectionTypePath = matchedPath.replace('Username', 'ConnectionType');
@@ -563,8 +596,13 @@ function extractPppoeUser(d) {
         }
         return true;
     });
-    
-    return user || '-';
+
+    let user = rawUser;
+    if (user && typeof user === 'object' && '_value' in user) user = user._value;
+    if (typeof user === 'string' && user.trim() && user.trim() !== '-' && user.trim() !== 'undefined' && user.trim() !== 'null') {
+        return user.trim();
+    }
+    return '-';
 }
 
 function formatUptime(seconds) {
@@ -997,43 +1035,49 @@ const ACS_DEVICE_PROJECTION = [
 ].join(',');
 
 function mapAcsDeviceData(d, server, sessionsMap = new Map()) {
-    const pppoeUser = extractPppoeUser(d);
+    let pppoeUser = extractPppoeUser(d);
+    if (typeof pppoeUser !== 'string') {
+        pppoeUser = (pppoeUser && typeof pppoeUser === 'object' && pppoeUser._value) ? String(pppoeUser._value).trim() : '-';
+    }
+    pppoeUser = String(pppoeUser || '-').trim();
+
     const rxPower = extractRxPower(d);
     const ip = extractPppoeIp(d);
     const ssid = extractSsid(d);
     const wlanPassword = extractWlanPassword(d);
     const uptime = extractUptime(d);
     const connectedClients = extractConnectedClients(d);
-    const customerName = getNestedValue(d, 'VirtualParameters.CustomerName') || 
-                        getNestedValue(d, 'VirtualParameters.customer_name') || 
-                        '-';
+    const rawCustomerName = getNestedValue(d, 'VirtualParameters.CustomerName') || 
+                            getNestedValue(d, 'VirtualParameters.customer_name') || 
+                            '-';
+    const customerName = (typeof rawCustomerName === 'string') ? rawCustomerName : (rawCustomerName && rawCustomerName._value ? String(rawCustomerName._value) : '-');
 
     const lastInform = d._lastInform;
     const isOnline = (lastInform && (Date.now() - new Date(lastInform).getTime() < 900000)) ||
-                     (pppoeUser && pppoeUser !== '-' && sessionsMap.has(pppoeUser.toLowerCase()));
+                     (pppoeUser && pppoeUser !== '-' && pppoeUser !== 'N/A' && sessionsMap.has(pppoeUser.toLowerCase()));
 
     let tags = [];
     if (Array.isArray(d._tags)) tags = d._tags;
     else if (typeof d._tags === 'string' && d._tags.trim()) tags = [d._tags.trim()];
 
     return {
-        id: d._id,
-        sn: d._deviceId?._SerialNumber || d._id,
+        id: String(d._id || ''),
+        sn: String(d._deviceId?._SerialNumber || d._id || '-'),
         last_inform: lastInform,
-        isOnline: isOnline,
-        manufacturer: d._deviceId?._Manufacturer || '-',
-        model: d._deviceId?._ProductClass || '-',
+        isOnline: Boolean(isOnline),
+        manufacturer: String(d._deviceId?._Manufacturer || '-'),
+        model: String(d._deviceId?._ProductClass || '-'),
         customer_name: customerName,
         customerName: customerName,
-        rx_power: rxPower,
+        rx_power: String(rxPower || '-'),
         pppoe_user: pppoeUser,
         pppoeUser: pppoeUser,
-        ip: ip,
-        pppoe_ip: ip,
-        wlan_ssid: ssid,
-        wlan_password: wlanPassword,
+        ip: String(ip || '-'),
+        pppoe_ip: String(ip || '-'),
+        wlan_ssid: String(ssid || '-'),
+        wlan_password: String(wlanPassword || '-'),
         connected_clients: connectedClients,
-        uptime: uptime,
+        uptime: String(uptime || '-'),
         tags: tags,
         acs_server_name: server?.name || 'Default ACS',
         acs_server_id: server?.id || 'legacy'
@@ -1263,9 +1307,13 @@ router.get('/', async (req, res) => {
     }
 });
 
-router.get('/search', async (req, res, next) => {
-    req.url = '/';
-    return router.handle(req, res, next);
+router.get('/search', async (req, res) => {
+    const params = new URLSearchParams();
+    if (req.query.q) params.set('q', req.query.q);
+    if (req.query.acs) params.set('acs', req.query.acs);
+    if (req.query.router_id) params.set('router_id', req.query.router_id);
+    const qs = params.toString();
+    return res.redirect(`/admin/acs${qs ? '?' + qs : ''}`);
 });
 
 router.get('/device/:deviceId', async (req, res) => {
@@ -1306,12 +1354,13 @@ router.get('/device/:deviceId', async (req, res) => {
         const deviceData = Array.isArray(response.data) && response.data.length > 0 ? response.data[0] : null;
         if (!deviceData) return res.status(404).send('Device not found');
 
-        let pppoeUser = extractPppoeUser(deviceData);
+        let rawUser = extractPppoeUser(deviceData);
+        let pppoeUser = (typeof rawUser === 'string' ? rawUser : (rawUser && rawUser._value ? String(rawUser._value) : '-')).trim();
         const activeSessionsMap = await mikrotikSvc.getActivePppoeSessionsMap().catch(() => new Map());
 
         const lastInform = deviceData._lastInform;
         const isOnline = (lastInform && (Date.now() - new Date(lastInform).getTime() < 900000)) ||
-                         (pppoeUser && pppoeUser !== '-' && activeSessionsMap.has(pppoeUser.toLowerCase()));
+                         (pppoeUser && pppoeUser !== '-' && pppoeUser !== 'N/A' && activeSessionsMap.has(pppoeUser.toLowerCase()));
 
         // Fallbacks for detail page using the same logic as listing
         let rxPower = extractRxPower(deviceData);
@@ -2024,15 +2073,6 @@ router.post('/api/add-wan/:deviceId', requireAdmin, async (req, res) => {
     } catch (err) {
         res.json({ success: false, message: err.message });
     }
-});
-
-// GET /admin/acs/search - Redirect to main page with query params
-router.get('/search', requireAdminSession, async (req, res) => {
-    const { q, acs } = req.query;
-    const params = new URLSearchParams();
-    if (q) params.append('q', q);
-    if (acs) params.append('acs', acs);
-    res.redirect(`/admin/acs?${params.toString()}`);
 });
 
 module.exports = router;

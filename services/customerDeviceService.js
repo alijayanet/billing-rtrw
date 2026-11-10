@@ -31,12 +31,12 @@ async function searchDeviceAcrossServers(query, fullData = true) {
         try {
           response = await instance.get('/devices', {
             params,
-            timeout: 2000
+            timeout: 5000
           });
         } catch (e) {
           response = await instance.get('/api/devices', {
             params,
-            timeout: 2000
+            timeout: 5000
           });
         }
         
@@ -307,11 +307,16 @@ function getNestedValue(obj, path) {
       if (!current) return null;
       current = current[part];
     }
-    if (current && typeof current === 'object' && '_value' in current) {
-      return current._value;
-    }
-    if (current && typeof current === 'object' && current.hasOwnProperty('_value')) {
-      return current._value;
+    if (current && typeof current === 'object') {
+      if ('_value' in current) {
+        let val = current._value;
+        while (val && typeof val === 'object' && '_value' in val) {
+          val = val._value;
+        }
+        return (typeof val === 'object' && val !== null) ? null : val;
+      }
+      // Node parameter GenieACS tanpa _value (misal {_object:false, _writable:true})
+      return null;
     }
     return current;
   } catch (e) {
@@ -328,8 +333,18 @@ function getWildcardMatches(device, path) {
     
     if (index === parts.length) {
       let val = current;
-      if (typeof current === 'object' && '_value' in current) {
-        val = current._value;
+      if (typeof current === 'object' && current !== null) {
+        if ('_value' in current) {
+          val = current._value;
+          while (val && typeof val === 'object' && '_value' in val) {
+            val = val._value;
+          }
+        } else if ('_object' in current || '_writable' in current) {
+          val = null;
+        }
+      }
+      if (typeof val === 'object' && val !== null) {
+        val = null;
       }
       results.push({
         path: currentPathParts.join('.'),
@@ -367,12 +382,20 @@ function getDeviceParameterValue(device, keys, filterFn) {
   for (const key of keys) {
     const matches = getWildcardMatches(device, key);
     for (const match of matches) {
+      let val = match.value;
+      if (val === null || val === undefined) continue;
+      if (typeof val === 'object') {
+        if ('_value' in val) val = val._value;
+        else continue;
+      }
+      if (val === null || val === undefined || typeof val === 'object') continue;
+
       if (filterFn) {
-        if (filterFn(match.path, match.value, device)) {
-          return match.value;
+        if (filterFn(match.path, val, device)) {
+          return val;
         }
-      } else if (match.value !== undefined && match.value !== null && match.value !== '') {
-        return match.value;
+      } else if (val !== '') {
+        return val;
       }
     }
   }
@@ -380,8 +403,24 @@ function getDeviceParameterValue(device, keys, filterFn) {
 }
 
 function extractPppoeIp(d) {
-  const ip = getDeviceParameterValue(d, PPPOE_IP_KEYS, (matchedPath, value, device) => {
-    if (!value || value === '0.0.0.0' || value === '-') return false;
+  if (!d) return 'N/A';
+  const vpKeys = [
+    'VirtualParameters.pppoeIP',
+    'VirtualParameters.pppIP',
+    'VirtualParameters.WanIP',
+    'VirtualParameters.IPTR069',
+    'VirtualParameters.pppoe_ip'
+  ];
+  for (const k of vpKeys) {
+    let val = getNestedValue(d, k);
+    if (val && typeof val === 'object' && '_value' in val) val = val._value;
+    if (typeof val === 'string' && val.trim() && val.trim() !== '-' && val.trim() !== '0.0.0.0' && val.trim() !== 'N/A') {
+      return val.trim();
+    }
+  }
+
+  const rawIp = getDeviceParameterValue(d, PPPOE_IP_KEYS, (matchedPath, value, device) => {
+    if (!value || typeof value !== 'string' || value === '0.0.0.0' || value === '-') return false;
     
     if (matchedPath.includes('WANPPPConnection.')) {
       const connectionTypePath = matchedPath.replace('ExternalIPAddress', 'ConnectionType');
@@ -393,14 +432,37 @@ function extractPppoeIp(d) {
     return true;
   });
   
-  if (ip) return ip;
-  if (d._ip && d._ip !== '-' && d._ip !== '0.0.0.0') return d._ip;
+  let ip = rawIp;
+  if (ip && typeof ip === 'object' && '_value' in ip) ip = ip._value;
+  if (typeof ip === 'string' && ip.trim() && ip.trim() !== '-' && ip.trim() !== '0.0.0.0') {
+    return ip.trim();
+  }
+  if (typeof d._ip === 'string' && d._ip.trim() && d._ip.trim() !== '-' && d._ip.trim() !== '0.0.0.0') {
+    return d._ip.trim();
+  }
   return 'N/A';
 }
 
 function extractPppoeUser(d) {
-  const user = getDeviceParameterValue(d, PPPOE_USER_KEYS, (matchedPath, value, device) => {
-    if (!value || value === '-') return false;
+  if (!d) return 'N/A';
+  const vpKeys = [
+    'VirtualParameters.pppoeUsername2',
+    'VirtualParameters.pppoeUsername',
+    'VirtualParameters.pppUsername',
+    'VirtualParameters.PPPoEUser',
+    'VirtualParameters.pppoe_username',
+    'VirtualParameters.username'
+  ];
+  for (const k of vpKeys) {
+    let val = getNestedValue(d, k);
+    if (val && typeof val === 'object' && '_value' in val) val = val._value;
+    if (typeof val === 'string' && val.trim() && val.trim() !== '-' && val.trim() !== 'N/A') {
+      return val.trim();
+    }
+  }
+
+  const rawUser = getDeviceParameterValue(d, PPPOE_USER_KEYS, (matchedPath, value, device) => {
+    if (!value || typeof value !== 'string' || value === '-') return false;
     
     if (matchedPath.includes('WANPPPConnection.')) {
       const connectionTypePath = matchedPath.replace('Username', 'ConnectionType');
@@ -411,8 +473,13 @@ function extractPppoeUser(d) {
     }
     return true;
   });
-  
-  return user || 'N/A';
+
+  let user = rawUser;
+  if (user && typeof user === 'object' && '_value' in user) user = user._value;
+  if (typeof user === 'string' && user.trim() && user.trim() !== '-' && user.trim() !== 'undefined' && user.trim() !== 'null') {
+    return user.trim();
+  }
+  return 'N/A';
 }
 
 function formatUptime(seconds) {

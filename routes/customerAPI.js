@@ -2798,11 +2798,12 @@ router.get('/app/tech/tr069/devices', requireTechApiAuth, async (req, res) => {
 
     const activeSessionsMap = await mikrotikService.getActivePppoeSessionsMap().catch(() => new Map());
     let devices = result.devices.map(d => {
-      const pppoeUser = customerDevice.extractPppoeUser(d);
+      const rawUser = customerDevice.extractPppoeUser(d);
+      const pppoeUser = (typeof rawUser === 'string' ? rawUser : (rawUser && rawUser._value ? String(rawUser._value) : '')).trim();
       const isPppoeActive = pppoeUser && pppoeUser !== 'N/A' && pppoeUser !== '-' && activeSessionsMap.has(pppoeUser.toLowerCase());
-      const mapped = customerDevice.mapDeviceData(d, d._tags?.[0] || d._id, isPppoeActive);
+      const mapped = customerDevice.mapDeviceData(d, d._tags?.[0] || d._id, isPppoeActive) || {};
       const pu = String(mapped.pppoeUsername || '').trim();
-      const puKey = pu && pu !== 'N/A' ? pu.toLowerCase() : '';
+      const puKey = pu && pu !== 'N/A' && pu !== '-' ? pu.toLowerCase() : '';
       let customer = puKey ? byPppoe.get(puKey) : null;
       if (!customer && Array.isArray(d._tags)) {
         for (const t of d._tags) {
@@ -2811,21 +2812,21 @@ router.get('/app/tech/tr069/devices', requireTechApiAuth, async (req, res) => {
         }
       }
       return {
-        id: d._id,
-        tag: d._tags?.[0] || d._id,
-        serialNumber: mapped.serialNumber || '-',
-        status: mapped.status.toLowerCase(),
-        pppoeIP: mapped.pppoeIP || '-',
-        pppoeUsername: mapped.pppoeUsername || '-',
-        rxPower: mapped.rxPower || '-',
-        uptime: mapped.uptime || '-',
-        model: mapped.model || 'ONT Router',
-        softwareVersion: mapped.softwareVersion || '-',
-        ssid: mapped.ssid || '-',
+        id: String(d._id || ''),
+        tag: String(d._tags?.[0] || d._id || ''),
+        serialNumber: String(mapped.serialNumber || '-'),
+        status: String(mapped.status || 'offline').toLowerCase(),
+        pppoeIP: String(mapped.pppoeIP || '-'),
+        pppoeUsername: String(mapped.pppoeUsername || '-'),
+        rxPower: String(mapped.rxPower || '-'),
+        uptime: String(mapped.uptime || '-'),
+        model: String(mapped.model || 'ONT Router'),
+        softwareVersion: String(mapped.softwareVersion || '-'),
+        ssid: String(mapped.ssid || '-'),
         customerId: customer ? customer.id : null,
         customerName: customer ? customer.name : 'Belum Terikat Pelanggan',
         customerPhone: customer ? customer.phone : '-',
-        manufacturer: d._deviceId?._Manufacturer || d._deviceId?.Manufacturer || 'ZTE/Huawei/Fiberhome'
+        manufacturer: String(d._deviceId?._Manufacturer || d._deviceId?.Manufacturer || 'ZTE/Huawei/Fiberhome')
       };
     });
 

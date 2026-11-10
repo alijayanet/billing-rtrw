@@ -584,9 +584,10 @@ router.get('/api/devices', requireTechSession, async (req, res) => {
     
     const activeSessionsMap = await mikrotikService.getActivePppoeSessionsMap().catch(() => new Map());
     let devices = result.devices.map(d => {
-      const pppoeUser = customerDevice.extractPppoeUser(d);
+      const rawUser = customerDevice.extractPppoeUser(d);
+      const pppoeUser = (typeof rawUser === 'string' ? rawUser : (rawUser && rawUser._value ? String(rawUser._value) : '')).trim();
       const isPppoeActive = pppoeUser && pppoeUser !== 'N/A' && pppoeUser !== '-' && activeSessionsMap.has(pppoeUser.toLowerCase());
-      const mapped = customerDevice.mapDeviceData(d, d._tags?.[0] || d._id, isPppoeActive);
+      const mapped = customerDevice.mapDeviceData(d, d._tags?.[0] || d._id, isPppoeActive) || {};
       const pu = String(mapped.pppoeUsername || '').trim();
       const puKey = pu && pu !== 'N/A' ? pu.toLowerCase() : '';
       let customer = puKey ? byPppoe.get(puKey) : null;
@@ -601,7 +602,7 @@ router.get('/api/devices', requireTechSession, async (req, res) => {
         tags: d._tags || [],
         serialNumber: mapped.serialNumber,
         lastInform: d._lastInform,
-        status: mapped.status.toLowerCase(),
+        status: String(mapped.status || 'offline').toLowerCase(),
         pppoeIP: mapped.pppoeIP,
         pppoeUsername: mapped.pppoeUsername,
         rxPower: mapped.rxPower,
@@ -1113,8 +1114,15 @@ function getNestedValue(obj, path) {
             if (!current) return null;
             current = current[part];
         }
-        if (current && typeof current === 'object' && '_value' in current) {
-            return current._value;
+        if (current && typeof current === 'object') {
+            if ('_value' in current) {
+                let val = current._value;
+                while (val && typeof val === 'object' && '_value' in val) {
+                    val = val._value;
+                }
+                return (typeof val === 'object' && val !== null) ? null : val;
+            }
+            return null;
         }
         return current;
     } catch (e) {
