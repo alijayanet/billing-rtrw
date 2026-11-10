@@ -960,6 +960,54 @@ function buildSingleParamTasks(parameterValues) {
         }));
 }
 
+function buildTr069LanWlanBindings(lanPortsArray, wlanSsidsArray, options = {}) {
+    const fullPaths = [];
+    const lanShort = [];
+    const wlanShort = [];
+
+    for (const p of (lanPortsArray || [])) {
+        const item = String(p || '').trim();
+        if (item.startsWith('InternetGatewayDevice.')) {
+            fullPaths.push(item);
+            const m = item.match(/LANEthernetInterfaceConfig\.(\d+)/i);
+            if (m) lanShort.push(`LAN${m[1]}`);
+        } else {
+            const num = item.replace(/\D/g, '');
+            if (num) {
+                fullPaths.push(`InternetGatewayDevice.LANDevice.1.LANEthernetInterfaceConfig.${num}`);
+                lanShort.push(`LAN${num}`);
+            }
+        }
+    }
+
+    for (const s of (wlanSsidsArray || [])) {
+        const item = String(s || '').trim();
+        if (item.startsWith('InternetGatewayDevice.')) {
+            fullPaths.push(item);
+            const m = item.match(/WLANConfiguration\.(\d+)/i);
+            if (m) wlanShort.push(`SSID${m[1]}`);
+        } else {
+            const num = item.replace(/\D/g, '');
+            if (num) {
+                fullPaths.push(`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${num}`);
+                wlanShort.push(`SSID${num}`);
+            }
+        }
+    }
+
+    // Khusus ZTE F670L: tambahkan WAN interface path ke interface binding jika tersedia
+    if (options.wanInterfacePath) {
+        fullPaths.push(options.wanInterfacePath);
+    }
+
+    const uniqueFullPaths = Array.from(new Set(fullPaths));
+    return {
+        fullPathsString: uniqueFullPaths.join(','),
+        lanShortString: Array.from(new Set(lanShort)).join(','),
+        wlanShortString: Array.from(new Set(wlanShort)).join(',')
+    };
+}
+
 function buildBuiltinAddWanWorkflow({
     mode,
     parsedVlan,
@@ -973,19 +1021,27 @@ function buildBuiltinAddWanWorkflow({
     wifiPass24,
     wifiSsid5,
     wifiPass5,
-    manufacturer,
+    manufacturer = '',
+    model = '',
     wlanConfig
 }) {
     const isPppoe = mode === 'pppoe';
     const connectionType = isPppoe ? 'WANPPPConnection' : 'WANIPConnection';
-    const lanPortsArray = normalizeSelectionArray(lanPorts);
-    const wlanSsidsArray = normalizeSelectionArray(wlanSsids);
     const baseConnPath = `InternetGatewayDevice.WANDevice.1.WANConnectionDevice.{{wanDeviceInstance}}.${connectionType}.{{wanConnectionInstance}}`;
     const followup = [];
 
+    const mfg = String(manufacturer || '').toLowerCase();
+    const mdl = String(model || '').toLowerCase();
+    const isFiberhome = mfg.includes('fiberhome') || mfg.includes('fh') || mdl.includes('an5506') || mdl.includes('hg6');
+    const isF670L = mdl.includes('f670');
+
+    // 1. ConnectionType & Enable (sesuai petunjuk menambahkan_wan.txt)
+    // Mode Bridge: PPPoE_Bridged pada slot PPP, IP_Bridged pada slot IP
+    // Mode PPPoE: IP_Routed (atau PPPoE_Routed untuk Fiberhome)
+    const connMode = isPppoe ? (isFiberhome ? 'PPPoE_Routed' : 'IP_Routed') : (isPppoe ? 'PPPoE_Bridged' : 'IP_Bridged');
     const baseParamValues = [
         [`${baseConnPath}.Enable`, true, 'xsd:boolean'],
-        [`${baseConnPath}.ConnectionType`, isPppoe ? 'IP_Routed' : 'Bridged', 'xsd:string']
+        [`${baseConnPath}.ConnectionType`, connMode, 'xsd:string']
     ];
 
     if (isPppoe) {
@@ -994,36 +1050,74 @@ function buildBuiltinAddWanWorkflow({
             [`${baseConnPath}.Username`, pppoeUser, 'xsd:string'],
             [`${baseConnPath}.Password`, pppoePass, 'xsd:string']
         );
+    } else {
+        baseParamValues.push(
+            [`${baseConnPath}.NATEnabled`, false, 'xsd:boolean']
+        );
     }
+
+    // 2. ServiceList (INTERNET / TR069,INTERNET sesuai petunjuk menambahkan_wan.txt)
+    const serviceList = isPppoe ? (isFiberhome ? 'TR069,INTERNET' : 'INTERNET') : 'INTERNET';
+    baseParamValues.push(
+        [`${baseConnPath}.ServiceList`, serviceList, 'xsd:string']
+    );
 
     followup.push(...buildSingleParamTasks(baseParamValues));
 
+    // 3. Port & Interface Binding (Format Full TR-069 Path sesuai petunjuk menambahkan_wan.txt)
+    const lanPortsArray = normalizeSelectionArray(lanPorts);
+    const wlanSsidsArray = normalizeSelectionArray(wlanSsids);
+    const bindings = buildTr069LanWlanBindings(lanPortsArray, wlanSsidsArray, {
+        wanInterfacePath: isF670L ? baseConnPath : null
+    });
+
     const vendorParamValues = [];
-    if (manufacturer.includes('huawei')) {
+
+    // ServiceList vendor variants
+    vendorParamValues.push(
+        [`${baseConnPath}.X_CMCC_ServiceList`, serviceList, 'xsd:string'],
+        [`${baseConnPath}.X_CT-COM_ServiceList`, serviceList, 'xsd:string'],
+        [`${baseConnPath}.X_CU_ServiceList`, serviceList, 'xsd:string'],
+        [`${baseConnPath}.X_BROADCOM_COM_ServiceList`, serviceList, 'xsd:string']
+    );
+
+    // Multi-vendor Interface Binding
+    if (bindings.fullPathsString) {
+        vendorParamValues.push(
+            [`${baseConnPath}.X_CMCC_LanInterface`, bindings.fullPathsString, 'xsd:string'],
+            [`${baseConnPath}.X_CT-COM_LanInterface`, bindings.fullPathsString, 'xsd:string'],
+            [`${baseConnPath}.X_CU_LanInterface`, bindings.fullPathsString, 'xsd:string'],
+            [`${baseConnPath}.X_BROADCOM_COM_Default_Bind`, bindings.fullPathsString, 'xsd:string']
+        );
+    }
+
+    if (mfg.includes('huawei')) {
         vendorParamValues.push(
             [`${baseConnPath}.X_HW_VLAN`, parsedVlan, 'xsd:unsignedInt'],
             [`${baseConnPath}.X_HW_VLANID`, parsedVlan, 'xsd:unsignedInt'],
             [`${baseConnPath}.X_HW_VLANMark`, true, 'xsd:boolean'],
             [`${baseConnPath}.X_HW_WANMode`, isPppoe ? 'WAN_PPPOE' : 'WAN_BRIDGE', 'xsd:string']
         );
-        if (lanPortsArray.length > 0) {
-            vendorParamValues.push([`${baseConnPath}.X_HW_LANBind`, lanPortsArray.join(','), 'xsd:string']);
+        if (bindings.lanShortString) {
+            vendorParamValues.push([`${baseConnPath}.X_HW_LANBind`, bindings.lanShortString, 'xsd:string']);
         }
-        if (wlanSsidsArray.length > 0) {
-            vendorParamValues.push([`${baseConnPath}.X_HW_SSIDBind`, wlanSsidsArray.join(','), 'xsd:string']);
+        if (bindings.wlanShortString) {
+            vendorParamValues.push([`${baseConnPath}.X_HW_SSIDBind`, bindings.wlanShortString, 'xsd:string']);
         }
-    } else if (manufacturer.includes('zte')) {
+    } else if (mfg.includes('zte') || mfg.includes('ciot') || mfg.includes('cmdc')) {
         vendorParamValues.push(
             [`${baseConnPath}.VLANIDMark`, parsedVlan, 'xsd:unsignedInt'],
             [`${baseConnPath}.VLANID`, parsedVlan, 'xsd:unsignedInt'],
             [`${baseConnPath}.X_ZTE_VLAN`, parsedVlan, 'xsd:unsignedInt'],
-            [`${baseConnPath}.VLANMode`, 1, 'xsd:unsignedInt']
+            [`${baseConnPath}.VLANMode`, 1, 'xsd:unsignedInt'],
+            [`${baseConnPath}.X_CMCC_VLANIDMark`, parsedVlan, 'xsd:unsignedInt'],
+            [`${baseConnPath}.X_CMCC_VLANMode`, 1, 'xsd:unsignedInt']
         );
-        if (lanPortsArray.length > 0) {
-            vendorParamValues.push([`${baseConnPath}.X_ZTE_LANBind`, lanPortsArray.join(','), 'xsd:string']);
+        if (bindings.lanShortString) {
+            vendorParamValues.push([`${baseConnPath}.X_ZTE_LANBind`, bindings.lanShortString, 'xsd:string']);
         }
-        if (wlanSsidsArray.length > 0) {
-            vendorParamValues.push([`${baseConnPath}.X_ZTE_SSIDBind`, wlanSsidsArray.join(','), 'xsd:string']);
+        if (bindings.wlanShortString) {
+            vendorParamValues.push([`${baseConnPath}.X_ZTE_SSIDBind`, bindings.wlanShortString, 'xsd:string']);
         }
     } else {
         vendorParamValues.push(
@@ -1035,6 +1129,7 @@ function buildBuiltinAddWanWorkflow({
 
     followup.push(...buildSingleParamTasks(vendorParamValues));
 
+    // 4. DHCP Server LAN
     followup.push({
         name: 'setParameterValues',
         payload: {
@@ -1056,6 +1151,7 @@ function buildBuiltinAddWanWorkflow({
         verifyNames.push(`${baseConnPath}.Username`, `${baseConnPath}.NATEnabled`);
     }
 
+    // 5. Wi-Fi Configuration & Security Mode (BeaconType: 11i / None sesuai petunjuk menambahkan_wan.txt)
     const wifiParamValues = [];
     const wlanObj = wlanConfig || {};
     if (toBool(configureWifi)) {
@@ -1064,20 +1160,42 @@ function buildBuiltinAddWanWorkflow({
             verifyNames.push('InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID');
             if (wifiPass24) {
                 wifiParamValues.push(
+                    ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.BeaconType', '11i', 'xsd:string'],
+                    ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.IEEE11iAuthenticationMode', 'PSKAuthentication', 'xsd:string'],
+                    ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.IEEE11iEncryptionModes', 'AESEncryption', 'xsd:string'],
+                    ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.WPAAuthenticationMode', 'PSKAuthentication', 'xsd:string'],
                     ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey', wifiPass24, 'xsd:string'],
+                    ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase', wifiPass24, 'xsd:string'],
                     ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase', wifiPass24, 'xsd:string']
+                );
+            } else {
+                wifiParamValues.push(
+                    ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.BeaconType', 'None', 'xsd:string'],
+                    ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.BasicEncryptionModes', 'None', 'xsd:string'],
+                    ['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.BasicAuthenticationMode', 'None', 'xsd:string']
                 );
             }
         }
 
-        const fiveGIndex = wlanObj['5'] ? '5' : null;
+        const fiveGIndex = wlanObj['5'] ? '5' : (wlanObj['6'] ? '6' : null);
         if (fiveGIndex && wifiSsid5) {
             wifiParamValues.push([`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.SSID`, wifiSsid5, 'xsd:string']);
             verifyNames.push(`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.SSID`);
             if (wifiPass5) {
                 wifiParamValues.push(
+                    [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.BeaconType`, '11i', 'xsd:string'],
+                    [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.IEEE11iAuthenticationMode`, 'PSKAuthentication', 'xsd:string'],
+                    [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.IEEE11iEncryptionModes`, 'AESEncryption', 'xsd:string'],
+                    [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.WPAAuthenticationMode`, 'PSKAuthentication', 'xsd:string'],
                     [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.PreSharedKey.1.PreSharedKey`, wifiPass5, 'xsd:string'],
+                    [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.PreSharedKey.1.KeyPassphrase`, wifiPass5, 'xsd:string'],
                     [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.KeyPassphrase`, wifiPass5, 'xsd:string']
+                );
+            } else {
+                wifiParamValues.push(
+                    [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.BeaconType`, 'None', 'xsd:string'],
+                    [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.BasicEncryptionModes`, 'None', 'xsd:string'],
+                    [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.BasicAuthenticationMode`, 'None', 'xsd:string']
                 );
             }
         }
@@ -1237,7 +1355,7 @@ router.post('/api/add-wan/:deviceId', requireTechSession, async (req, res) => {
             ...config,
             params: {
                 query: JSON.stringify({ _id: deviceId }),
-                projection: '_id,_deviceId.Manufacturer,_deviceId._Manufacturer,InternetGatewayDevice.WANDevice.1.WANConnectionDevice,InternetGatewayDevice.LANDevice.1.WLANConfiguration'
+                projection: '_id,_deviceId.Manufacturer,_deviceId._Manufacturer,_deviceId._ProductClass,_deviceId.ProductClass,InternetGatewayDevice.WANDevice.1.WANConnectionDevice,InternetGatewayDevice.LANDevice.1.WLANConfiguration'
             }
         });
         
@@ -1245,6 +1363,7 @@ router.post('/api/add-wan/:deviceId', requireTechSession, async (req, res) => {
         if (!deviceData) return res.json({ success: false, message: 'CPE/Device tidak ditemukan di GenieACS' });
         
         const manufacturer = (deviceData._deviceId?._Manufacturer || deviceData._deviceId?.Manufacturer || '').toLowerCase();
+        const model = (deviceData._deviceId?._ProductClass || deviceData._deviceId?.ProductClass || '').toLowerCase();
         const wlanConfig = deviceData.InternetGatewayDevice?.LANDevice?.['1']?.WLANConfiguration || {};
         const isBuiltinServer = String(server.id || '').trim() === 'builtin' || baseUrl === 'local';
 
@@ -1263,6 +1382,7 @@ router.post('/api/add-wan/:deviceId', requireTechSession, async (req, res) => {
                 wifiSsid5,
                 wifiPass5,
                 manufacturer,
+                model,
                 wlanConfig
             });
 
@@ -1285,95 +1405,172 @@ router.post('/api/add-wan/:deviceId', requireTechSession, async (req, res) => {
             objectName: `InternetGatewayDevice.WANDevice.1.WANConnectionDevice.${nextInstance}.${connectionType}.`
         }, config);
 
-        const paramValues = [];
-        const baseConnPath = `InternetGatewayDevice.WANDevice.1.WANConnectionDevice.${nextInstance}.${connectionType}.1`;
-        paramValues.push([`${baseConnPath}.Enable`, true, 'xsd:boolean']);
+        const mfg = manufacturer.toLowerCase();
+        const mdl = model.toLowerCase();
+        const isFiberhome = mfg.includes('fiberhome') || mfg.includes('fh') || mdl.includes('an5506') || mdl.includes('hg6');
+        const isF670L = mdl.includes('f670');
 
+        const baseConnPath = `InternetGatewayDevice.WANDevice.1.WANConnectionDevice.${nextInstance}.${connectionType}.1`;
+        const coreParamValues = [];
+        coreParamValues.push([`${baseConnPath}.Enable`, true, 'xsd:boolean']);
+
+        // 1. ConnectionType, NAT, & Credentials (sesuai petunjuk menambahkan_wan.txt)
         if (normalizedMode === 'pppoe') {
-            paramValues.push(
-                [`${baseConnPath}.ConnectionType`, 'IP_Routed', 'xsd:string'],
+            const connMode = isFiberhome ? 'PPPoE_Routed' : 'IP_Routed';
+            coreParamValues.push(
+                [`${baseConnPath}.ConnectionType`, connMode, 'xsd:string'],
                 [`${baseConnPath}.NATEnabled`, true, 'xsd:boolean'],
                 [`${baseConnPath}.Username`, trimmedPppoeUser, 'xsd:string'],
                 [`${baseConnPath}.Password`, trimmedPppoePass, 'xsd:string']
             );
         } else {
-            paramValues.push([`${baseConnPath}.ConnectionType`, 'Bridged', 'xsd:string']);
+            const bridgeMode = connectionType === 'WANPPPConnection' ? 'PPPoE_Bridged' : 'IP_Bridged';
+            coreParamValues.push(
+                [`${baseConnPath}.ConnectionType`, bridgeMode, 'xsd:string'],
+                [`${baseConnPath}.NATEnabled`, false, 'xsd:boolean']
+            );
         }
 
-        axios.post(`${baseUrl}/devices/${encodeURIComponent(deviceId)}/tasks`, {
+        // 2. ServiceList (INTERNET / TR069,INTERNET sesuai petunjuk menambahkan_wan.txt)
+        const serviceList = normalizedMode === 'pppoe' ? (isFiberhome ? 'TR069,INTERNET' : 'INTERNET') : 'INTERNET';
+        coreParamValues.push(
+            [`${baseConnPath}.ServiceList`, serviceList, 'xsd:string']
+        );
+
+        // Kirim core parameter dahulu
+        await axios.post(`${baseUrl}/devices/${encodeURIComponent(deviceId)}/tasks`, {
             name: 'setParameterValues',
-            parameterValues: [[`InternetGatewayDevice.LANDevice.1.LANHostConfigManagement.DHCPServerEnable`, toBool(dhcp), 'xsd:boolean']]
+            parameterValues: coreParamValues
         }, config).catch(() => {});
 
+        // 3. Port & Interface Binding (Format Full TR-069 Path sesuai petunjuk menambahkan_wan.txt)
         const lanPortsArray = normalizeSelectionArray(lanPorts);
         const wlanSsidsArray = normalizeSelectionArray(wlanSsids);
-        if (manufacturer.includes('huawei')) {
-            paramValues.push(
+        const bindings = buildTr069LanWlanBindings(lanPortsArray, wlanSsidsArray, {
+            wanInterfacePath: isF670L ? baseConnPath : null
+        });
+
+        const vendorParamValues = [];
+        // ServiceList varian vendor
+        vendorParamValues.push(
+            [`${baseConnPath}.X_CMCC_ServiceList`, serviceList, 'xsd:string'],
+            [`${baseConnPath}.X_CT-COM_ServiceList`, serviceList, 'xsd:string'],
+            [`${baseConnPath}.X_CU_ServiceList`, serviceList, 'xsd:string'],
+            [`${baseConnPath}.X_BROADCOM_COM_ServiceList`, serviceList, 'xsd:string']
+        );
+
+        // Binding multi-vendor (Full Path)
+        if (bindings.fullPathsString) {
+            vendorParamValues.push(
+                [`${baseConnPath}.X_CMCC_LanInterface`, bindings.fullPathsString, 'xsd:string'],
+                [`${baseConnPath}.X_CT-COM_LanInterface`, bindings.fullPathsString, 'xsd:string'],
+                [`${baseConnPath}.X_CU_LanInterface`, bindings.fullPathsString, 'xsd:string'],
+                [`${baseConnPath}.X_BROADCOM_COM_Default_Bind`, bindings.fullPathsString, 'xsd:string']
+            );
+        }
+
+        // 4. VLAN Configuration & Vendor-Specific Binding
+        if (mfg.includes('huawei')) {
+            vendorParamValues.push(
                 [`${baseConnPath}.X_HW_VLAN`, parsedVlan, 'xsd:unsignedInt'],
                 [`${baseConnPath}.X_HW_VLANID`, parsedVlan, 'xsd:unsignedInt'],
                 [`${baseConnPath}.X_HW_VLANMark`, true, 'xsd:boolean'],
                 [`${baseConnPath}.X_HW_WANMode`, normalizedMode === 'pppoe' ? 'WAN_PPPOE' : 'WAN_BRIDGE', 'xsd:string']
             );
-            if (lanPortsArray.length > 0) {
-                paramValues.push([`${baseConnPath}.X_HW_LANBind`, lanPortsArray.join(','), 'xsd:string']);
+            if (bindings.lanShortString) {
+                vendorParamValues.push([`${baseConnPath}.X_HW_LANBind`, bindings.lanShortString, 'xsd:string']);
             }
-            if (wlanSsidsArray.length > 0) {
-                paramValues.push([`${baseConnPath}.X_HW_SSIDBind`, wlanSsidsArray.join(','), 'xsd:string']);
+            if (bindings.wlanShortString) {
+                vendorParamValues.push([`${baseConnPath}.X_HW_SSIDBind`, bindings.wlanShortString, 'xsd:string']);
             }
-        } else if (manufacturer.includes('zte')) {
-            paramValues.push(
+        } else if (mfg.includes('zte') || mfg.includes('ciot') || mfg.includes('cmdc')) {
+            vendorParamValues.push(
                 [`${baseConnPath}.VLANIDMark`, parsedVlan, 'xsd:unsignedInt'],
                 [`${baseConnPath}.VLANID`, parsedVlan, 'xsd:unsignedInt'],
                 [`${baseConnPath}.X_ZTE_VLAN`, parsedVlan, 'xsd:unsignedInt'],
-                [`${baseConnPath}.VLANMode`, 1, 'xsd:unsignedInt']
+                [`${baseConnPath}.VLANMode`, 1, 'xsd:unsignedInt'],
+                [`${baseConnPath}.X_CMCC_VLANIDMark`, parsedVlan, 'xsd:unsignedInt'],
+                [`${baseConnPath}.X_CMCC_VLANMode`, 1, 'xsd:unsignedInt']
             );
-            if (lanPortsArray.length > 0) {
-                paramValues.push([`${baseConnPath}.X_ZTE_LANBind`, lanPortsArray.join(','), 'xsd:string']);
+            if (bindings.lanShortString) {
+                vendorParamValues.push([`${baseConnPath}.X_ZTE_LANBind`, bindings.lanShortString, 'xsd:string']);
             }
-            if (wlanSsidsArray.length > 0) {
-                paramValues.push([`${baseConnPath}.X_ZTE_SSIDBind`, wlanSsidsArray.join(','), 'xsd:string']);
+            if (bindings.wlanShortString) {
+                vendorParamValues.push([`${baseConnPath}.X_ZTE_SSIDBind`, bindings.wlanShortString, 'xsd:string']);
             }
         } else {
-            paramValues.push(
+            vendorParamValues.push(
                 [`${baseConnPath}.VLANIDMark`, parsedVlan, 'xsd:unsignedInt'],
                 [`${baseConnPath}.VLANID`, parsedVlan, 'xsd:unsignedInt'],
                 [`${baseConnPath}.VLANMode`, 1, 'xsd:unsignedInt']
             );
         }
 
-        await axios.post(`${baseUrl}/devices/${encodeURIComponent(deviceId)}/tasks`, {
-            name: 'setParameterValues',
-            parameterValues: paramValues
-        }, config);
+        // Kirim vendor params secara aman per-parameter agar jika vendor param tertentu tidak didukung, tidak menggugurkan yang lain
+        for (const pv of vendorParamValues) {
+            axios.post(`${baseUrl}/devices/${encodeURIComponent(deviceId)}/tasks`, {
+                name: 'setParameterValues',
+                parameterValues: [pv]
+            }, config).catch(() => {});
+        }
 
+        // DHCP Server LAN
+        axios.post(`${baseUrl}/devices/${encodeURIComponent(deviceId)}/tasks`, {
+            name: 'setParameterValues',
+            parameterValues: [[`InternetGatewayDevice.LANDevice.1.LANHostConfigManagement.DHCPServerEnable`, toBool(dhcp), 'xsd:boolean']]
+        }, config).catch(() => {});
+
+        // 5. Wi-Fi Configuration & Security Mode (BeaconType: 11i / None sesuai petunjuk menambahkan_wan.txt)
         if (toBool(configureWifi)) {
             const wifiParamValues = [];
             if (wlanConfig['1'] && wifiSsid24) {
                 wifiParamValues.push([`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID`, wifiSsid24, 'xsd:string']);
                 if (wifiPass24) {
                     wifiParamValues.push(
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.BeaconType`, '11i', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.IEEE11iAuthenticationMode`, 'PSKAuthentication', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.IEEE11iEncryptionModes`, 'AESEncryption', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.WPAAuthenticationMode`, 'PSKAuthentication', 'xsd:string'],
                         [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey`, wifiPass24, 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase`, wifiPass24, 'xsd:string'],
                         [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase`, wifiPass24, 'xsd:string']
+                    );
+                } else {
+                    wifiParamValues.push(
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.BeaconType`, 'None', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.BasicEncryptionModes`, 'None', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.BasicAuthenticationMode`, 'None', 'xsd:string']
                     );
                 }
             }
 
-            const fiveGIndex = wlanConfig['5'] ? '5' : null;
+            const fiveGIndex = wlanConfig['5'] ? '5' : (wlanConfig['6'] ? '6' : null);
             if (fiveGIndex && wifiSsid5) {
                 wifiParamValues.push([`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.SSID`, wifiSsid5, 'xsd:string']);
                 if (wifiPass5) {
                     wifiParamValues.push(
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.BeaconType`, '11i', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.IEEE11iAuthenticationMode`, 'PSKAuthentication', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.IEEE11iEncryptionModes`, 'AESEncryption', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.WPAAuthenticationMode`, 'PSKAuthentication', 'xsd:string'],
                         [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.PreSharedKey.1.PreSharedKey`, wifiPass5, 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.PreSharedKey.1.KeyPassphrase`, wifiPass5, 'xsd:string'],
                         [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.KeyPassphrase`, wifiPass5, 'xsd:string']
+                    );
+                } else {
+                    wifiParamValues.push(
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.BeaconType`, 'None', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.BasicEncryptionModes`, 'None', 'xsd:string'],
+                        [`InternetGatewayDevice.LANDevice.1.WLANConfiguration.${fiveGIndex}.BasicAuthenticationMode`, 'None', 'xsd:string']
                     );
                 }
             }
 
-            if (wifiParamValues.length > 0) {
-                await axios.post(`${baseUrl}/devices/${encodeURIComponent(deviceId)}/tasks`, {
+            for (const wp of wifiParamValues) {
+                axios.post(`${baseUrl}/devices/${encodeURIComponent(deviceId)}/tasks`, {
                     name: 'setParameterValues',
-                    parameterValues: wifiParamValues
-                }, config);
+                    parameterValues: [wp]
+                }, config).catch(() => {});
             }
         }
 

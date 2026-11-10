@@ -570,7 +570,7 @@
             </div>
 
             <label class="fl" style="margin-bottom: 8px;">Pilih WLAN (SSID) yang akan di-bind:</label>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 10px;">
                 <label class="bind-tag active" id="lblWlan1">
                     <input type="checkbox" name="wlanSsids" value="SSID1" checked style="display: none;" onchange="syncTagClass(this, 'lblWlan1')"> SSID 1
                 </label>
@@ -582,6 +582,9 @@
                 </label>
                 <label class="bind-tag" id="lblWlan4">
                     <input type="checkbox" name="wlanSsids" value="SSID4" style="display: none;" onchange="syncTagClass(this, 'lblWlan4')"> SSID 4
+                </label>
+                <label class="bind-tag" id="lblWlan5">
+                    <input type="checkbox" name="wlanSsids" value="SSID5" style="display: none;" onchange="syncTagClass(this, 'lblWlan5')"> SSID 5 (5G)
                 </label>
             </div>
         </div>
@@ -1000,10 +1003,10 @@ async function openAddWanModal(deviceId, acsId, sn, manufacturer, model) {
     });
     
     // Reset SSID labels to original text first
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 5; i++) {
         const lbl = document.getElementById(`lblWlan${i}`);
         if (lbl) {
-            lbl.innerHTML = `<input type="checkbox" name="wlanSsids" value="SSID${i}" ${i === 1 ? 'checked' : ''} style="display: none;" onchange="syncTagClass(this, 'lblWlan${i}')"> SSID ${i}`;
+            lbl.innerHTML = `<input type="checkbox" name="wlanSsids" value="SSID${i}" ${i === 1 ? 'checked' : ''} style="display: none;" onchange="syncTagClass(this, 'lblWlan${i}')"> SSID ${i}${i === 5 ? ' (5G)' : ''}`;
             if (i === 1) lbl.classList.add('active');
             else lbl.classList.remove('active');
         }
@@ -1021,8 +1024,10 @@ async function openAddWanModal(deviceId, acsId, sn, manufacturer, model) {
             d.bands.forEach(b => {
                 const lbl = document.getElementById(`lblWlan${b.index}`);
                 if (lbl) {
-                    const isChecked = b.index === '1'; // Default SSID 1 is checked
+                    const isChecked = (b.index === '1' || b.index === '5'); // Default SSID 1 & 5 (5G) checked if available
                     lbl.innerHTML = `<input type="checkbox" name="wlanSsids" value="SSID${b.index}" ${isChecked ? 'checked' : ''} style="display: none;" onchange="syncTagClass(this, 'lblWlan${b.index}')"> SSID ${b.index}: ${b.ssid}`;
+                    if (isChecked) lbl.classList.add('active');
+                    else lbl.classList.remove('active');
                 }
             });
         }

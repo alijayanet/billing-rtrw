@@ -237,24 +237,29 @@
 
               <label class="form-label small text-secondary mb-1">WLAN (SSID) Binding:</label>
               <div class="row g-2">
-                  <div class="col-3">
+                  <div class="col-4 col-md-2">
                       <label class="bind-tag active" id="lblWlan1">
                           <input type="checkbox" name="wlanSsids" value="SSID1" checked style="display: none;" onchange="syncTagClass(this, 'lblWlan1')"> SSID 1
                       </label>
                   </div>
-                  <div class="col-3">
+                  <div class="col-4 col-md-2">
                       <label class="bind-tag" id="lblWlan2">
                           <input type="checkbox" name="wlanSsids" value="SSID2" style="display: none;" onchange="syncTagClass(this, 'lblWlan2')"> SSID 2
                       </label>
                   </div>
-                  <div class="col-3">
+                  <div class="col-4 col-md-2">
                       <label class="bind-tag" id="lblWlan3">
                           <input type="checkbox" name="wlanSsids" value="SSID3" style="display: none;" onchange="syncTagClass(this, 'lblWlan3')"> SSID 3
                       </label>
                   </div>
-                  <div class="col-3">
+                  <div class="col-4 col-md-2">
                       <label class="bind-tag" id="lblWlan4">
                           <input type="checkbox" name="wlanSsids" value="SSID4" style="display: none;" onchange="syncTagClass(this, 'lblWlan4')"> SSID 4
+                      </label>
+                  </div>
+                  <div class="col-8 col-md-4">
+                      <label class="bind-tag" id="lblWlan5">
+                          <input type="checkbox" name="wlanSsids" value="SSID5" style="display: none;" onchange="syncTagClass(this, 'lblWlan5')"> SSID 5 (5G)
                       </label>
                   </div>
               </div>
@@ -560,10 +565,10 @@ async function openAddWanModal(deviceId, acsId, sn, manufacturer, model) {
     });
     
     // Reset SSID labels to original text first
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 5; i++) {
         const lbl = document.getElementById(`lblWlan${i}`);
         if (lbl) {
-            lbl.innerHTML = `<input type="checkbox" name="wlanSsids" value="SSID${i}" ${i === 1 ? 'checked' : ''} style="display: none;" onchange="syncTagClass(this, 'lblWlan${i}')"> SSID ${i}`;
+            lbl.innerHTML = `<input type="checkbox" name="wlanSsids" value="SSID${i}" ${i === 1 ? 'checked' : ''} style="display: none;" onchange="syncTagClass(this, 'lblWlan${i}')"> SSID ${i}${i === 5 ? ' (5G)' : ''}`;
             if (i === 1) lbl.classList.add('active');
             else lbl.classList.remove('active');
         }
@@ -581,8 +586,10 @@ async function openAddWanModal(deviceId, acsId, sn, manufacturer, model) {
             d.bands.forEach(b => {
                 const lbl = document.getElementById(`lblWlan${b.index}`);
                 if (lbl) {
-                    const isChecked = b.index === '1'; // Default SSID 1 is checked
+                    const isChecked = (b.index === '1' || b.index === '5'); // Default SSID 1 & 5 (5G) checked if available
                     lbl.innerHTML = `<input type="checkbox" name="wlanSsids" value="SSID${b.index}" ${isChecked ? 'checked' : ''} style="display: none;" onchange="syncTagClass(this, 'lblWlan${b.index}')"> SSID ${b.index}: ${b.ssid}`;
+                    if (isChecked) lbl.classList.add('active');
+                    else lbl.classList.remove('active');
                 }
             });
         }
