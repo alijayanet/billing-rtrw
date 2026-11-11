@@ -427,11 +427,110 @@ function getIp(req) {
   return String((req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim() || req.ip || '');
 }
 
+const AD_AND_PROMO_PATTERNS = [
+  // 1. Promo, Diskon & Cashback
+  /\bpromo\b/i,
+  /\bpromosi\b/i,
+  /\bdiskon\b/i,
+  /\bdiscount\b/i,
+  /\bcashback\b/i,
+  /\bcash\s*back\b/i,
+  /\b(?:klaim|dapat(?:kan)?|tukar|gunakan|ambil|serbu)\s+voucher\b/i,
+  /\bvoucher\s+(?:diskon|promo|cashback|belanja|makan|ongkir|gratis|cash\s*back|hemat)\b/i,
+  /\bkupon\b/i,
+  /\bspesial\s+buat\s+kamu\b/i,
+  /\bkhusus\s+buat\s+kamu\b/i,
+  /\bpenawaran\s+(?:spesial|khusus|terbatas|menarik)\b/i,
+  /\bserbu\b/i,
+  /\bburuan\s+klaim\b/i,
+  /\bklaim\s+sekarang\b/i,
+  /\bdapatkan\s+gratis\b/i,
+  /\bbonus\b/i,
+  /\bgratis\s+saldo\b/i,
+  /\bsaldo\s+gratis\b/i,
+  /\bflash\s*sale\b/i,
+  /\bgratis\s*ongkir\b/i,
+  /\bhemat\s+hingga\b/i,
+  /\bpotongan\s+harga\b/i,
+
+  // 2. Pinjaman, PayLater, Kredit & Investasi
+  /\bbutuh\s+dana\b/i,
+  /\bpinjaman\b/i,
+  /\bpinjam\b/i,
+  /\blimit\s+(?:hingga|s\/d|sd)\b/i,
+  /\bbunga\s+mulai\b/i,
+  /\bcicilan\b/i,
+  /\bpaylater\b/i,
+  /\bpay\s+later\b/i,
+  /\bdana\s+instan\b/i,
+  /\bdana\s+tunai\b/i,
+  /\bkredit\b/i,
+  /\basuransi\b/i,
+  /\binvestasi\b/i,
+  /\breksadana\b/i,
+  /\bnabung\s+emas\b/i,
+  /\bbeli\s+emas\b/i,
+  /\bsaham\b/i,
+  /\bbebas\s+biaya\s+admin\b/i,
+
+  // 3. Game, Entertainment & Undian
+  /\bdiamond\b/i,
+  /\bvip\s*pass\b/i,
+  /\bdanapoly\b/i,
+  /\btop\s*up\s+game\b/i,
+  /\btopup\s+game\b/i,
+  /\blucky\s*wheel\b/i,
+  /\broda\s+keberuntungan\b/i,
+  /\bundian\b/i,
+  /\bmenangkan\b/i,
+  /\bgalaxy\s*z\s*fold\b/i,
+  /\btebak\s*&\s*menang\b/i,
+
+  // 4. Layanan Non-Pembayaran
+  /\bgocar\b/i,
+  /\bgoride\b/i,
+  /\bgofood\b/i,
+  /\bshopeefood\b/i,
+  /\bshopee\s+live\b/i,
+  /\bpesan\s+makan\b/i,
+  /\bpulang\s+praktis\b/i,
+
+  // 5. Pembayaran Gagal & Saldo Kurang
+  /\bpembayaran\s+gagal\b/i,
+  /\bgagal\s+bayar\b/i,
+  /\btidak\s+dapat\s+diproses\b/i,
+  /\btransaksi\s+gagal\b/i,
+  /\bgak\s+bisa\s+bayar\b/i,
+  /\btidak\s+bisa\s+bayar\b/i,
+  /\bsaldonya\s+kurang\b/i,
+  /\bsaldo\s+(?:kamu\s+)?tidak\s+(?:cukup|mencukupi)\b/i,
+  /\bkurang\s+saldo\b/i,
+  /\bisi\s+saldo\s+dulu\b/i,
+
+  // 6. Referral & Akun
+  /\bajak\s+teman\b/i,
+  /\bundang\s+teman\b/i,
+  /\bkode\s+referral\b/i,
+  /\bupgrade\s+ke\b/i,
+  /\bverifikasi\s+akun\b/i
+];
+
+function isAdOrPromoNotification(content) {
+  const text = String(content || '').toLowerCase();
+  if (!text) return false;
+  return AD_AND_PROMO_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 function parseRupiahAmountFromNotification(content) {
   const text = String(content || '').replace(/\u00A0/g, ' ').trim();
   if (!text) return null;
 
   const lower = text.toLowerCase();
+
+  // Filter notifikasi iklan, promo, diskon, cashback, atau pinjaman
+  if (isAdOrPromoNotification(text)) {
+    return null;
+  }
 
   // Deteksi chat/reaksi/kutipan tagihan yang bukan transaksi finansial asli
   const chatOrInvoiceHints = [
@@ -879,7 +978,7 @@ app.post('/api/webhook/v1/payment-notif', multer().any(), async (req, res) => {
   ];
   if (blockedServices.some(b => serviceLower.includes(b))) {
     logger.warn(`[WEBHOOK][payment-notif] Ignored: chat/social messaging service detected (${serviceLower})`);
-    return res.status(200).json({ status: 'ignored', reason: 'chat_service_ignored', service: serviceLower });
+    return res.status(422).json({ status: 'ignored', reason: 'chat_service_ignored', service: serviceLower });
   }
 
   // Safe debugging: log incoming request parameters (secrets masked)
@@ -947,7 +1046,12 @@ app.post('/api/webhook/v1/payment-notif', multer().any(), async (req, res) => {
   ];
   if (chatOrInvoiceHints.some((h) => rawLower.includes(h))) {
     logger.warn(`[WEBHOOK][payment-notif] Ignored: chat/invoice quoting content detected ("${rawText.slice(0, 150)}")`);
-    return res.status(200).json({ status: 'ignored', reason: 'chat_or_invoice_quoted_ignored' });
+    return res.status(422).json({ status: 'ignored', reason: 'chat_or_invoice_quoted_ignored' });
+  }
+
+  if (isAdOrPromoNotification(rawText)) {
+    logger.warn(`[WEBHOOK][payment-notif] Ignored: ad/promotional notification detected ("${rawText.slice(0, 150)}")`);
+    return res.status(422).json({ status: 'ignored', reason: 'ad_or_promo_filtered', message: 'Notifikasi iklan/promo otomatis diabaikan' });
   }
 
   try {
@@ -1257,11 +1361,11 @@ app.post('/api/webhook/v1/payment-notif', multer().any(), async (req, res) => {
       return res.status(200).json({ status: 'processed', parsed: true, amount, matched_invoice_id: matchedInvoiceId, matched_voucher_order_id: matchedVoucherOrderId, matched_donation_order_id: matchedDonationOrderId, matched_topup_request_id: matchedTopupRequestId });
     }
 
-    logger.error(`[WEBHOOK][payment-notif] FAILED parse: "${rawText.replace(/\r?\n/g, ' ').slice(0, 500)}"`);
-    return res.status(200).json({ status: 'processed', parsed: false, amount: null });
+    logger.warn(`[WEBHOOK][payment-notif] FAILED parse or not incoming payment: "${rawText.replace(/\r?\n/g, ' ').slice(0, 500)}"`);
+    return res.status(422).json({ status: 'ignored', reason: 'unparsed_or_not_incoming_payment', parsed: false, amount: null });
   } catch (err) {
     logger.error(`[WEBHOOK][payment-notif] ERROR ${err && err.stack ? err.stack : String(err)}`);
-    return res.status(200).json({ status: 'processed', parsed: false, amount: null });
+    return res.status(422).json({ status: 'error', reason: 'processing_error', parsed: false, amount: null });
   }
 });
 
