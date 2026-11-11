@@ -1,5 +1,6 @@
 const https = require('https');
 const { logger } = require('../config/logger');
+const { terbilang } = require('./soundboxService');
 
 // Cache audio sederhana dalam memori (maks 50 entri)
 const ttsCache = new Map();
@@ -18,8 +19,21 @@ function cleanTextForSpeech(text) {
   str = str.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
   str = str.replace(/<[^>]+>/g, ' ');
 
-  // 2. Terjemahkan simbol mata uang & nomor
-  str = str.replace(/\bRp\.?\s*([0-9.,]+)\b/gi, '$1 rupiah');
+  // 2. Terjemahkan simbol mata uang & nominal ke kata terbilang lisan alami
+  str = str.replace(/\bRp\.?\s*([0-9.,]+)\b/gi, (match, numStr) => {
+    const cleanNum = parseInt(numStr.replace(/\./g, '').replace(/,/g, '.'), 10);
+    if (!isNaN(cleanNum) && cleanNum > 0) {
+      return terbilang(cleanNum) + ' rupiah';
+    }
+    return match;
+  });
+  str = str.replace(/\b([0-9]+(?:\.[0-9]{3})+|[0-9]{3,})\s*rupiah\b/gi, (match, numStr) => {
+    const cleanNum = parseInt(numStr.replace(/\./g, ''), 10);
+    if (!isNaN(cleanNum) && cleanNum > 0) {
+      return terbilang(cleanNum) + ' rupiah';
+    }
+    return match;
+  });
   str = str.replace(/\bNo\.\s*/gi, 'nomor ');
   str = str.replace(/\bNo\s+(\d+)/gi, 'nomor $1');
 
