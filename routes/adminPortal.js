@@ -6592,6 +6592,8 @@ router.post('/api/voice-assistant/ask', requireAdminOrVoiceToken, express.json()
       isAdmin: true,
       extraContext: {
         phone: req.session.adminUser?.phone || '',
+        adminName: senderName,
+        contextSource: 'admin_portal',
         req
       }
     });

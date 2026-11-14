@@ -304,6 +304,32 @@ const adminToolDeclarations = [
       },
       required: ['name']
     }
+  },
+  {
+    name: 'check_system_updates',
+    description: 'Mengecek ketersediaan pembaruan paket sistem operasi Linux (sudo apt update / apt list --upgradable), versi runtime Node.js LTS terkini (Jod/Krypton), memori RAM, dan kapasitas disk server',
+    parameters: {
+      type: 'OBJECT',
+      properties: {}
+    }
+  },
+  {
+    name: 'manage_system_upgrade',
+    description: 'Menjalankan pembaruan sistem operasi Linux (sudo apt update & upgrade) atau peningkatan versi Node.js LTS secara otomatis dan aman (dilengkapi backup database otomatis, compile ulang modul C++ better-sqlite3 & ssh2, reload PM2, dan health check)',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        target: {
+          type: 'STRING',
+          description: 'Komponen yang ingin diperbarui: "os_packages" (paket Ubuntu/Debian), "nodejs" (upgrade Node.js ke LTS terkini), atau "all" (seluruh sistem: OS + Node.js). Default: "all"'
+        },
+        confirm: {
+          type: 'BOOLEAN',
+          description: 'Set true jika Admin telah memberikan persetujuan eksplisit untuk melakukan upgrade (misal: "ya lanjutkan upgrade", "konfirmasi upgrade server", "jalankan upgrade"). Jika baru menanyakan atau meminta upgrade tanpa konfirmasi, set false agar sistem memberikan checklist rencana pra-upgrade.'
+        }
+      },
+      required: ['target']
+    }
   }
 ];
 
@@ -745,14 +771,20 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
         const { exec } = require('child_process');
         const rootDir = path.join(__dirname, '..');
 
+        const isLongRunning = /apt-get|apt\s+|npm\s+|git\s+pull|nvm/i.test(cmd);
+        const timeoutMs = isLongRunning ? 180000 : 25000;
+        const isLinux = process.platform === 'linux';
+        const nvmPath = isLinux ? `${process.env.HOME || '/home/alijaya'}/.nvm/versions/node/v22.23.5/bin:${process.env.HOME || '/home/alijaya'}/.nvm/versions/node/v20.20.2/bin:` : '';
+
         const res = await new Promise((resolve) => {
           exec(cmd, {
             cwd: rootDir,
-            timeout: 25000,
-            maxBuffer: 1024 * 512,
+            timeout: timeoutMs,
+            maxBuffer: 1024 * 1024,
             env: {
               ...process.env,
-              PATH: `${process.env.PATH || ''}:/usr/local/bin:/usr/bin:/bin`
+              DEBIAN_FRONTEND: 'noninteractive',
+              PATH: `${nvmPath}${process.env.PATH || ''}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`
             }
           }, (err, stdout, stderr) => {
             resolve({
@@ -1172,6 +1204,23 @@ ${tailLines.slice(-3000) || '(Log kosong)'}
                `• Status ACS: ${acsStatus}\n` +
                (wifiSsid ? `• WiFi SSID: *${wifiSsid}* (Password: \`${wifiPassword || 'Tidak diubah'}\`)\n` : '') +
                `\n_Tagihan pertama periode berjalan sudah diterbitkan secara otomatis._`;
+      }
+
+      // 27. Mengecek Ketersediaan Pembaruan Sistem (OS & Node.js)
+      case 'check_system_updates': {
+        const sysadminSvc = require('./sysadminService');
+        return await sysadminSvc.checkSystemUpdates();
+      }
+
+      // 28. Menjalankan Pembaruan Sistem (OS / Node.js / All)
+      case 'manage_system_upgrade': {
+        const sysadminSvc = require('./sysadminService');
+        const adminName = extraContext?.adminName || 'Admin';
+        return await sysadminSvc.manageSystemUpgrade({
+          target: args.target || 'all',
+          confirm: args.confirm === true || args.confirm === 'true',
+          adminName
+        });
       }
 
       default:

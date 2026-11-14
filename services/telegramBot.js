@@ -422,7 +422,8 @@ function initTelegram() {
           isAdmin: true,
           extraContext: {
             contextSource: 'telegram_admin',
-            chatId: msg.chat.id
+            chatId: msg.chat.id,
+            adminName: msg.from.first_name || 'Admin'
           }
         });
 
