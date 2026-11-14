@@ -81,7 +81,7 @@ if [ "$ACTION" = "nodejs" ] || [ "$ACTION" = "all" ]; then
     npm rebuild better-sqlite3 ssh2
     
     echo "• Memperbarui environment proses PM2 billing..."
-    pm2 reload billing --update-env || pm2 restart billing --update-env
+    pm2 reload billing --update-env || pm2 resurrect || pm2 restart billing --update-env || pm2 start app-customer.js --name billing
     pm2 save
     
     echo "• Menguji kestabilan server (Health Check)..."
