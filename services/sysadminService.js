@@ -168,26 +168,17 @@ Pembaruan ini akan memerlukan waktu sekitar 1 - 2 menit dan akan dilakukan tanpa
   let backupStatus = 'Gagal';
 
   try {
-    if (typeof db.backup === 'function') {
-      await db.backup(backupFile);
+    const srcDb = path.join(PROJECT_ROOT, 'database', 'billing.db');
+    if (fs.existsSync(srcDb)) {
+      try {
+        db.pragma('wal_checkpoint(TRUNCATE)');
+      } catch (_) {}
+      fs.copyFileSync(srcDb, backupFile);
       const stat = fs.statSync(backupFile);
       backupStatus = `✅ Sukses (${(stat.size / (1024 * 1024)).toFixed(1)} MB)`;
-    } else {
-      const srcDb = path.join(PROJECT_ROOT, 'database', 'billing.db');
-      if (fs.existsSync(srcDb)) {
-        fs.copyFileSync(srcDb, backupFile);
-        backupStatus = `✅ Sukses (File Copy)`;
-      }
     }
   } catch (backupErr) {
-    logger.warn(`[SysAdmin] Backup SQLite via db.backup gagal, mencoba fallback: ${backupErr.message}`);
-    try {
-      const srcDb = path.join(PROJECT_ROOT, 'database', 'billing.db');
-      if (fs.existsSync(srcDb)) {
-        fs.copyFileSync(srcDb, backupFile);
-        backupStatus = `✅ Sukses (Fallback Copy)`;
-      }
-    } catch (_) {}
+    logger.warn(`[SysAdmin] Backup SQLite snapshot gagal: ${backupErr.message}`);
   }
 
   // Step 2: Eksekusi Shell Script Upgrade
@@ -199,7 +190,7 @@ Pembaruan ini akan memerlukan waktu sekitar 1 - 2 menit dan akan dilakukan tanpa
   if (cleanTarget === 'os' || cleanTarget === 'os_packages') scriptAction = 'os';
   if (cleanTarget === 'nodejs' || cleanTarget === 'node') scriptAction = 'nodejs';
 
-  const upgradeRes = await runShell(`bash "${scriptPath}" ${scriptAction} "${PROJECT_ROOT}"`, PROJECT_ROOT, 360000); // Timeout 6 menit
+  const upgradeRes = await runShell(`SKIP_SCRIPT_BACKUP=1 bash "${scriptPath}" ${scriptAction} "${PROJECT_ROOT}"`, PROJECT_ROOT, 360000); // Timeout 6 menit
 
   // Simpan log upgrade ke file
   const logDir = path.join(PROJECT_ROOT, 'logs');

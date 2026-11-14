@@ -28,12 +28,15 @@ DB_FILE="$APP_DIR/database/billing.db"
 BACKUP_DIR="$APP_DIR/backups"
 mkdir -p "$BACKUP_DIR"
 
-if [ -f "$DB_FILE" ]; then
+if [ -n "$SKIP_SCRIPT_BACKUP" ]; then
+  echo "ℹ️ Snapshot backup database sudah dibuat sebelumnya oleh sysadminService, melewati backup script."
+elif [ -f "$DB_FILE" ]; then
   TIMESTAMP=$(date +%Y%m%d_%H%M%S)
   BACKUP_FILE="$BACKUP_DIR/billing_pre_upgrade_${TIMESTAMP}.db"
   echo "📦 Menjalankan snapshot backup database ke: $BACKUP_FILE ..."
   if command -v sqlite3 >/dev/null 2>&1; then
-    sqlite3 "$DB_FILE" ".backup '$BACKUP_FILE'"
+    sqlite3 "$DB_FILE" "PRAGMA wal_checkpoint(TRUNCATE);" 2>/dev/null || true
+    cp "$DB_FILE" "$BACKUP_FILE"
   else
     cp "$DB_FILE" "$BACKUP_FILE"
   fi
