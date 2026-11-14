@@ -85,10 +85,13 @@ async function checkSystemUpdates() {
     const nvmRes = await runShell(`
       export NVM_DIR="$HOME/.nvm"
       [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
-      nvm ls-remote "lts/jod" | tail -n 1 | awk '{print $1}'
+      nvm ls-remote "lts/jod" | tail -n 1
     `, PROJECT_ROOT, 15000);
     if (nvmRes.stdout) {
-      latestLtsNode = nvmRes.stdout.trim() + ' (LTS Jod)';
+      const match = nvmRes.stdout.match(/v\d+\.\d+\.\d+/);
+      if (match) {
+        latestLtsNode = `${match[0]} (LTS Jod)`;
+      }
     }
   } catch (_) {}
 
