@@ -1880,7 +1880,8 @@ export async function processIncomingCommand({
   senderName = '',
   key = null,
   sock = null,
-  lidStore = null
+  lidStore = null,
+  isFromWebhook = false
 }) {
   if (!text || typeof text !== 'string') return false;
   const trimmed = text.trim();
@@ -1901,7 +1902,8 @@ export async function processIncomingCommand({
 
   logger.info(`[WA] Pesan masuk dari ${(msgKey.remoteJid || phone)}: "${text}"`);
   const adminSet = loadWhatsappAdminSet(currentLidStore);
-  const isAdmin = (phone && adminSet.has(phone)) || isWhatsappAdminKey(msgKey, adminSet, currentSockInstance, currentLidStore);
+  // Security Guard: Webhooks can be spoofed by HTTP POST, so webhook requests MUST NEVER be granted admin privileges!
+  const isAdmin = !isFromWebhook && ((phone && adminSet.has(phone)) || isWhatsappAdminKey(msgKey, adminSet, currentSockInstance, currentLidStore));
   logger.info(`[WA] Sender details: JID=${(msgKey.remoteJid || phone)}, isAdmin=${isAdmin}, adminSet=${JSON.stringify([...adminSet])}`);
 // Deteksi Perintah Administratif Bahasa Alami (misal: "tolong dong lunasin pelanggan sobirin karena sudah bayar?")
   const naturalAdminCmd = detectAdminNaturalCommand(text);

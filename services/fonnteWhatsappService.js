@@ -172,7 +172,8 @@ async function processFonnteWebhook(data = {}) {
         senderPhone: phone,
         text: messageText,
         reply: reply,
-        senderName: customerName
+        senderName: customerName,
+        isFromWebhook: true
       });
       return { ok: true, handled: !!handled };
     }

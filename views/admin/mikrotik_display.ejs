@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   
   <style>
-    :root {
+    :root, [data-theme="cyberpunk"] {
       --bg: #060813;
       --bg-surface: #0b0f1f;
       --card-bg: rgba(13, 18, 36, 0.78);
@@ -32,6 +32,91 @@
       --amber-glow: rgba(245, 158, 11, 0.22);
       --rose: #f43f5e;
       --rose-glow: rgba(244, 63, 94, 0.22);
+      --tech-corner: #00f2fe;
+    }
+
+    [data-theme="matrix"] {
+      --bg: #020d06;
+      --bg-surface: #051a0d;
+      --card-bg: rgba(6, 28, 15, 0.82);
+      --card-border: rgba(0, 255, 102, 0.18);
+      --card-border-hover: rgba(0, 255, 102, 0.45);
+      --cyan: #00ff66;
+      --cyan-glow: rgba(0, 255, 102, 0.22);
+      --emerald: #39ff14;
+      --emerald-glow: rgba(57, 255, 20, 0.22);
+      --blue: #00e676;
+      --blue-glow: rgba(0, 230, 118, 0.22);
+      --purple: #10b981;
+      --purple-glow: rgba(16, 185, 129, 0.22);
+      --amber: #ffd700;
+      --amber-glow: rgba(255, 215, 0, 0.22);
+      --rose: #ff3366;
+      --rose-glow: rgba(255, 51, 102, 0.22);
+      --tech-corner: #00ff66;
+    }
+
+    [data-theme="sapphire"] {
+      --bg: #03091e;
+      --bg-surface: #06133d;
+      --card-bg: rgba(9, 24, 66, 0.82);
+      --card-border: rgba(0, 162, 255, 0.18);
+      --card-border-hover: rgba(0, 162, 255, 0.45);
+      --cyan: #00a2ff;
+      --cyan-glow: rgba(0, 162, 255, 0.25);
+      --emerald: #00f0ff;
+      --emerald-glow: rgba(0, 240, 255, 0.25);
+      --blue: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.25);
+      --purple: #818cf8;
+      --purple-glow: rgba(129, 140, 248, 0.25);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.22);
+      --rose: #f43f5e;
+      --rose-glow: rgba(244, 63, 94, 0.22);
+      --tech-corner: #00a2ff;
+    }
+
+    [data-theme="amoled"] {
+      --bg: #000000;
+      --bg-surface: #0a0a0c;
+      --card-bg: rgba(16, 16, 18, 0.90);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --card-border-hover: rgba(0, 229, 255, 0.5);
+      --cyan: #00e5ff;
+      --cyan-glow: rgba(0, 229, 255, 0.25);
+      --emerald: #30d158;
+      --emerald-glow: rgba(48, 209, 88, 0.25);
+      --blue: #0a84ff;
+      --blue-glow: rgba(10, 132, 255, 0.25);
+      --purple: #bf5af2;
+      --purple-glow: rgba(191, 90, 242, 0.25);
+      --amber: #ffd60a;
+      --amber-glow: rgba(255, 214, 10, 0.25);
+      --rose: #ff453a;
+      --rose-glow: rgba(255, 69, 58, 0.25);
+      --tech-corner: #00e5ff;
+    }
+
+    [data-theme="amber"] {
+      --bg: #0d0a04;
+      --bg-surface: #1a1408;
+      --card-bg: rgba(36, 26, 10, 0.82);
+      --card-border: rgba(255, 170, 0, 0.20);
+      --card-border-hover: rgba(255, 170, 0, 0.5);
+      --cyan: #ffaa00;
+      --cyan-glow: rgba(255, 170, 0, 0.25);
+      --emerald: #ffd700;
+      --emerald-glow: rgba(255, 215, 0, 0.25);
+      --blue: #f59e0b;
+      --blue-glow: rgba(245, 158, 11, 0.25);
+      --purple: #fbbf24;
+      --purple-glow: rgba(251, 191, 36, 0.25);
+      --amber: #f97316;
+      --amber-glow: rgba(249, 115, 22, 0.25);
+      --rose: #ef4444;
+      --rose-glow: rgba(239, 68, 68, 0.25);
+      --tech-corner: #ffaa00;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -244,6 +329,61 @@
       color: #93c5fd;
     }
 
+    /* FANRUAN SCI-FI TECH CORNERS */
+    .tech-frame {
+      position: relative;
+    }
+    .tech-frame::before {
+      content: '';
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      width: 7px;
+      height: 7px;
+      border-top: 2px solid var(--tech-corner);
+      border-left: 2px solid var(--tech-corner);
+      pointer-events: none;
+      z-index: 3;
+      border-top-left-radius: 4px;
+      transition: border-color 0.3s;
+    }
+    .tech-frame::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 7px;
+      height: 7px;
+      border-bottom: 2px solid var(--tech-corner);
+      border-right: 2px solid var(--tech-corner);
+      pointer-events: none;
+      z-index: 3;
+      border-bottom-right-radius: 4px;
+      transition: border-color 0.3s;
+    }
+
+    /* KPI MICRO SPARKLINE BAR */
+    .kpi-sparkline {
+      height: 2.5px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 2px 0 1px 0;
+      position: relative;
+    }
+    .spark-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 2px;
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s;
+    }
+    .spark-fill.cyan { background: linear-gradient(90deg, transparent, var(--cyan)); box-shadow: 0 0 6px var(--cyan); }
+    .spark-fill.emerald { background: linear-gradient(90deg, transparent, var(--emerald)); box-shadow: 0 0 6px var(--emerald); }
+    .spark-fill.blue { background: linear-gradient(90deg, transparent, var(--blue)); box-shadow: 0 0 6px var(--blue); }
+    .spark-fill.purple { background: linear-gradient(90deg, transparent, var(--purple)); box-shadow: 0 0 6px var(--purple); }
+    .spark-fill.amber { background: linear-gradient(90deg, transparent, var(--amber)); box-shadow: 0 0 6px var(--amber); }
+
     /* TOP KPI BAR (5 SLIM CARDS, STRICTLY 1 ROW) */
     .kpi-grid {
       display: grid;
@@ -264,11 +404,12 @@
       flex-direction: column;
       justify-content: center;
       gap: 1px;
-      height: 58px;
-      transition: border-color 0.2s;
+      height: 60px;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
     .kpi-card:hover {
       border-color: var(--card-border-hover);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.15);
     }
 
     .kpi-card::before {
@@ -393,7 +534,7 @@
       margin-right: 5px;
     }
 
-    /* RADIAL GAUGES (LEFT COL) */
+    /* FANRUAN 3D DONUT RING GAUGES (LEFT COL) */
     .gauges-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -405,7 +546,7 @@
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid var(--card-border);
       border-radius: 8px;
-      padding: 8px 4px;
+      padding: 6px 4px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -413,8 +554,8 @@
     }
 
     .gauge-svg-wrap {
-      width: 72px;
-      height: 72px;
+      width: 80px;
+      height: 80px;
       position: relative;
       display: flex;
       align-items: center;
@@ -427,6 +568,13 @@
       transform: rotate(-90deg);
     }
 
+    .gauge-bg-ticks {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.07);
+      stroke-width: 2;
+      stroke-dasharray: 2 4;
+    }
+
     .gauge-bg {
       fill: none;
       stroke: rgba(255, 255, 255, 0.06);
@@ -437,7 +585,7 @@
       fill: none;
       stroke-width: 6;
       stroke-linecap: round;
-      transition: stroke-dashoffset 0.8s ease, stroke 0.3s;
+      transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.3s;
     }
 
     .gauge-label-center {
@@ -455,12 +603,26 @@
       line-height: 1;
     }
 
+    .gauge-status-pill {
+      font-size: 7.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-top: 2px;
+      text-transform: uppercase;
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
     .gauge-title {
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       color: var(--text-muted);
-      margin-top: 4px;
+      margin-top: 2px;
     }
 
     .gauge-detail {
@@ -816,6 +978,61 @@
       100% { height: 14px; }
     }
 
+    /* BOTTOM TELEMETRY TICKER BAR */
+    .noc-ticker-bar {
+      height: 24px;
+      min-height: 24px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2px 10px;
+      font-size: 10px;
+      backdrop-filter: blur(14px);
+      flex-shrink: 0;
+      gap: 10px;
+      overflow: hidden;
+    }
+    .ticker-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cyan);
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      padding-right: 10px;
+    }
+    .ticker-track {
+      flex: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .ticker-time {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--emerald);
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+    }
+    .spin-slow {
+      animation: spinSlow 4s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spinSlow {
+      100% { transform: rotate(360deg); }
+    }
+
     /* LOADING OVERLAY */
     .noc-overlay {
       position: fixed;
@@ -857,7 +1074,7 @@
   <div class="noc-container">
 
     <!-- TOP HEADER -->
-    <header class="noc-header">
+    <header class="noc-header tech-frame">
       <div class="brand-section">
         <div class="brand-icon-box">
           <i class="bi bi-broadcast"></i>
@@ -884,6 +1101,18 @@
 
       <!-- CONTROLS -->
       <div class="controls-section">
+        <!-- Theme Selector (FanRuan Style) -->
+        <div class="ctrl-select-wrap">
+          <select id="theme-selector" class="ctrl-select" onchange="switchTheme(this.value)" title="Pilih Tema Visual NOC">
+            <option value="cyberpunk" selected>🎨 Cyberpunk</option>
+            <option value="matrix">🟢 Matrix</option>
+            <option value="sapphire">🔷 Sapphire</option>
+            <option value="amoled">⚫ AMOLED</option>
+            <option value="amber">🟠 Amber</option>
+          </select>
+          <i class="bi bi-chevron-down ctrl-select-icon"></i>
+        </div>
+
         <!-- Router Selector -->
         <div class="ctrl-select-wrap">
           <select id="router-select" class="ctrl-select" onchange="switchRouter()">
@@ -948,7 +1177,7 @@
     <!-- TOP KPI TELEMETRY BAR (5 SLIM CARDS, STRICTLY 1 ROW) -->
     <section class="kpi-grid">
       <!-- 1. Download -->
-      <div class="kpi-card cyan">
+      <div class="kpi-card cyan tech-frame">
         <div class="kpi-head">
           <span id="kpi-rx-label">Download Traffic (RX)</span>
           <i class="bi bi-arrow-down-circle"></i>
@@ -957,6 +1186,9 @@
           <span class="kpi-value" id="kpi-rx-val">0.0</span>
           <span class="kpi-unit" id="kpi-rx-unit">Mbps</span>
         </div>
+        <div class="kpi-sparkline">
+          <div class="spark-fill cyan" id="rx-spark-fill"></div>
+        </div>
         <div class="kpi-sub">
           <span id="kpi-rx-interface"><i class="bi bi-hdd-network"></i> WAN: ether1-ISP</span>
           <span class="badge-pill" id="kpi-rx-peak">Peak: 0.0 Mbps</span>
@@ -964,7 +1196,7 @@
       </div>
 
       <!-- 2. Upload -->
-      <div class="kpi-card emerald">
+      <div class="kpi-card emerald tech-frame">
         <div class="kpi-head">
           <span id="kpi-tx-label">Upload Traffic (TX)</span>
           <i class="bi bi-arrow-up-circle"></i>
@@ -973,6 +1205,9 @@
           <span class="kpi-value" id="kpi-tx-val">0.0</span>
           <span class="kpi-unit" id="kpi-tx-unit">Mbps</span>
         </div>
+        <div class="kpi-sparkline">
+          <div class="spark-fill emerald" id="tx-spark-fill"></div>
+        </div>
         <div class="kpi-sub">
           <span id="kpi-total-bandwidth"><i class="bi bi-activity"></i> Total: 0.0 Mbps</span>
           <span class="badge-pill" id="kpi-tx-peak">Peak: 0.0 Mbps</span>
@@ -980,7 +1215,7 @@
       </div>
 
       <!-- 3. PPPoE -->
-      <div class="kpi-card blue">
+      <div class="kpi-card blue tech-frame">
         <div class="kpi-head">
           <span>PPPoE Subscribers</span>
           <i class="bi bi-ethernet"></i>
@@ -989,6 +1224,9 @@
           <span class="kpi-value" id="kpi-pppoe-online">0</span>
           <span class="kpi-unit" id="kpi-pppoe-total">/ 0 Total</span>
         </div>
+        <div class="kpi-sparkline">
+          <div class="spark-fill blue" id="pppoe-spark-fill"></div>
+        </div>
         <div class="kpi-sub">
           <span id="kpi-pppoe-offline"><i class="bi bi-circle-fill" style="color:var(--rose);font-size:6px"></i> 0 Offline</span>
           <span class="badge-pill" id="kpi-pppoe-ratio" style="color:var(--cyan)">100% Active</span>
@@ -996,7 +1234,7 @@
       </div>
 
       <!-- 4. Hotspot -->
-      <div class="kpi-card purple">
+      <div class="kpi-card purple tech-frame">
         <div class="kpi-head">
           <span>Hotspot Vouchers</span>
           <i class="bi bi-wifi"></i>
@@ -1005,6 +1243,9 @@
           <span class="kpi-value" id="kpi-hotspot-active">0</span>
           <span class="kpi-unit" id="kpi-hotspot-total">/ 0 Vouchers</span>
         </div>
+        <div class="kpi-sparkline">
+          <div class="spark-fill purple" id="hotspot-spark-fill"></div>
+        </div>
         <div class="kpi-sub">
           <span><i class="bi bi-people"></i> Sesi Aktif</span>
           <span class="badge-pill" style="color:var(--purple)">RADIUS / API</span>
@@ -1012,7 +1253,7 @@
       </div>
 
       <!-- 5. Hardware Vitals -->
-      <div class="kpi-card amber">
+      <div class="kpi-card amber tech-frame">
         <div class="kpi-head">
           <span>Hardware & TR-069</span>
           <i class="bi bi-cpu"></i>
@@ -1023,6 +1264,9 @@
           <span style="font-size:13px;color:var(--text-muted);margin:0 2px">•</span>
           <span class="kpi-value" id="kpi-volt-val" style="font-size:17px">--</span>
           <span class="kpi-unit">V</span>
+        </div>
+        <div class="kpi-sparkline">
+          <div class="spark-fill amber" id="temp-spark-fill"></div>
         </div>
         <div class="kpi-sub">
           <span id="kpi-ont-summary"><i class="bi bi-modem"></i> ONT: 0 Online</span>
@@ -1035,23 +1279,25 @@
     <main class="noc-main">
 
       <!-- LEFT COLUMN: HARDWARE RADIAL GAUGES & SPECS -->
-      <div class="col-card">
+      <div class="col-card tech-frame">
         <div class="card-title-bar">
           <div><i class="bi bi-speedometer2"></i> System Hardware</div>
           <span class="badge-pill" id="router-uptime-badge">Up: --</span>
         </div>
 
-        <!-- 2 Radial Gauges -->
+        <!-- 2 Radial Gauges (FanRuan 3D Donut Style) -->
         <div class="gauges-container">
           <!-- CPU Gauge -->
-          <div class="gauge-box">
+          <div class="gauge-box tech-frame">
             <div class="gauge-svg-wrap">
-              <svg class="gauge-svg" viewBox="0 0 72 72">
-                <circle class="gauge-bg" cx="36" cy="36" r="28"></circle>
-                <circle class="gauge-bar" id="cpu-gauge-bar" cx="36" cy="36" r="28" stroke="var(--emerald)" stroke-dasharray="175.9" stroke-dashoffset="175.9"></circle>
+              <svg class="gauge-svg" viewBox="0 0 80 80">
+                <circle class="gauge-bg-ticks" cx="40" cy="40" r="35"></circle>
+                <circle class="gauge-bg" cx="40" cy="40" r="31"></circle>
+                <circle class="gauge-bar" id="cpu-gauge-bar" cx="40" cy="40" r="31" stroke="var(--emerald)" stroke-dasharray="194.8" stroke-dashoffset="194.8"></circle>
               </svg>
               <div class="gauge-label-center">
                 <span class="gauge-num" id="cpu-gauge-num" style="color:var(--emerald)">0%</span>
+                <span class="gauge-status-pill" id="cpu-status-pill">OPTIMAL</span>
               </div>
             </div>
             <div class="gauge-title">CPU Load</div>
@@ -1059,14 +1305,16 @@
           </div>
 
           <!-- Memory Gauge -->
-          <div class="gauge-box">
+          <div class="gauge-box tech-frame">
             <div class="gauge-svg-wrap">
-              <svg class="gauge-svg" viewBox="0 0 72 72">
-                <circle class="gauge-bg" cx="36" cy="36" r="28"></circle>
-                <circle class="gauge-bar" id="mem-gauge-bar" cx="36" cy="36" r="28" stroke="var(--cyan)" stroke-dasharray="175.9" stroke-dashoffset="175.9"></circle>
+              <svg class="gauge-svg" viewBox="0 0 80 80">
+                <circle class="gauge-bg-ticks" cx="40" cy="40" r="35"></circle>
+                <circle class="gauge-bg" cx="40" cy="40" r="31"></circle>
+                <circle class="gauge-bar" id="mem-gauge-bar" cx="40" cy="40" r="31" stroke="var(--cyan)" stroke-dasharray="194.8" stroke-dashoffset="194.8"></circle>
               </svg>
               <div class="gauge-label-center">
                 <span class="gauge-num" id="mem-gauge-num" style="color:var(--cyan)">0%</span>
+                <span class="gauge-status-pill" id="mem-status-pill">NORMAL</span>
               </div>
             </div>
             <div class="gauge-title">Memory RAM</div>
@@ -1130,7 +1378,7 @@
       <div class="center-section">
 
         <!-- Real-Time Traffic Throughput Wave Chart -->
-        <div class="chart-box">
+        <div class="chart-box tech-frame">
           <div class="card-title-bar">
             <div><i class="bi bi-activity"></i> Real-time Traffic Throughput Wave</div>
             <div class="chart-controls">
@@ -1152,7 +1400,7 @@
         </div>
 
         <!-- Active Interfaces Matrix Table -->
-        <div class="interfaces-box">
+        <div class="interfaces-box tech-frame">
           <div class="card-title-bar">
             <div><i class="bi bi-diagram-3"></i> Network Interfaces Live Telemetry</div>
             <div class="iface-filter-tabs">
@@ -1185,7 +1433,7 @@
       </div>
 
       <!-- RIGHT COLUMN: SUBSCRIBERS, FIBER & INFRASTRUCTURE -->
-      <div class="col-card">
+      <div class="col-card tech-frame">
         <div class="card-title-bar">
           <div><i class="bi bi-shield-check"></i> Network & Clients</div>
           <span class="badge-pill" style="color:var(--emerald)" id="client-total-badge">0 Clients</span>
@@ -1259,6 +1507,17 @@
       </div>
 
     </main>
+
+    <!-- FANRUAN LIVE TELEMETRY TICKER BAR -->
+    <footer class="noc-ticker-bar tech-frame">
+      <div class="ticker-badge"><i class="bi bi-broadcast-pin"></i> LIVE TELEMETRY</div>
+      <div class="ticker-track" id="noc-ticker-track">
+        <span class="ticker-msg" id="noc-ticker-msg"><i class="bi bi-shield-check" style="color:var(--emerald)"></i> Seluruh sistem jaringan MikroTik &amp; TR-069 beroperasi optimal.</span>
+      </div>
+      <div class="ticker-time" id="noc-ticker-time">
+        <i class="bi bi-arrow-repeat spin-slow"></i> AUTO-SYNC: 2.5s
+      </div>
+    </footer>
   </div>
 
   <!-- AI VOICE FLOATING HUD -->
@@ -1556,8 +1815,51 @@
       } catch (_) {}
     }
 
+    // FanRuan Visual Themes Switcher
+    function switchTheme(theme) {
+      if (!theme) theme = 'cyberpunk';
+      document.documentElement.setAttribute('data-theme', theme);
+      try {
+        localStorage.setItem('noc_theme', theme);
+      } catch (_) {}
+      const sel = document.getElementById('theme-selector');
+      if (sel && sel.value !== theme) sel.value = theme;
+
+      // Update Chart Colors dynamically to match theme
+      if (trafficChart) {
+        const computed = getComputedStyle(document.documentElement);
+        const cyan = computed.getPropertyValue('--cyan').trim() || '#00f2fe';
+        const emerald = computed.getPropertyValue('--emerald').trim() || '#10b981';
+
+        const canvas = document.getElementById('traffic-live-chart');
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          const rxGrad = ctx.createLinearGradient(0, 0, 0, 160);
+          rxGrad.addColorStop(0, cyan + '50');
+          rxGrad.addColorStop(1, cyan + '00');
+
+          const txGrad = ctx.createLinearGradient(0, 0, 0, 160);
+          txGrad.addColorStop(0, emerald + '50');
+          txGrad.addColorStop(1, emerald + '00');
+
+          trafficChart.data.datasets[0].borderColor = cyan;
+          trafficChart.data.datasets[0].backgroundColor = rxGrad;
+          trafficChart.data.datasets[0].pointHoverBackgroundColor = cyan;
+
+          trafficChart.data.datasets[1].borderColor = emerald;
+          trafficChart.data.datasets[1].backgroundColor = txGrad;
+          trafficChart.data.datasets[1].pointHoverBackgroundColor = emerald;
+          trafficChart.update('none');
+        }
+      }
+    }
+
     // On DOM Ready
     document.addEventListener('DOMContentLoaded', () => {
+      try {
+        const savedTheme = localStorage.getItem('noc_theme') || 'cyberpunk';
+        switchTheme(savedTheme);
+      } catch (_) {}
       startClock();
       try {
         initChart();
@@ -1710,11 +2012,11 @@
       return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
     }
 
-    // Set SVG Radial Arc
+    // Set SVG Radial Arc (FanRuan 80x80 Donut Gauge, R=31)
     function setGaugeArc(circleId, percent) {
       const el = document.getElementById(circleId);
       if (!el) return;
-      const circumference = 175.9; // 2 * PI * 28
+      const circumference = 194.8; // 2 * PI * 31
       const offset = circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference;
       el.style.strokeDashoffset = offset;
     }
@@ -1937,31 +2239,55 @@
           document.getElementById('vital-voltage').textContent = '-';
         }
 
-        // CPU Radial Arc
+        // CPU Radial Arc & Status Pill (FanRuan Donut)
         const cpuVal = Math.round(r.cpuLoad || 0);
         document.getElementById('cpu-gauge-num').textContent = `${cpuVal}%`;
         document.getElementById('cpu-detail-text').textContent = `${r.cpuCount || 1} Cores`;
         setGaugeArc('cpu-gauge-bar', cpuVal);
         const cpuBar = document.getElementById('cpu-gauge-bar');
         const cpuNum = document.getElementById('cpu-gauge-num');
-        if (cpuVal >= 80) {
+        const cpuPill = document.getElementById('cpu-status-pill');
+        if (cpuVal >= 90) {
           cpuBar.setAttribute('stroke', 'var(--rose)');
           cpuNum.style.color = 'var(--rose)';
-        } else if (cpuVal >= 50) {
+          if (cpuPill) { cpuPill.textContent = 'CRITICAL'; cpuPill.style.color = 'var(--rose)'; }
+        } else if (cpuVal >= 75) {
           cpuBar.setAttribute('stroke', 'var(--amber)');
           cpuNum.style.color = 'var(--amber)';
+          if (cpuPill) { cpuPill.textContent = 'HIGH'; cpuPill.style.color = 'var(--amber)'; }
+        } else if (cpuVal >= 50) {
+          cpuBar.setAttribute('stroke', 'var(--cyan)');
+          cpuNum.style.color = 'var(--cyan)';
+          if (cpuPill) { cpuPill.textContent = 'NORMAL'; cpuPill.style.color = 'var(--cyan)'; }
         } else {
           cpuBar.setAttribute('stroke', 'var(--emerald)');
           cpuNum.style.color = 'var(--emerald)';
+          if (cpuPill) { cpuPill.textContent = 'OPTIMAL'; cpuPill.style.color = 'var(--emerald)'; }
         }
 
-        // Memory Radial Arc
+        // Memory Radial Arc & Status Pill (FanRuan Donut)
         const memPercent = Math.round(r.memoryPercent || 0);
         const freeMb = Math.round((r.freeMemory || 0) / (1024 * 1024));
         const totalMb = Math.round((r.totalMemory || 0) / (1024 * 1024));
         document.getElementById('mem-gauge-num').textContent = `${memPercent}%`;
         document.getElementById('mem-detail-text').textContent = `${freeMb} MB Free`;
         setGaugeArc('mem-gauge-bar', memPercent);
+        const memBar = document.getElementById('mem-gauge-bar');
+        const memNum = document.getElementById('mem-gauge-num');
+        const memPill = document.getElementById('mem-status-pill');
+        if (memPercent >= 85) {
+          memBar.setAttribute('stroke', 'var(--rose)');
+          memNum.style.color = 'var(--rose)';
+          if (memPill) { memPill.textContent = 'FULL'; memPill.style.color = 'var(--rose)'; }
+        } else if (memPercent >= 70) {
+          memBar.setAttribute('stroke', 'var(--amber)');
+          memNum.style.color = 'var(--amber)';
+          if (memPill) { memPill.textContent = 'WARNING'; memPill.style.color = 'var(--amber)'; }
+        } else {
+          memBar.setAttribute('stroke', 'var(--cyan)');
+          memNum.style.color = 'var(--cyan)';
+          if (memPill) { memPill.textContent = 'NORMAL'; memPill.style.color = 'var(--cyan)'; }
+        }
 
         // HDD Storage
         const hddPercent = Math.round(r.hddPercent || 0);
@@ -2052,6 +2378,15 @@
         document.getElementById('kpi-rx-peak').textContent = `Peak: ${peakRxRate.toFixed(1)} Mbps`;
         document.getElementById('kpi-tx-peak').textContent = `Peak: ${peakTxRate.toFixed(1)} Mbps`;
 
+        // Update Micro-Sparklines (FanRuan KPI)
+        const rxSparkRatio = peakRxRate > 0 ? Math.min(100, Math.round((currentRxMbps / peakRxRate) * 100)) : 0;
+        const rxSpark = document.getElementById('rx-spark-fill');
+        if (rxSpark) rxSpark.style.width = `${rxSparkRatio}%`;
+
+        const txSparkRatio = peakTxRate > 0 ? Math.min(100, Math.round((currentTxMbps / peakTxRate) * 100)) : 0;
+        const txSpark = document.getElementById('tx-spark-fill');
+        if (txSpark) txSpark.style.width = `${txSparkRatio}%`;
+
         // Update Chart Wave
         if (selectedInterface === '__WAN__' && tr.history && tr.history.length > 0 && chartHistory.labels.length === 0) {
           // Pre-populate chart with server history points on first load
@@ -2129,6 +2464,52 @@
         document.getElementById('cust-suspended-val').textContent = `${billing.suspended || 0} Pelanggan`;
         document.getElementById('client-total-badge').textContent = `${(pppoe.active || 0) + (hotspot.active || 0)} Sesi Aktif`;
         document.getElementById('sec-blocked-val').textContent = `${data.security ? (data.security.blockedCount || 0) : 0} Kali`;
+
+        // Update Sparkline Fills for PPPoE, Hotspot, and Hardware
+        const pppoeSpark = document.getElementById('pppoe-spark-fill');
+        if (pppoeSpark) pppoeSpark.style.width = `${pppoe.activePercent || 0}%`;
+
+        const hotspotSpark = document.getElementById('hotspot-spark-fill');
+        if (hotspotSpark) hotspotSpark.style.width = `${hotspotPercent || 0}%`;
+
+        const tempSpark = document.getElementById('temp-spark-fill');
+        if (tempSpark) {
+          const tempVal = r.temperature || 40;
+          tempSpark.style.width = `${Math.min(100, Math.max(0, Math.round((tempVal / 80) * 100)))}%`;
+        }
+
+        // Update Bottom Telemetry Ticker
+        const tickerMsg = document.getElementById('noc-ticker-msg');
+        if (tickerMsg) {
+          let tickerItems = [];
+          if (data.warning) {
+            tickerItems.push(`<span style="color:var(--amber)"><i class="bi bi-exclamation-triangle-fill"></i> PERINGATAN: ${data.warning}</span>`);
+          }
+          if ((acs.critical || 0) > 0) {
+            tickerItems.push(`<span style="color:var(--rose)"><i class="bi bi-radioactive"></i> ALARM: ${acs.critical} Modem Fiber Redaman Kritis</span>`);
+          }
+          if (cpuVal >= 80) {
+            tickerItems.push(`<span style="color:var(--rose)"><i class="bi bi-cpu-fill"></i> CPU LOAD TINGGI: ${cpuVal}%</span>`);
+          }
+          const downPhysical = ifaces.filter(i => !i.isDynamic && !i.disabled && !i.running);
+          if (downPhysical.length > 0) {
+            const downNames = downPhysical.map(i => i.name).join(', ');
+            tickerItems.push(`<span style="color:var(--rose)"><i class="bi bi-x-octagon-fill"></i> LINK DOWN: ${downNames}</span>`);
+          }
+          if (tickerItems.length === 0) {
+            tickerItems.push(`<span style="color:var(--emerald)"><i class="bi bi-shield-check"></i> Router ${r.boardName || 'MikroTik'} [${wanName}] Beroperasi Optimal</span>`);
+            tickerItems.push(`<span style="color:var(--cyan)"><i class="bi bi-speedometer"></i> Throughput Internet: ↓${rxFormatted.val} ${rxFormatted.unit} / ↑${txFormatted.val} ${txFormatted.unit}</span>`);
+            tickerItems.push(`<span style="color:var(--purple)"><i class="bi bi-people-fill"></i> ${pppoe.active || 0} PPPoE + ${hotspot.active || 0} Hotspot Sesi Aktif</span>`);
+            if ((acs.online || 0) > 0) {
+              tickerItems.push(`<span style="color:var(--emerald)"><i class="bi bi-modem-fill"></i> ${acs.online} ONT Fiber Online</span>`);
+            }
+          }
+          tickerMsg.innerHTML = tickerItems.join(' &nbsp;•&nbsp; ');
+        }
+        const tickerTime = document.getElementById('noc-ticker-time');
+        if (tickerTime) {
+          tickerTime.innerHTML = `<i class="bi bi-arrow-repeat spin-slow"></i> AUTO-SYNC: ${(pollIntervalMs / 1000).toFixed(1)}s`;
+        }
 
         // 4. Automated Smart Voice Announcer Trigger
         if (isNocVoiceEnabled && !isAiVoiceSpeaking && !isListeningVoice) {

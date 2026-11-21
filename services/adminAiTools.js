@@ -195,17 +195,6 @@ const adminToolDeclarations = [
     }
   },
   {
-    name: 'run_server_command',
-    description: 'Menjalankan perintah shell/terminal Linux server yang aman (seperti: pm2 status, pm2 reload billing, git status, git pull, free -m, df -h, uptime, systemctl status freeradius, ping, ip addr) untuk diagnosa dan pemeliharaan server secara mandiri',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        command: { type: 'STRING', description: 'Perintah shell Linux yang ingin dijalankan (contoh: "pm2 status", "git status", "free -m", "df -h", "uptime", "systemctl status freeradius")' }
-      },
-      required: ['command']
-    }
-  },
-  {
     name: 'inspect_server_logs',
     description: 'Membaca dan menganalisis log server (logs/app.log, logs/error.log, atau log PM2) untuk mendiagnosa error, crash, atau kendala teknis pada sistem',
     parameters: {
@@ -742,77 +731,10 @@ async function executeAdminTool(toolName, args, extraContext = {}) {
         return out;
       }
 
-      // 17. Menjalankan Perintah Terminal Linux / Server (Sysadmin Agent)
+      // 17. Menjalankan Perintah Terminal Linux / Server (PERMANENTLY DISABLED FOR SECURITY)
       case 'run_server_command': {
-        const cmd = String(args.command || '').trim();
-        if (!cmd) {
-          return 'Mohon sebutkan perintah terminal yang ingin dijalankan.';
-        }
-
-        // Security Guardrails: blacklist dangerous destructive commands
-        const dangerousPatterns = [
-          /\brm\s+-[rf]{1,2}\s+[\/\*]/i,
-          /\bmkfs\b/i,
-          /\bdd\s+if=/i,
-          />\s*\/dev\/sd/i,
-          /\bchmod\s+-R\s+777\s+\//i,
-          /\bchown\s+-R\s+root\s+\//i,
-          /\bshutdown\b/i,
-          /\bpoweroff\b/i,
-          /\binit\s+0\b/i,
-          /\bpasswd\b/i,
-          /:{\s*:\s*\|\s*:\s*&\s*}\s*;\s*:/
-        ];
-
-        if (dangerousPatterns.some(p => p.test(cmd))) {
-          return `⚠️ Perintah "${cmd}" diblokir oleh sistem keamanan demi mencegah kerusakan permanen pada sistem operasi.`;
-        }
-
-        const { exec } = require('child_process');
-        const rootDir = path.join(__dirname, '..');
-
-        const isLongRunning = /apt-get|apt\s+|npm\s+|git\s+pull|nvm/i.test(cmd);
-        const timeoutMs = isLongRunning ? 180000 : 25000;
-        const isLinux = process.platform === 'linux';
-        const nvmPath = isLinux ? `${process.env.HOME || '/home/alijaya'}/.nvm/versions/node/v22.23.5/bin:${process.env.HOME || '/home/alijaya'}/.nvm/versions/node/v20.20.2/bin:` : '';
-
-        const res = await new Promise((resolve) => {
-          exec(cmd, {
-            cwd: rootDir,
-            timeout: timeoutMs,
-            maxBuffer: 1024 * 1024,
-            env: {
-              ...process.env,
-              DEBIAN_FRONTEND: 'noninteractive',
-              PATH: `${nvmPath}${process.env.PATH || ''}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`
-            }
-          }, (err, stdout, stderr) => {
-            resolve({
-              err: err ? err.message : null,
-              stdout: String(stdout || '').trim(),
-              stderr: String(stderr || '').trim()
-            });
-          });
-        });
-
-        let out = `💻 *Hasil Eksekusi Terminal:*
-\`$ ${cmd}\`
-
-`;
-        if (res.stdout) {
-          out += `\`\`\`
-${res.stdout.slice(0, 3000)}
-\`\`\``;
-        } else if (res.stderr) {
-          out += `⚠️ *Stderr:* \`\`\`
-${res.stderr.slice(0, 1500)}
-\`\`\``;
-        } else if (res.err) {
-          out += `❌ *Error:* \`${res.err}\``;
-        } else {
-          out += `✅ Perintah selesai dijalankan tanpa keluaran teks.`;
-        }
-        return out;
+        logger.warn(`[Security Alert] Blocked attempt to invoke disabled run_server_command tool with: "${args?.command || ''}"`);
+        return '⚠️ Akses Ditolak: Fitur eksekusi perintah shell terminal mentah (raw shell command) telah dinonaktifkan secara permanen demi keamanan server. Untuk pemeliharaan server, silakan gunakan terminal SSH resmi.';
       }
 
       // 18. Membaca & Menganalisis Log Server (Log Diagnostics)
@@ -912,10 +834,20 @@ ${tailLines.slice(-3000) || '(Log kosong)'}
                `• Status: ✅ Seluruh layanan inti berjalan normal.`;
       }
 
-      // 20. Eksekusi CLI RouterOS MikroTik Langsung
+      // 20. Eksekusi CLI RouterOS MikroTik Langsung (HANYA READ-ONLY / DIAGNOSTIK)
       case 'run_mikrotik_cli': {
         const rawCmd = String(args.command || '').trim();
         if (!rawCmd) return 'Mohon sebutkan perintah RouterOS MikroTik yang ingin dijalankan.';
+
+        const cleanCmd = rawCmd.replace(/^\//, '');
+        const lower = cleanCmd.toLowerCase();
+
+        // Security Guardrails: Blokir perintah destruktif atau mutasi berbahaya via AI
+        const forbiddenMikrotik = ['add', 'remove', 'set', 'enable', 'disable', 'reset', 'reboot', 'shutdown', 'format', 'flash', 'script', 'file', 'user'];
+        if (forbiddenMikrotik.some(kw => lower.startsWith(kw + ' ') || lower.includes('/' + kw) || lower.includes(' ' + kw + ' '))) {
+          logger.warn(`[Security Alert] Blocked non-read-only MikroTik CLI command via AI: "${cleanCmd}"`);
+          return `⚠️ Perintah perubahan/modifikasi konfigurasi MikroTik (\`${cleanCmd}\`) diblokir demi keamanan. Gunakan Winbox resmi untuk konfigurasi router.`;
+        }
 
         let routerId = args.routerId ? Number(args.routerId) : null;
         if (!routerId) {
@@ -928,7 +860,6 @@ ${tailLines.slice(-3000) || '(Log kosong)'}
         const router = db.prepare('SELECT * FROM routers WHERE id = ?').get(routerId);
         if (!router) return `Router MikroTik dengan ID ${routerId} tidak ditemukan.`;
 
-        const cleanCmd = rawCmd.replace(/^\//, '');
         const words = cleanCmd.split(/\s+/).filter(Boolean);
         const apiWords = ['/' + words.join('/')];
 
