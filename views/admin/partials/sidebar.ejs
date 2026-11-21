@@ -92,6 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
           class="sb-item <%= (item.activePages || []).includes(activePage) ? 'active' : '' %>"
           <% if (item.locked) { %>
             onclick='return showLockedMenuNotice(<%- JSON.stringify(item.lockedMessage) %>)'
+          <% } else if (item.target) { %>
+            target="<%= item.target %>"
           <% } %>
         >
           <i class="<%= item.icon %>"></i>

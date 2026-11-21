@@ -2316,6 +2316,32 @@ app.get('/app/connect', (req, res) => {
   });
 });
 
+// Mount Public & Kiosk NOC Wallboard Display (Read-Only)
+const nocService = require('./services/nocService');
+app.get(['/noc', '/display/noc'], (req, res) => {
+  const settings = getSettingsWithCache();
+  const routers = nocService.getNocRouters();
+  const companyName = settings.company_header || settings.company_name || 'ALIJAYA NET';
+  res.render('admin/mikrotik_display', {
+    title: 'NOC Live Wallboard',
+    company: companyName,
+    routers,
+    settings,
+    isPublicNoc: !(req.session?.isAdmin || req.session?.isCashier),
+    lang: req.session?.lang || 'id'
+  });
+});
+
+app.get(['/api/noc/data', '/noc/data'], async (req, res) => {
+  try {
+    const routerId = req.query.routerId || null;
+    const data = await nocService.getNocData(routerId);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Mount customer portal
 const customerPortal = require('./routes/customerPortal');
 app.use('/customer', customerPortal);
