@@ -1,380 +1,481 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#0B132B"
-    android:padding="20dp">
+    android:background="@drawable/bg_card_subtle"
+    android:orientation="vertical"
+    android:padding="16dp">
 
+    <!-- 1. HEADER BAR -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <!-- Title -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="PENGATURAN KONEKSI &amp; TAMPILAN TV"
-            android:textColor="#00F2FE"
-            android:textSize="18sp"
             android:fontFamily="sans-serif-black"
-            android:letterSpacing="0.05" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="Konfigurasi API MikroTik (Port 8728) &amp; Tema Visual Wallboard"
-            android:textColor="#94A3B8"
-            android:textSize="12sp" />
+            android:letterSpacing="0.06"
+            android:text="⚙ PENGATURAN KONEKSI &amp; TAMPILAN TV"
+            android:textColor="#00F2FE"
+            android:textSize="17sp" />
 
         <View
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="1dp"
-            android:layout_marginVertical="12dp"
-            android:background="#1E293B" />
+            android:layout_weight="1" />
 
-        <!-- Router Host & Port -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:layout_marginEnd="10dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="IP Address / Host MikroTik:"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp" />
-
-                <EditText
-                    android:id="@+id/etHost"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="4dp"
-                    android:background="@drawable/bg_card_subtle"
-                    android:focusable="true"
-                    android:hint="192.168.8.1"
-                    android:inputType="textUri"
-                    android:paddingHorizontal="12dp"
-                    android:textColor="#FFFFFF"
-                    android:textColorHint="#64748B"
-                    android:textSize="14sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Port API:"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp" />
-
-                <EditText
-                    android:id="@+id/etPort"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="4dp"
-                    android:background="@drawable/bg_card_subtle"
-                    android:focusable="true"
-                    android:hint="8728"
-                    android:inputType="number"
-                    android:paddingHorizontal="12dp"
-                    android:textColor="#FFFFFF"
-                    android:textColorHint="#64748B"
-                    android:textSize="14sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Username & Password -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="10dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Username API:"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp" />
-
-                <EditText
-                    android:id="@+id/etUsername"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="4dp"
-                    android:background="@drawable/bg_card_subtle"
-                    android:focusable="true"
-                    android:hint="admin"
-                    android:inputType="text"
-                    android:paddingHorizontal="12dp"
-                    android:textColor="#FFFFFF"
-                    android:textColorHint="#64748B"
-                    android:textSize="14sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Password API:"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp" />
-
-                <EditText
-                    android:id="@+id/etPassword"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="4dp"
-                    android:background="@drawable/bg_card_subtle"
-                    android:focusable="true"
-                    android:hint="••••••"
-                    android:inputType="textPassword"
-                    android:paddingHorizontal="12dp"
-                    android:textColor="#FFFFFF"
-                    android:textColorHint="#64748B"
-                    android:textSize="14sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- WAN Interface & Refresh Interval -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:layout_marginEnd="10dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Interface WAN ISP (Grafik Wave):"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp" />
-
-                <EditText
-                    android:id="@+id/etWan"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="4dp"
-                    android:background="@drawable/bg_card_subtle"
-                    android:focusable="true"
-                    android:hint="ether1-ISP"
-                    android:inputType="text"
-                    android:paddingHorizontal="12dp"
-                    android:textColor="#FFFFFF"
-                    android:textColorHint="#64748B"
-                    android:textSize="14sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Interval (detik):"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp" />
-
-                <EditText
-                    android:id="@+id/etInterval"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="4dp"
-                    android:background="@drawable/bg_card_subtle"
-                    android:focusable="true"
-                    android:hint="2"
-                    android:inputType="number"
-                    android:paddingHorizontal="12dp"
-                    android:textColor="#FFFFFF"
-                    android:textColorHint="#64748B"
-                    android:textSize="14sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Theme Selection -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="PILIHAN TEMA TAMPILAN (COLOR THEME):"
-            android:textColor="#00F2FE"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/btnThemeCyberpunk"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp"
-                android:background="@drawable/bg_tv_button"
-                android:focusable="true"
-                android:text="CYBERPUNK"
-                android:textColor="#00F2FE"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/btnThemeMatrix"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp"
-                android:background="@drawable/bg_tv_button"
-                android:focusable="true"
-                android:text="MATRIX"
-                android:textColor="#00FF66"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/btnThemeSapphire"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp"
-                android:background="@drawable/bg_tv_button"
-                android:focusable="true"
-                android:text="SAPPHIRE"
-                android:textColor="#00A2FF"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/btnThemeAmoled"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp"
-                android:background="@drawable/bg_tv_button"
-                android:focusable="true"
-                android:text="AMOLED"
-                android:textColor="#FFFFFF"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/btnThemeAmber"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_tv_button"
-                android:focusable="true"
-                android:text="AMBER"
-                android:textColor="#FFAA00"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Auto Start on Boot Checkbox -->
-        <CheckBox
-            android:id="@+id/cbAutoBoot"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:checked="true"
-            android:focusable="true"
-            android:text="Mulai otomatis saat STB / Android TV dinyalakan (Auto Boot)"
-            android:textColor="#E2E8F0"
-            android:textSize="12sp" />
-
-        <!-- Status Result -->
-        <TextView
-            android:id="@+id/tvTestStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:fontFamily="monospace"
+            android:text="MIKROTIK API (PORT 8728)"
             android:textColor="#10B981"
-            android:textSize="12sp"
-            android:visibility="gone" />
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
-        <!-- Action Buttons -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginVertical="10dp"
+        android:background="#1E293B" />
+
+    <!-- 2. TWO-COLUMN TV LANDSCAPE CONTENT (NO SCROLLBAR NEEDED) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <!-- LEFT COLUMN: MIKROTIK CONNECTION FIELDS -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal">
+            android:layout_marginEnd="16dp"
+            android:layout_weight="1.1"
+            android:orientation="vertical">
 
-            <Button
-                android:id="@+id/btnTestConn"
-                android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_tv_button"
+            <!-- Host & Port Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="2"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="IP Address MikroTik:"
+                        android:textColor="#E2E8F0"
+                        android:textSize="11sp" />
+
+                    <EditText
+                        android:id="@+id/etHost"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="3dp"
+                        android:background="@drawable/bg_input_focused"
+                        android:focusable="true"
+                        android:hint="192.168.8.1"
+                        android:imeOptions="actionNext"
+                        android:inputType="textUri"
+                        android:nextFocusDown="@id/etUsername"
+                        android:nextFocusRight="@id/etPort"
+                        android:paddingHorizontal="10dp"
+                        android:singleLine="true"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#64748B"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Port API:"
+                        android:textColor="#E2E8F0"
+                        android:textSize="11sp" />
+
+                    <EditText
+                        android:id="@+id/etPort"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="3dp"
+                        android:background="@drawable/bg_input_focused"
+                        android:focusable="true"
+                        android:hint="8728"
+                        android:imeOptions="actionNext"
+                        android:inputType="number"
+                        android:nextFocusDown="@id/etPassword"
+                        android:nextFocusLeft="@id/etHost"
+                        android:nextFocusRight="@id/btnThemeCyberpunk"
+                        android:paddingHorizontal="10dp"
+                        android:singleLine="true"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#64748B"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Username & Password Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Username API:"
+                        android:textColor="#E2E8F0"
+                        android:textSize="11sp" />
+
+                    <EditText
+                        android:id="@+id/etUsername"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="3dp"
+                        android:background="@drawable/bg_input_focused"
+                        android:focusable="true"
+                        android:hint="admin"
+                        android:imeOptions="actionNext"
+                        android:inputType="text"
+                        android:nextFocusDown="@id/etWan"
+                        android:nextFocusRight="@id/etPassword"
+                        android:nextFocusUp="@id/etHost"
+                        android:paddingHorizontal="10dp"
+                        android:singleLine="true"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#64748B"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Password API:"
+                        android:textColor="#E2E8F0"
+                        android:textSize="11sp" />
+
+                    <EditText
+                        android:id="@+id/etPassword"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="3dp"
+                        android:background="@drawable/bg_input_focused"
+                        android:focusable="true"
+                        android:hint="••••••"
+                        android:imeOptions="actionNext"
+                        android:inputType="textPassword"
+                        android:nextFocusDown="@id/etInterval"
+                        android:nextFocusLeft="@id/etUsername"
+                        android:nextFocusRight="@id/btnThemeMatrix"
+                        android:nextFocusUp="@id/etPort"
+                        android:paddingHorizontal="10dp"
+                        android:singleLine="true"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#64748B"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- WAN Interface & Refresh Interval Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="2"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Interface WAN (Wave):"
+                        android:textColor="#E2E8F0"
+                        android:textSize="11sp" />
+
+                    <EditText
+                        android:id="@+id/etWan"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="3dp"
+                        android:background="@drawable/bg_input_focused"
+                        android:focusable="true"
+                        android:hint="ether1-ISP"
+                        android:imeOptions="actionNext"
+                        android:inputType="text"
+                        android:nextFocusDown="@id/cbAutoBoot"
+                        android:nextFocusRight="@id/etInterval"
+                        android:nextFocusUp="@id/etUsername"
+                        android:paddingHorizontal="10dp"
+                        android:singleLine="true"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#64748B"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Interval (detik):"
+                        android:textColor="#E2E8F0"
+                        android:textSize="11sp" />
+
+                    <EditText
+                        android:id="@+id/etInterval"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="3dp"
+                        android:background="@drawable/bg_input_focused"
+                        android:focusable="true"
+                        android:hint="2"
+                        android:imeOptions="actionDone"
+                        android:inputType="number"
+                        android:nextFocusDown="@id/cbAutoBoot"
+                        android:nextFocusLeft="@id/etWan"
+                        android:nextFocusRight="@id/btnSave"
+                        android:nextFocusUp="@id/etPassword"
+                        android:paddingHorizontal="10dp"
+                        android:singleLine="true"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#64748B"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Auto Boot Checkbox -->
+            <CheckBox
+                android:id="@+id/cbAutoBoot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:checked="true"
                 android:focusable="true"
-                android:text="⚡ TEST KONEKSI"
+                android:nextFocusDown="@id/btnSave"
+                android:nextFocusRight="@id/btnSave"
+                android:nextFocusUp="@id/etWan"
+                android:text="Mulai otomatis saat STB dinyalakan"
+                android:textColor="#CBD5E1"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+        <!-- RIGHT COLUMN: THEMES & BIG SAVE BUTTONS -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="PILIHAN TEMA TAMPILAN:"
                 android:textColor="#00F2FE"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
 
+            <!-- Themes Grid Row 1 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnThemeCyberpunk"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tv_button"
+                    android:focusable="true"
+                    android:nextFocusDown="@id/btnThemeSapphire"
+                    android:nextFocusLeft="@id/etPort"
+                    android:nextFocusRight="@id/btnThemeMatrix"
+                    android:text="CYBERPUNK"
+                    android:textColor="#00F2FE"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnThemeMatrix"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tv_button"
+                    android:focusable="true"
+                    android:nextFocusDown="@id/btnThemeAmoled"
+                    android:nextFocusLeft="@id/btnThemeCyberpunk"
+                    android:text="MATRIX"
+                    android:textColor="#00FF66"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Themes Grid Row 2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnThemeSapphire"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tv_button"
+                    android:focusable="true"
+                    android:nextFocusDown="@id/btnSave"
+                    android:nextFocusLeft="@id/etPassword"
+                    android:nextFocusRight="@id/btnThemeAmoled"
+                    android:nextFocusUp="@id/btnThemeCyberpunk"
+                    android:text="SAPPHIRE"
+                    android:textColor="#00A2FF"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnThemeAmoled"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tv_button"
+                    android:focusable="true"
+                    android:nextFocusDown="@id/btnSave"
+                    android:nextFocusLeft="@id/btnThemeSapphire"
+                    android:nextFocusRight="@id/btnThemeAmber"
+                    android:nextFocusUp="@id/btnThemeMatrix"
+                    android:text="AMOLED"
+                    android:textColor="#FFFFFF"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnThemeAmber"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tv_button"
+                    android:focusable="true"
+                    android:nextFocusDown="@id/btnSave"
+                    android:nextFocusLeft="@id/btnThemeAmoled"
+                    android:nextFocusUp="@id/btnThemeMatrix"
+                    android:text="AMBER"
+                    android:textColor="#FFAA00"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Status Text -->
+            <TextView
+                android:id="@+id/tvTestStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="monospace"
+                android:textSize="11sp"
+                android:visibility="gone" />
+
+            <!-- BIG PROMINENT SAVE BUTTON (DIRECT FOCUS TARGET) -->
             <Button
                 android:id="@+id/btnSave"
-                android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_tv_button"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_btn_save"
+                android:elevation="4dp"
                 android:focusable="true"
+                android:nextFocusDown="@id/btnTestConn"
+                android:nextFocusLeft="@id/cbAutoBoot"
+                android:nextFocusUp="@id/btnThemeAmoled"
                 android:text="💾 SIMPAN &amp; TERAPKAN"
-                android:textColor="#10B981"
-                android:textSize="12sp"
+                android:textColor="@color/btn_text_save"
+                android:textSize="13sp"
                 android:textStyle="bold" />
 
-            <Button
-                android:id="@+id/btnClose"
-                android:layout_width="wrap_content"
-                android:layout_height="44dp"
-                android:background="@drawable/bg_tv_button"
-                android:focusable="true"
-                android:paddingHorizontal="16dp"
-                android:text="TUTUP"
-                android:textColor="#94A3B8"
-                android:textSize="12sp" />
-        </LinearLayout>
+            <!-- Sub Action Buttons: Test Connection & Close -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
 
+                <Button
+                    android:id="@+id/btnTestConn"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_btn_test"
+                    android:focusable="true"
+                    android:nextFocusDown="@id/btnSave"
+                    android:nextFocusLeft="@id/cbAutoBoot"
+                    android:nextFocusRight="@id/btnClose"
+                    android:nextFocusUp="@id/btnSave"
+                    android:text="⚡ TEST KONEKSI"
+                    android:textColor="@color/btn_text_test"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnClose"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_btn_close"
+                    android:focusable="true"
+                    android:nextFocusLeft="@id/btnTestConn"
+                    android:nextFocusUp="@id/btnSave"
+                    android:paddingHorizontal="14dp"
+                    android:text="TUTUP"
+                    android:textColor="#E2E8F0"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+        </LinearLayout>
     </LinearLayout>
-</ScrollView>
+
+</LinearLayout>

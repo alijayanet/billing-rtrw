@@ -8,10 +8,11 @@ import android.os.Bundle
 import android.view.View
 import android.view.Window
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import net.alijaya.nocdisplay.databinding.DialogSettingsBinding
 import net.alijaya.nocdisplay.mikrotik.MikrotikRepository
 import net.alijaya.nocdisplay.settings.AppSettings
@@ -36,9 +37,11 @@ class SettingsDialog(
         window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setLayout(
-                (context.resources.displayMetrics.widthPixels * 0.75).toInt(),
+                (context.resources.displayMetrics.widthPixels * 0.85).toInt(),
                 WindowManager.LayoutParams.WRAP_CONTENT
             )
+            // Ensure dialog doesn't get covered by keyboard
+            setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
         }
 
         loadCurrentValues()
@@ -58,6 +61,43 @@ class SettingsDialog(
     }
 
     private fun setupListeners() {
+        // Auto-hide virtual keyboard when moving focus to buttons or checkbox
+        val buttonsAndBox = listOf(
+            binding.btnSave,
+            binding.btnTestConn,
+            binding.btnClose,
+            binding.cbAutoBoot,
+            binding.btnThemeCyberpunk,
+            binding.btnThemeMatrix,
+            binding.btnThemeSapphire,
+            binding.btnThemeAmoled,
+            binding.btnThemeAmber
+        )
+        for (view in buttonsAndBox) {
+            view.setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    hideKeyboard()
+                }
+            }
+        }
+
+        // IME Action Done on last input fields moves focus to Save button
+        binding.etInterval.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                hideKeyboard()
+                binding.btnSave.requestFocus()
+                true
+            } else false
+        }
+
+        binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                hideKeyboard()
+                binding.btnSave.requestFocus()
+                true
+            } else false
+        }
+
         binding.btnThemeCyberpunk.setOnClickListener {
             selectedTheme = ThemeMode.CYBERPUNK_NEON
             highlightThemeButton()
@@ -80,6 +120,7 @@ class SettingsDialog(
         }
 
         binding.btnTestConn.setOnClickListener {
+            hideKeyboard()
             val host = binding.etHost.text.toString().trim()
             val port = binding.etPort.text.toString().trim().toIntOrNull() ?: 8728
             val user = binding.etUsername.text.toString().trim()
@@ -102,6 +143,7 @@ class SettingsDialog(
         }
 
         binding.btnSave.setOnClickListener {
+            hideKeyboard()
             val oldTheme = settings.themeMode
             settings.host = binding.etHost.text.toString().trim()
             settings.port = binding.etPort.text.toString().trim().toIntOrNull() ?: 8728
@@ -118,8 +160,15 @@ class SettingsDialog(
         }
 
         binding.btnClose.setOnClickListener {
+            hideKeyboard()
             dismiss()
         }
+    }
+
+    private fun hideKeyboard() {
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        val view = currentFocus ?: binding.root
+        imm?.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
     private fun highlightThemeButton() {
