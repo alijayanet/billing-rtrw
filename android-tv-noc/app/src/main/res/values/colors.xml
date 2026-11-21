@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Base Cyberpunk Theme (Default) -->
+    <color name="bg_cyberpunk">#070B14</color>
+    <color name="surface_cyberpunk">#0B132B</color>
+    <color name="card_cyberpunk">#0F1B38</color>
+    <color name="border_cyberpunk">#1E293B</color>
+    <color name="neon_cyan">#00F2FE</color>
+    <color name="neon_emerald">#10B981</color>
+    <color name="neon_magenta">#FF007F</color>
+    <color name="neon_yellow">#EAB308</color>
+    <color name="neon_red">#EF4444</color>
+    <color name="neon_purple">#8B5CF6</color>
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_muted">#64748B</color>
+    <color name="grid_line">#152243</color>
+
+    <!-- Emerald Matrix Theme -->
+    <color name="bg_matrix">#020D06</color>
+    <color name="surface_matrix">#051C0E</color>
+    <color name="card_matrix">#082B16</color>
+    <color name="matrix_green">#00FF66</color>
+    <color name="matrix_lime">#39FF14</color>
+
+    <!-- Sapphire Blue Theme -->
+    <color name="bg_sapphire">#03091E</color>
+    <color name="surface_sapphire">#06133D</color>
+    <color name="card_sapphire">#0A1E5C</color>
+    <color name="sapphire_blue">#00A2FF</color>
+    <color name="sapphire_ice">#00F0FF</color>
+
+    <!-- AMOLED Dark Theme -->
+    <color name="bg_amoled">#000000</color>
+    <color name="surface_amoled">#0D0D0D</color>
+    <color name="card_amoled">#171717</color>
+    <color name="amoled_accent">#00E5FF</color>
+
+    <!-- Amber Sunset Theme -->
+    <color name="bg_amber">#0D0A04</color>
+    <color name="surface_amber">#1C1408</color>
+    <color name="card_amber">#2E200C</color>
+    <color name="amber_gold">#FFAA00</color>
+    <color name="amber_yellow">#FFD700</color>
+</resources>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path
+        android:fillColor="#070B14"
+        android:pathData="M0,0h320v180h-320z" />
+    <path
+        android:strokeColor="#00F2FE"
+        android:strokeWidth="3"
+        android:strokeAlpha="0.6"
+        android:pathData="M2,2h316v176h-316z" />
+    <!-- Pulse Wave symbol -->
+    <path
+        android:strokeColor="#00F2FE"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M40,90 L90,90 L115,50 L145,130 L175,70 L200,105 L225,90 L280,90" />
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M40,110 L85,110 L110,85 L140,140 L170,95 L195,120 L220,110 L280,110" />
+</vector>

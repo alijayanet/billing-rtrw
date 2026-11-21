@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Alijaya NOC Display TV</string>
+    <string name="title_noc_wallboard">ALIJAYA NOC MONITORING</string>
+    <string name="subtitle_wallboard">REAL-TIME NETWORK TELEMETRY • STB / TV DISPLAY</string>
+    <string name="status_connected">ONLINE</string>
+    <string name="status_disconnected">OFFLINE</string>
+    <string name="status_connecting">CONNECTING...</string>
+    <string name="label_cpu_load">CPU LOAD</string>
+    <string name="label_ram_usage">RAM USAGE</string>
+    <string name="label_wan_rx">DOWNLOAD ISP</string>
+    <string name="label_wan_tx">UPLOAD ISP</string>
+    <string name="label_pppoe_active">PPPoE AKTIF</string>
+    <string name="label_hotspot_active">HOTSPOT AKTIF</string>
+    <string name="label_hardware_health">HEALTH &amp; POWER</string>
+    <string name="label_traffic_wave">REAL-TIME TRAFFIC THROUGHPUT WAVE</string>
+    <string name="label_interfaces">ACTIVE INTERFACE MATRIX</string>
+    <string name="btn_settings">SETTINGS (MENU)</string>
+    <string name="btn_theme">THEME</string>
+</resources>

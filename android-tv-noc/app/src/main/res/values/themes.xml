@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.NocDisplayTV" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/neon_cyan</item>
+        <item name="colorSecondary">@color/neon_emerald</item>
+        <item name="android:windowBackground">@color/bg_cyberpunk</item>
+        <item name="android:statusBarColor">@color/bg_cyberpunk</item>
+        <item name="android:navigationBarColor">@color/bg_cyberpunk</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+</resources>
