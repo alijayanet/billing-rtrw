@@ -2333,6 +2333,9 @@ app.get(['/noc', '/display/noc'], (req, res) => {
 });
 
 app.get(['/api/noc/data', '/noc/data'], async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   try {
     const routerId = req.query.routerId || null;
     const data = await nocService.getNocData(routerId);

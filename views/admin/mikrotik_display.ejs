@@ -6,16 +6,16 @@
   <title><%= title %> | <%= company %></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   
   <style>
     :root {
       --bg: #060813;
       --bg-surface: #0b0f1f;
-      --card-bg: rgba(13, 18, 36, 0.72);
+      --card-bg: rgba(13, 18, 36, 0.78);
       --card-border: rgba(255, 255, 255, 0.08);
-      --card-border-hover: rgba(59, 130, 246, 0.3);
+      --card-border-hover: rgba(59, 130, 246, 0.35);
       --text: #f8fafc;
       --text-muted: #94a3b8;
       --text-dim: #64748b;
@@ -36,83 +36,86 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
+    html, body {
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       background-image: 
-        radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 85% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 45%),
-        radial-gradient(circle at 50% 85%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.04) 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, rgba(59, 130, 246, 0.04) 0%, transparent 45%),
         linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-      background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+      background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
       color: var(--text);
-      overflow-x: hidden;
-      min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
 
+    /* ZERO-SCROLL NOC VIEWPORT CONTAINER */
     .noc-container {
+      height: 100vh;
+      max-height: 100vh;
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
-      padding: 12px 16px;
-      gap: 12px;
+      padding: 8px 12px;
+      gap: 8px;
+      box-sizing: border-box;
+      overflow: hidden;
       max-width: 1920px;
       margin: 0 auto;
     }
 
-    /* TOP HEADER */
+    /* TOP HEADER (COMPACT 40px) */
     .noc-header {
+      height: 42px;
+      min-height: 42px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      padding: 10px 18px;
-      border-radius: 14px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-      flex-wrap: wrap;
-      gap: 12px;
+      padding: 4px 14px;
+      border-radius: 10px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      flex-shrink: 0;
     }
 
     .brand-section {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
     }
 
     .brand-icon-box {
-      width: 42px;
-      height: 42px;
-      border-radius: 10px;
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
       background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(59, 130, 246, 0.2));
       border: 1px solid rgba(0, 242, 254, 0.35);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 15px;
       color: var(--cyan);
-      box-shadow: 0 0 16px var(--cyan-glow);
+      box-shadow: 0 0 10px var(--cyan-glow);
     }
 
     .brand-titles {
       display: flex;
-      flex-direction: column;
+      align-items: baseline;
+      gap: 8px;
     }
 
     .brand-name {
-      font-size: 17px;
+      font-size: 14px;
       font-weight: 800;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
       background: linear-gradient(90deg, #ffffff, #67e8f9, #60a5fa);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
 
     .brand-sub {
@@ -120,66 +123,66 @@
       color: var(--text-muted);
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .status-pulse {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      font-size: 10px;
+      gap: 4px;
+      font-size: 9px;
       font-weight: 700;
       color: var(--emerald);
-      padding: 2px 8px;
-      border-radius: 12px;
+      padding: 1px 6px;
+      border-radius: 10px;
       background: rgba(16, 185, 129, 0.12);
       border: 1px solid rgba(16, 185, 129, 0.25);
     }
 
     .pulse-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: var(--emerald);
-      box-shadow: 0 0 8px var(--emerald);
+      box-shadow: 0 0 6px var(--emerald);
       animation: pulse 1.5s infinite;
     }
 
     @keyframes pulse {
       0% { transform: scale(0.9); opacity: 0.7; }
-      50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 12px var(--emerald); }
+      50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 10px var(--emerald); }
       100% { transform: scale(0.9); opacity: 0.7; }
     }
 
     /* CENTER CLOCK */
     .clock-section {
       display: flex;
-      flex-direction: column;
       align-items: center;
+      gap: 8px;
     }
 
     .digital-clock {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 22px;
+      font-size: 17px;
       font-weight: 800;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       color: #ffffff;
-      text-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
     }
 
     .digital-date {
       font-size: 11px;
       font-weight: 600;
       color: var(--text-muted);
-      letter-spacing: 0.5px;
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      padding-left: 8px;
     }
 
     /* CONTROLS RIGHT */
     .controls-section {
       display: flex;
       align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 6px;
     }
 
     .ctrl-select-wrap {
@@ -190,9 +193,9 @@
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--card-border);
       color: #ffffff;
-      padding: 6px 30px 6px 12px;
-      border-radius: 8px;
-      font-size: 12px;
+      padding: 4px 24px 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
       font-weight: 600;
       appearance: none;
       cursor: pointer;
@@ -206,11 +209,11 @@
 
     .ctrl-select-icon {
       position: absolute;
-      right: 10px;
+      right: 7px;
       top: 50%;
       transform: translateY(-50%);
       pointer-events: none;
-      font-size: 10px;
+      font-size: 9px;
       color: var(--text-muted);
     }
 
@@ -218,13 +221,13 @@
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid var(--card-border);
       color: #ffffff;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       cursor: pointer;
       transition: all 0.2s;
       text-decoration: none;
@@ -241,36 +244,38 @@
       color: #93c5fd;
     }
 
-    /* TOP KPI BAR (5 NEON CARDS) */
+    /* TOP KPI BAR (5 SLIM CARDS, STRICTLY 1 ROW) */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 12px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      flex-shrink: 0;
     }
 
     .kpi-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 14px 16px;
+      border-radius: 10px;
+      padding: 6px 12px;
       backdrop-filter: blur(14px);
       position: relative;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      transition: transform 0.2s, border-color 0.2s;
+      justify-content: center;
+      gap: 1px;
+      height: 58px;
+      transition: border-color 0.2s;
     }
     .kpi-card:hover {
       border-color: var(--card-border-hover);
-      transform: translateY(-2px);
     }
 
     .kpi-card::before {
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0;
-      height: 3px;
+      height: 2.5px;
     }
 
     .kpi-card.cyan::before { background: linear-gradient(90deg, var(--cyan), transparent); }
@@ -283,111 +288,117 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.5px;
       color: var(--text-muted);
     }
 
-    .kpi-head i { font-size: 16px; }
-    .kpi-card.cyan .kpi-head i { color: var(--cyan); text-shadow: 0 0 10px var(--cyan); }
-    .kpi-card.emerald .kpi-head i { color: var(--emerald); text-shadow: 0 0 10px var(--emerald); }
-    .kpi-card.blue .kpi-head i { color: var(--blue); text-shadow: 0 0 10px var(--blue); }
-    .kpi-card.purple .kpi-head i { color: var(--purple); text-shadow: 0 0 10px var(--purple); }
-    .kpi-card.amber .kpi-head i { color: var(--amber); text-shadow: 0 0 10px var(--amber); }
+    .kpi-head i { font-size: 13px; }
+    .kpi-card.cyan .kpi-head i { color: var(--cyan); }
+    .kpi-card.emerald .kpi-head i { color: var(--emerald); }
+    .kpi-card.blue .kpi-head i { color: var(--blue); }
+    .kpi-card.purple .kpi-head i { color: var(--purple); }
+    .kpi-card.amber .kpi-head i { color: var(--amber); }
 
     .kpi-value-row {
       display: flex;
       align-items: baseline;
-      gap: 6px;
-      margin-top: 2px;
+      gap: 5px;
     }
 
     .kpi-value {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 24px;
+      font-size: 20px;
       font-weight: 800;
-      line-height: 1.1;
+      line-height: 1;
       color: #ffffff;
     }
     .kpi-unit {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       color: var(--text-muted);
     }
 
     .kpi-sub {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-muted);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .badge-pill {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 6px;
+      padding: 1px 5px;
+      border-radius: 5px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--card-border);
+      white-space: nowrap;
     }
 
-    /* MAIN BODY 3-COLUMNS */
+    /* MAIN BODY 3-COLUMNS (ZERO SCROLL, FILL REMAINING HEIGHT) */
     .noc-main {
       display: grid;
-      grid-template-columns: 280px 1fr 300px;
-      gap: 12px;
+      grid-template-columns: 260px 1fr 270px;
+      gap: 8px;
       flex: 1;
       min-height: 0;
+      overflow: hidden;
     }
 
     .col-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 16px;
+      border-radius: 10px;
+      padding: 10px 12px;
       backdrop-filter: blur(14px);
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 8px;
       min-height: 0;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
     }
 
     .card-title-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
+      letter-spacing: 0.6px;
       color: var(--text-muted);
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      padding-bottom: 10px;
+      padding-bottom: 6px;
+      flex-shrink: 0;
     }
 
     .card-title-bar i {
       color: var(--cyan);
-      font-size: 15px;
-      margin-right: 6px;
+      font-size: 13px;
+      margin-right: 5px;
     }
 
     /* RADIAL GAUGES (LEFT COL) */
     .gauges-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 8px;
+      flex-shrink: 0;
     }
 
     .gauge-box {
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 12px 8px;
+      border-radius: 8px;
+      padding: 8px 4px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -395,8 +406,8 @@
     }
 
     .gauge-svg-wrap {
-      width: 100px;
-      height: 100px;
+      width: 72px;
+      height: 72px;
       position: relative;
       display: flex;
       align-items: center;
@@ -412,12 +423,12 @@
     .gauge-bg {
       fill: none;
       stroke: rgba(255, 255, 255, 0.06);
-      stroke-width: 8;
+      stroke-width: 6;
     }
 
     .gauge-bar {
       fill: none;
-      stroke-width: 8;
+      stroke-width: 6;
       stroke-linecap: round;
       transition: stroke-dashoffset 0.8s ease, stroke 0.3s;
     }
@@ -432,35 +443,82 @@
 
     .gauge-num {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 800;
       line-height: 1;
     }
 
     .gauge-title {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       color: var(--text-muted);
-      margin-top: 6px;
+      margin-top: 4px;
     }
 
     .gauge-detail {
-      font-size: 10px;
+      font-size: 9px;
       color: var(--text-dim);
       font-family: 'JetBrains Mono', monospace;
-      margin-top: 2px;
+      margin-top: 1px;
+    }
+
+    /* STAT PROGRESS BAR BOX */
+    .stat-bar-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .stat-bar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .ratio-bar {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .ratio-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    .ratio-fill.blue { background: linear-gradient(90deg, #3b82f6, #00f2fe); }
+    .ratio-fill.emerald { background: linear-gradient(90deg, #10b981, #34d399); }
+    .ratio-fill.purple { background: linear-gradient(90deg, #8b5cf6, #c084fc); }
+
+    .ratio-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
     }
 
     /* ROUTER INFO LIST */
     .vitals-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid var(--card-border);
-      border-radius: 10px;
-      padding: 12px;
+      border-radius: 8px;
+      padding: 8px 10px;
+      flex-shrink: 0;
     }
 
     .vital-item {
@@ -474,212 +532,204 @@
       color: var(--text-muted);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
 
     .vital-val {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 700;
       color: #ffffff;
+      font-size: 11px;
     }
 
-    /* CENTER CHART & INTERFACES */
+    /* CENTER COLUMN: WAVE CHART + INTERFACES */
     .center-section {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 8px;
       min-height: 0;
+      flex: 1;
+      overflow: hidden;
     }
 
     .chart-box {
-      flex: 1.2;
+      flex: 1.25;
+      min-height: 160px;
       display: flex;
       flex-direction: column;
-      min-height: 280px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      overflow: hidden;
     }
 
     .chart-controls {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .chart-canvas-wrap {
       flex: 1;
+      min-height: 110px;
       position: relative;
-      margin-top: 8px;
-      background: rgba(0, 0, 0, 0.2);
+      width: 100%;
+      margin-top: 6px;
+      background: rgba(0, 0, 0, 0.25);
       border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 10px;
-      padding: 8px;
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .chart-canvas-wrap canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
     }
 
     .interfaces-box {
       flex: 1;
+      min-height: 120px;
       display: flex;
       flex-direction: column;
-      min-height: 220px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      overflow: hidden;
+    }
+
+    .iface-filter-tabs {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .tab-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-pill:hover, .tab-pill.active {
+      background: rgba(0, 242, 254, 0.15);
+      border-color: var(--cyan);
+      color: #ffffff;
     }
 
     .iface-table-wrap {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
-      margin-top: 8px;
+      margin-top: 6px;
+    }
+
+    .iface-table-wrap::-webkit-scrollbar {
+      width: 5px;
+    }
+    .iface-table-wrap::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .iface-table-wrap::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
     }
 
     .noc-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 12px;
+      font-size: 11px;
       text-align: left;
     }
 
     .noc-table th {
       position: sticky;
       top: 0;
-      background: #0d1224;
-      padding: 8px 12px;
-      font-size: 10px;
+      background: #090e1f;
+      color: var(--text-muted);
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--text-muted);
-      border-bottom: 1px solid var(--card-border);
+      font-size: 9.5px;
+      letter-spacing: 0.5px;
+      padding: 4px 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       z-index: 2;
     }
 
     .noc-table td {
-      padding: 8px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 4px 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
       vertical-align: middle;
-      font-family: 'Inter', sans-serif;
     }
 
-    .noc-table tbody tr:hover {
-      background: rgba(255, 255, 255, 0.03);
+    .noc-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
     }
 
     .iface-name-col {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-weight: 700;
-      color: #ffffff;
+      gap: 6px;
+      font-weight: 600;
       font-family: 'JetBrains Mono', monospace;
     }
 
     .link-led {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: var(--text-dim);
+      flex-shrink: 0;
     }
     .link-led.up {
       background: var(--emerald);
-      box-shadow: 0 0 8px var(--emerald);
+      box-shadow: 0 0 6px var(--emerald);
     }
     .link-led.down {
       background: var(--rose);
-      box-shadow: 0 0 8px var(--rose);
+      box-shadow: 0 0 6px var(--rose);
     }
 
     .rate-pill {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 700;
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 6px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      font-size: 10px;
     }
-    .rate-pill.rx {
-      color: var(--cyan);
-      background: rgba(0, 242, 254, 0.08);
-      border: 1px solid rgba(0, 242, 254, 0.2);
-    }
-    .rate-pill.tx {
-      color: var(--emerald);
-      background: rgba(16, 185, 129, 0.08);
-      border: 1px solid rgba(16, 185, 129, 0.2);
-    }
+    .rate-pill.rx { color: var(--cyan); }
+    .rate-pill.tx { color: var(--emerald); }
 
-    /* RIGHT COLUMN WIDGETS */
-    .stat-bar-box {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .stat-bar-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .ratio-bar {
-      height: 8px;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 4px;
-      overflow: hidden;
-      display: flex;
-    }
-
-    .ratio-fill {
-      height: 100%;
-      transition: width 0.6s ease;
-    }
-
-    .ratio-fill.blue { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-    .ratio-fill.purple { background: linear-gradient(90deg, #8b5cf6, #c084fc); }
-    .ratio-fill.emerald { background: linear-gradient(90deg, #10b981, #34d399); }
-
-    .ratio-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    /* OVERLAY SPINNER */
+    /* LOADING OVERLAY */
     .noc-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(6, 8, 19, 0.95);
-      z-index: 99999;
+      background: #060813;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 16px;
+      gap: 12px;
+      z-index: 9999;
       transition: opacity 0.4s ease;
     }
+
     .noc-spinner {
-      width: 48px;
-      height: 48px;
+      width: 44px;
+      height: 44px;
       border: 3px solid rgba(0, 242, 254, 0.15);
-      border-top: 3px solid var(--cyan);
+      border-top-color: var(--cyan);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
-      box-shadow: 0 0 16px var(--cyan-glow);
     }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* RESPONSIVE */
-    @media (max-width: 1200px) {
-      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
-      .noc-main { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 768px) {
-      .kpi-grid { grid-template-columns: 1fr 1fr; }
-      .noc-header { flex-direction: column; text-align: center; }
-      .brand-section, .controls-section { justify-content: center; }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -688,7 +738,7 @@
   <!-- LOADING OVERLAY -->
   <div id="loading-overlay" class="noc-overlay">
     <div class="noc-spinner"></div>
-    <div style="font-size:13px; font-weight:700; letter-spacing:1px; color:#94a3b8; text-transform:uppercase;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; color:#94a3b8; text-transform:uppercase;">
       Menghubungkan ke NOC Telemetry...
     </div>
   </div>
@@ -699,27 +749,25 @@
     <header class="noc-header">
       <div class="brand-section">
         <div class="brand-icon-box">
-          <i class="bi bi-broadcast-pin"></i>
+          <i class="bi bi-broadcast"></i>
         </div>
         <div class="brand-titles">
-          <div class="brand-name">
-            <%= company %> NOC WALLBOARD
+          <div class="brand-name"><%= company %> NOC</div>
+          <div class="brand-sub">
             <span class="status-pulse" id="header-pulse">
               <span class="pulse-dot"></span>
               <span id="header-pulse-text">OPERATIONAL</span>
             </span>
-          </div>
-          <div class="brand-sub">
-            <span id="board-model-badge"><i class="bi bi-hdd-network"></i> MikroTik Router</span>
-            <span>•</span>
-            <span id="server-env-badge"><i class="bi bi-cpu"></i> Server OK</span>
+            <span id="board-model-badge" style="font-family:'JetBrains Mono';font-size:10px;color:var(--text-dim)">
+              <i class="bi bi-hdd-network"></i> Router MikroTik
+            </span>
           </div>
         </div>
       </div>
 
       <!-- CENTER DIGITAL CLOCK -->
       <div class="clock-section">
-        <div class="digital-clock" id="live-clock">--:--:--</div>
+        <div class="digital-clock" id="live-clock">--:--:-- WIB</div>
         <div class="digital-date" id="live-date">Memuat tanggal...</div>
       </div>
 
@@ -738,29 +786,29 @@
         <!-- Refresh Interval Selector -->
         <div class="ctrl-select-wrap">
           <select id="refresh-interval-select" class="ctrl-select" onchange="updatePollInterval()">
-            <option value="1000">1s (Turbo)</option>
+            <option value="1500">1.5s (Turbo)</option>
             <option value="2500" selected>2.5s (Normal)</option>
             <option value="5000">5s (Eco)</option>
           </select>
           <i class="bi bi-chevron-down ctrl-select-icon"></i>
         </div>
 
-        <!-- Auto Cycle Routers Toggle -->
+        <!-- Auto-cycle if > 1 router -->
         <% if (routers && routers.length > 1) { %>
         <button id="cycle-toggle-btn" class="btn-noc" onclick="toggleAutoCycle()" title="Rotasi router otomatis setiap 20 detik">
           <i class="bi bi-arrow-repeat"></i>
-          <span id="cycle-btn-text">Rotasi: OFF</span>
+          <span id="cycle-btn-text">Rotasi</span>
         </button>
         <% } %>
 
         <!-- Audio Alert Toggle -->
-        <button id="audio-toggle-btn" class="btn-noc" onclick="toggleAudioAlert()" title="Bunyi alarm jika link interface terputus">
+        <button id="audio-toggle-btn" class="btn-noc" onclick="toggleAudioAlert()" title="Bunyi alarm jika link interface down">
           <i class="bi bi-volume-mute" id="audio-btn-icon"></i>
           <span id="audio-btn-text">Audio</span>
         </button>
 
         <!-- Fullscreen Button -->
-        <button class="btn-noc" onclick="toggleFullscreen()" title="Masuk Mode Layar Penuh">
+        <button class="btn-noc" onclick="toggleFullscreen()" title="Masuk Mode Layar Penuh (F11)">
           <i class="bi bi-fullscreen" id="fs-icon"></i>
           <span id="fs-text">Fullscreen</span>
         </button>
@@ -774,12 +822,12 @@
       </div>
     </header>
 
-    <!-- TOP KPI TELEMETRY BAR (5 NEON CARDS) -->
+    <!-- TOP KPI TELEMETRY BAR (5 SLIM CARDS, STRICTLY 1 ROW) -->
     <section class="kpi-grid">
       <!-- 1. Download -->
       <div class="kpi-card cyan">
         <div class="kpi-head">
-          <span>Download Traffic (RX)</span>
+          <span id="kpi-rx-label">Download Traffic (RX)</span>
           <i class="bi bi-arrow-down-circle"></i>
         </div>
         <div class="kpi-value-row">
@@ -787,7 +835,7 @@
           <span class="kpi-unit" id="kpi-rx-unit">Mbps</span>
         </div>
         <div class="kpi-sub">
-          <span id="kpi-rx-interface"><i class="bi bi-hdd-network"></i> All Interfaces</span>
+          <span id="kpi-rx-interface"><i class="bi bi-hdd-network"></i> WAN: ether1-ISP</span>
           <span class="badge-pill" id="kpi-rx-peak">Peak: 0.0 Mbps</span>
         </div>
       </div>
@@ -795,7 +843,7 @@
       <!-- 2. Upload -->
       <div class="kpi-card emerald">
         <div class="kpi-head">
-          <span>Upload Traffic (TX)</span>
+          <span id="kpi-tx-label">Upload Traffic (TX)</span>
           <i class="bi bi-arrow-up-circle"></i>
         </div>
         <div class="kpi-value-row">
@@ -819,7 +867,7 @@
           <span class="kpi-unit" id="kpi-pppoe-total">/ 0 Total</span>
         </div>
         <div class="kpi-sub">
-          <span id="kpi-pppoe-offline"><i class="bi bi-circle-fill" style="color:var(--rose);font-size:7px"></i> 0 Offline</span>
+          <span id="kpi-pppoe-offline"><i class="bi bi-circle-fill" style="color:var(--rose);font-size:6px"></i> 0 Offline</span>
           <span class="badge-pill" id="kpi-pppoe-ratio" style="color:var(--cyan)">100% Active</span>
         </div>
       </div>
@@ -835,7 +883,7 @@
           <span class="kpi-unit" id="kpi-hotspot-total">/ 0 Vouchers</span>
         </div>
         <div class="kpi-sub">
-          <span><i class="bi bi-people"></i> Active Sessions</span>
+          <span><i class="bi bi-people"></i> Sesi Aktif</span>
           <span class="badge-pill" style="color:var(--purple)">RADIUS / API</span>
         </div>
       </div>
@@ -849,8 +897,8 @@
         <div class="kpi-value-row">
           <span class="kpi-value" id="kpi-temp-val">--</span>
           <span class="kpi-unit" id="kpi-temp-unit">°C</span>
-          <span style="font-size:16px;color:var(--text-muted);margin:0 4px">•</span>
-          <span class="kpi-value" id="kpi-volt-val" style="font-size:20px">--</span>
+          <span style="font-size:13px;color:var(--text-muted);margin:0 2px">•</span>
+          <span class="kpi-value" id="kpi-volt-val" style="font-size:17px">--</span>
           <span class="kpi-unit">V</span>
         </div>
         <div class="kpi-sub">
@@ -860,13 +908,13 @@
       </div>
     </section>
 
-    <!-- MAIN 3-COLUMNS -->
+    <!-- MAIN 3-COLUMNS (FITS 100% IN VIEWPORT) -->
     <main class="noc-main">
 
       <!-- LEFT COLUMN: HARDWARE RADIAL GAUGES & SPECS -->
       <div class="col-card">
         <div class="card-title-bar">
-          <div><i class="bi bi-speedometer2"></i> System Hardware Vitals</div>
+          <div><i class="bi bi-speedometer2"></i> System Hardware</div>
           <span class="badge-pill" id="router-uptime-badge">Up: --</span>
         </div>
 
@@ -875,9 +923,9 @@
           <!-- CPU Gauge -->
           <div class="gauge-box">
             <div class="gauge-svg-wrap">
-              <svg class="gauge-svg" viewBox="0 0 100 100">
-                <circle class="gauge-bg" cx="50" cy="50" r="40"></circle>
-                <circle class="gauge-bar" id="cpu-gauge-bar" cx="50" cy="50" r="40" stroke="var(--emerald)" stroke-dasharray="251.2" stroke-dashoffset="251.2"></circle>
+              <svg class="gauge-svg" viewBox="0 0 72 72">
+                <circle class="gauge-bg" cx="36" cy="36" r="28"></circle>
+                <circle class="gauge-bar" id="cpu-gauge-bar" cx="36" cy="36" r="28" stroke="var(--emerald)" stroke-dasharray="175.9" stroke-dashoffset="175.9"></circle>
               </svg>
               <div class="gauge-label-center">
                 <span class="gauge-num" id="cpu-gauge-num" style="color:var(--emerald)">0%</span>
@@ -890,9 +938,9 @@
           <!-- Memory Gauge -->
           <div class="gauge-box">
             <div class="gauge-svg-wrap">
-              <svg class="gauge-svg" viewBox="0 0 100 100">
-                <circle class="gauge-bg" cx="50" cy="50" r="40"></circle>
-                <circle class="gauge-bar" id="mem-gauge-bar" cx="50" cy="50" r="40" stroke="var(--cyan)" stroke-dasharray="251.2" stroke-dashoffset="251.2"></circle>
+              <svg class="gauge-svg" viewBox="0 0 72 72">
+                <circle class="gauge-bg" cx="36" cy="36" r="28"></circle>
+                <circle class="gauge-bar" id="mem-gauge-bar" cx="36" cy="36" r="28" stroke="var(--cyan)" stroke-dasharray="175.9" stroke-dashoffset="175.9"></circle>
               </svg>
               <div class="gauge-label-center">
                 <span class="gauge-num" id="mem-gauge-num" style="color:var(--cyan)">0%</span>
@@ -906,8 +954,8 @@
         <!-- HDD Storage Progress Bar -->
         <div class="stat-bar-box">
           <div class="stat-bar-header">
-            <span style="color:var(--text-muted);font-size:11px"><i class="bi bi-hdd"></i> Router Storage / Disk</span>
-            <span id="hdd-percent-text" style="font-family:'JetBrains Mono';font-size:11px;color:#ffffff">0%</span>
+            <span style="color:var(--text-muted);font-size:10px"><i class="bi bi-hdd"></i> Storage / Disk</span>
+            <span id="hdd-percent-text" style="font-family:'JetBrains Mono';font-size:10px;color:#ffffff">0%</span>
           </div>
           <div class="ratio-bar">
             <div class="ratio-fill blue" id="hdd-fill" style="width: 0%"></div>
@@ -921,11 +969,11 @@
         <!-- Router Vitals List -->
         <div class="vitals-list">
           <div class="vital-item">
-            <span class="vital-key"><i class="bi bi-cpu"></i> Board Model</span>
+            <span class="vital-key"><i class="bi bi-cpu"></i> Board</span>
             <span class="vital-val" id="vital-board-name">--</span>
           </div>
           <div class="vital-item">
-            <span class="vital-key"><i class="bi bi-terminal"></i> RouterOS Ver</span>
+            <span class="vital-key"><i class="bi bi-terminal"></i> RouterOS</span>
             <span class="vital-val" id="vital-version">--</span>
           </div>
           <div class="vital-item">
@@ -933,11 +981,11 @@
             <span class="vital-val" id="vital-cpu-freq">-- MHz</span>
           </div>
           <div class="vital-item">
-            <span class="vital-key"><i class="bi bi-thermometer-half"></i> Board Temp</span>
+            <span class="vital-key"><i class="bi bi-thermometer-half"></i> Suhu Board</span>
             <span class="vital-val" id="vital-temp">-- °C</span>
           </div>
           <div class="vital-item">
-            <span class="vital-key"><i class="bi bi-plug"></i> Supply Voltage</span>
+            <span class="vital-key"><i class="bi bi-plug"></i> Voltase</span>
             <span class="vital-val" id="vital-voltage">-- V</span>
           </div>
         </div>
@@ -945,32 +993,33 @@
         <!-- Host Server Box -->
         <div class="vitals-list" style="margin-top:auto">
           <div class="vital-item">
-            <span class="vital-key"><i class="bi bi-server"></i> Server Node.js</span>
-            <span class="vital-val" id="vital-node-ver">v22.23.5 LTS</span>
+            <span class="vital-key"><i class="bi bi-server"></i> Node.js</span>
+            <span class="vital-val" id="vital-node-ver">v22.23.5</span>
           </div>
           <div class="vital-item">
-            <span class="vital-key"><i class="bi bi-memory"></i> Server Host RAM</span>
+            <span class="vital-key"><i class="bi bi-memory"></i> Host RAM</span>
             <span class="vital-val" id="vital-server-ram">-- MB</span>
           </div>
         </div>
       </div>
 
-      <!-- CENTER COLUMN: LIVE TRAFFIC GRAPH & ACTIVE INTERFACES -->
+      <!-- CENTER COLUMN: WAVE CHART + INTERFACES MATRIX -->
       <div class="center-section">
 
-        <!-- Real-Time Traffic Chart -->
-        <div class="col-card chart-box">
+        <!-- Real-Time Traffic Throughput Wave Chart -->
+        <div class="chart-box">
           <div class="card-title-bar">
             <div><i class="bi bi-activity"></i> Real-time Traffic Throughput Wave</div>
             <div class="chart-controls">
               <!-- Interface Selector -->
               <div class="ctrl-select-wrap">
                 <select id="interface-chart-selector" class="ctrl-select" onchange="switchChartInterface()">
-                  <option value="__ALL__">Semua Interface (Total)</option>
+                  <option value="__WAN__" selected>⭐ WAN (Trafik Utama Internet)</option>
+                  <option value="__ALL__">🌐 Semua Interface (Akumulasi Total)</option>
                 </select>
                 <i class="bi bi-chevron-down ctrl-select-icon"></i>
               </div>
-              <span class="badge-pill" id="chart-max-rate" style="color:var(--cyan)">Max: 0 Mbps</span>
+              <span class="badge-pill" id="chart-max-rate" style="color:var(--cyan)">Max: 0.0 Mbps</span>
             </div>
           </div>
 
@@ -980,10 +1029,15 @@
         </div>
 
         <!-- Active Interfaces Matrix Table -->
-        <div class="col-card interfaces-box">
+        <div class="interfaces-box">
           <div class="card-title-bar">
             <div><i class="bi bi-diagram-3"></i> Network Interfaces Live Telemetry</div>
-            <span class="badge-pill" id="iface-count-badge">0 Interfaces</span>
+            <div class="iface-filter-tabs">
+              <button class="tab-pill active" id="tab-btn-phy" onclick="setIfaceFilter('wan_phy')">Physical & VLAN</button>
+              <button class="tab-pill" id="tab-btn-all" onclick="setIfaceFilter('all')">Semua</button>
+              <button class="tab-pill" id="tab-btn-ppp" onclick="setIfaceFilter('pppoe')">PPPoE Dynamic</button>
+              <span class="badge-pill" id="iface-count-badge" style="margin-left:4px">0 Iface</span>
+            </div>
           </div>
 
           <div class="iface-table-wrap">
@@ -999,7 +1053,7 @@
                 </tr>
               </thead>
               <tbody id="interfaces-tbody">
-                <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px">Memuat data interface...</td></tr>
+                <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:14px">Memuat data interface...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1010,7 +1064,7 @@
       <!-- RIGHT COLUMN: SUBSCRIBERS, FIBER & INFRASTRUCTURE -->
       <div class="col-card">
         <div class="card-title-bar">
-          <div><i class="bi bi-shield-check"></i> Network & Clients Health</div>
+          <div><i class="bi bi-shield-check"></i> Network & Clients</div>
           <span class="badge-pill" style="color:var(--emerald)" id="client-total-badge">0 Clients</span>
         </div>
 
@@ -1040,11 +1094,11 @@
           </div>
           <div class="ratio-labels">
             <span id="hotspot-bar-active">Active: 0</span>
-            <span id="hotspot-bar-total">Total: 0</span>
+            <span id="hotspot-bar-total">Vouchers: 0</span>
           </div>
         </div>
 
-        <!-- TR-069 Fiber ACS Box -->
+        <!-- TR-069 Fiber Modems Status -->
         <div class="stat-bar-box">
           <div class="stat-bar-header">
             <span><i class="bi bi-modem" style="color:var(--emerald)"></i> TR-069 Fiber Modems</span>
@@ -1070,23 +1124,27 @@
             <span class="vital-val" id="cust-suspended-val" style="color:var(--rose)">0</span>
           </div>
           <div class="vital-item">
-            <span class="vital-key"><i class="bi bi-shield-x"></i> Serangan Brute Force Ditangkal</span>
+            <span class="vital-key"><i class="bi bi-shield-x"></i> Brute Force Block</span>
             <span class="vital-val" id="sec-blocked-val" style="color:var(--amber)">0 Kali</span>
           </div>
         </div>
 
         <!-- Status Footer Info -->
-        <div style="margin-top:auto;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--card-border);border-radius:10px;font-size:10px;color:var(--text-dim);text-align:center;">
-          <div><i class="bi bi-clock-history"></i> Auto-Refresh Aktif • High-Precision Polling</div>
-          <div style="margin-top:4px">Cocok untuk Tampilan Layar TV Kantor & Wallboard NOC</div>
+        <div style="margin-top:auto;padding:6px;background:rgba(255,255,255,0.02);border:1px solid var(--card-border);border-radius:6px;font-size:9.5px;color:var(--text-dim);text-align:center;">
+          <div><i class="bi bi-clock-history"></i> High-Precision Live Polling • Zero Scroll NOC View</div>
         </div>
       </div>
 
     </main>
   </div>
 
-  <!-- Chart.js 4.4 -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  <!-- Local Chart.js 4.4 with CDN Fallback -->
+  <script src="/js/chart.umd.js"></script>
+  <script>
+    if (typeof Chart === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"><\/script>');
+    }
+  </script>
 
   <script>
     'use strict';
@@ -1095,14 +1153,17 @@
     let pollInterval = null;
     let pollIntervalMs = 2500;
     let trafficChart = null;
-    let selectedInterface = '__ALL__';
+    let selectedInterface = '__WAN__';
+    let currentIfaceFilter = 'wan_phy'; // 'wan_phy', 'all', 'pppoe'
     let isAutoCycleEnabled = false;
     let cycleTimer = null;
     let isAudioAlertEnabled = false;
-    let previousTrafficSamples = {}; // { ifaceName: { bytesIn, bytesOut, time } }
     let peakRxRate = 0;
     let peakTxRate = 0;
     let maxHistoricalRate = 0;
+    let lastKnownWanName = 'ether1-ISP';
+    let latestInterfacesData = [];
+
     let chartHistory = {
       labels: [],
       rx: [],
@@ -1121,7 +1182,7 @@
         const gain = audioCtx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
@@ -1133,7 +1194,11 @@
     // On DOM Ready
     document.addEventListener('DOMContentLoaded', () => {
       startClock();
-      initChart();
+      try {
+        initChart();
+      } catch (e) {
+        console.error('Failed to init chart:', e);
+      }
       loadData();
       startPolling();
     });
@@ -1164,14 +1229,17 @@
 
     // Initialize Chart.js with Neon Glowing Gradient
     function initChart() {
-      const ctx = document.getElementById('traffic-live-chart').getContext('2d');
+      if (typeof Chart === 'undefined') return;
+      const canvasEl = document.getElementById('traffic-live-chart');
+      if (!canvasEl) return;
+      const ctx = canvasEl.getContext('2d');
 
-      const rxGradient = ctx.createLinearGradient(0, 0, 0, 260);
-      rxGradient.addColorStop(0, 'rgba(0, 242, 254, 0.28)');
+      const rxGradient = ctx.createLinearGradient(0, 0, 0, 160);
+      rxGradient.addColorStop(0, 'rgba(0, 242, 254, 0.32)');
       rxGradient.addColorStop(1, 'rgba(0, 242, 254, 0.00)');
 
-      const txGradient = ctx.createLinearGradient(0, 0, 0, 260);
-      txGradient.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+      const txGradient = ctx.createLinearGradient(0, 0, 0, 160);
+      txGradient.addColorStop(0, 'rgba(16, 185, 129, 0.32)');
       txGradient.addColorStop(1, 'rgba(16, 185, 129, 0.00)');
 
       trafficChart = new Chart(ctx, {
@@ -1184,10 +1252,10 @@
               data: [],
               borderColor: '#00f2fe',
               backgroundColor: rxGradient,
-              borderWidth: 2.5,
+              borderWidth: 2,
               fill: true,
               tension: 0.35,
-              pointRadius: 0,
+              pointRadius: 1,
               pointHoverRadius: 5,
               pointHoverBackgroundColor: '#00f2fe'
             },
@@ -1196,10 +1264,10 @@
               data: [],
               borderColor: '#10b981',
               backgroundColor: txGradient,
-              borderWidth: 2.5,
+              borderWidth: 2,
               fill: true,
               tension: 0.35,
-              pointRadius: 0,
+              pointRadius: 1,
               pointHoverRadius: 5,
               pointHoverBackgroundColor: '#10b981'
             }
@@ -1208,15 +1276,15 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: { duration: 300 },
+          animation: { duration: 250 },
           plugins: {
             legend: {
               position: 'top',
               align: 'end',
               labels: {
                 color: '#94a3b8',
-                boxWidth: 12,
-                font: { family: 'Inter', size: 11, weight: '600' }
+                boxWidth: 10,
+                font: { family: 'Inter', size: 10, weight: '600' }
               }
             },
             tooltip: {
@@ -1227,8 +1295,8 @@
               borderWidth: 1,
               titleColor: '#f8fafc',
               bodyColor: '#cbd5e1',
-              titleFont: { family: 'JetBrains Mono', size: 11 },
-              bodyFont: { family: 'JetBrains Mono', size: 12 },
+              titleFont: { family: 'JetBrains Mono', size: 10 },
+              bodyFont: { family: 'JetBrains Mono', size: 11 },
               callbacks: {
                 label: function(context) {
                   return ` ${context.dataset.label}: ${context.parsed.y.toFixed(2)} Mbps`;
@@ -1239,15 +1307,15 @@
           scales: {
             x: {
               grid: { color: 'rgba(255, 255, 255, 0.03)' },
-              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 12 }
             },
             y: {
               beginAtZero: true,
               grid: { color: 'rgba(255, 255, 255, 0.03)' },
               ticks: {
                 color: '#64748b',
-                font: { family: 'JetBrains Mono', size: 10 },
-                callback: function(v) { return v.toFixed(1) + ' M'; }
+                font: { family: 'JetBrains Mono', size: 9 },
+                callback: function(v) { return v.toFixed(0) + ' M'; }
               }
             }
           }
@@ -1255,7 +1323,7 @@
       });
     }
 
-    // Format Byte values nicely
+    // Format Speed
     function formatSpeed(bps) {
       if (bps >= 1000 * 1000 * 1000) {
         return { val: (bps / (1000 * 1000 * 1000)).toFixed(2), unit: 'Gbps' };
@@ -1266,7 +1334,7 @@
       if (bps >= 1000) {
         return { val: (bps / 1000).toFixed(1), unit: 'kbps' };
       }
-      return { val: bps.toFixed(0), unit: 'bps' };
+      return { val: Math.round(bps).toString(), unit: 'bps' };
     }
 
     function formatBytes(bytes) {
@@ -1277,11 +1345,11 @@
       return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
     }
 
-    // Set SVG Gauge Arc Value
+    // Set SVG Radial Arc
     function setGaugeArc(circleId, percent) {
       const el = document.getElementById(circleId);
       if (!el) return;
-      const circumference = 251.2; // 2 * PI * 40
+      const circumference = 175.9; // 2 * PI * 28
       const offset = circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference;
       el.style.strokeDashoffset = offset;
     }
@@ -1298,9 +1366,17 @@
       startPolling();
     }
 
+    // Interface Filter Tab Switcher
+    function setIfaceFilter(filter) {
+      currentIfaceFilter = filter;
+      document.getElementById('tab-btn-phy').classList.toggle('active', filter === 'wan_phy');
+      document.getElementById('tab-btn-all').classList.toggle('active', filter === 'all');
+      document.getElementById('tab-btn-ppp').classList.toggle('active', filter === 'pppoe');
+      renderInterfaceTable();
+    }
+
     // Router Selector & Switcher
     function switchRouter() {
-      previousTrafficSamples = {};
       chartHistory = { labels: [], rx: [], tx: [] };
       peakRxRate = 0;
       peakTxRate = 0;
@@ -1334,7 +1410,7 @@
         }, 20000);
       } else {
         btn.classList.remove('active');
-        text.textContent = 'Rotasi: OFF';
+        text.textContent = 'Rotasi';
         if (cycleTimer) clearInterval(cycleTimer);
       }
     }
@@ -1349,7 +1425,7 @@
         btn.classList.add('active');
         icon.className = 'bi bi-volume-up';
         text.textContent = 'Audio: ON';
-        playBeepAlert(880, 0.15); // Test beep
+        playBeepAlert(880, 0.15);
       } else {
         btn.classList.remove('active');
         icon.className = 'bi bi-volume-mute';
@@ -1357,7 +1433,7 @@
       }
     }
 
-    // Toggle Fullscreen Mode
+    // Fullscreen Mode
     function toggleFullscreen() {
       const icon = document.getElementById('fs-icon');
       const text = document.getElementById('fs-text');
@@ -1378,12 +1454,74 @@
     function switchChartInterface() {
       selectedInterface = document.getElementById('interface-chart-selector').value;
       chartHistory = { labels: [], rx: [], tx: [] };
+      peakRxRate = 0;
+      peakTxRate = 0;
+      maxHistoricalRate = 0;
       if (trafficChart) {
         trafficChart.data.labels = [];
         trafficChart.data.datasets[0].data = [];
         trafficChart.data.datasets[1].data = [];
         trafficChart.update();
       }
+      loadData();
+    }
+
+    // Render Interface Table
+    function renderInterfaceTable() {
+      const tableBody = document.getElementById('interfaces-tbody');
+      if (!tableBody) return;
+
+      const ifaces = latestInterfacesData || [];
+      let filtered = ifaces;
+      if (currentIfaceFilter === 'wan_phy') {
+        filtered = ifaces.filter(i => i.isWan || !i.isDynamic);
+      } else if (currentIfaceFilter === 'pppoe') {
+        filtered = ifaces.filter(i => i.isDynamic);
+      }
+
+      document.getElementById('iface-count-badge').textContent = `${filtered.length} / ${ifaces.length} Iface`;
+
+      if (filtered.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:14px">Tidak ada interface untuk filter ini.</td></tr>';
+        return;
+      }
+
+      let rowsHtml = '';
+      filtered.forEach(i => {
+        const rxFormatted = formatSpeed(i.rxSpeedBps || 0);
+        const txFormatted = formatSpeed(i.txSpeedBps || 0);
+        const totalAccumulated = formatBytes((i.bytesIn || 0) + (i.bytesOut || 0));
+
+        rowsHtml += `
+          <tr>
+            <td>
+              <div class="iface-name-col">
+                <span class="link-led ${i.running ? 'up' : 'down'}" title="${i.running ? 'Link UP' : 'Link DOWN'}"></span>
+                <span style="${i.isWan ? 'color:var(--cyan);font-weight:700' : ''}">${i.name}</span>
+                ${i.isWan ? '<span class="badge-pill" style="color:var(--cyan);border-color:var(--cyan)">WAN</span>' : ''}
+                ${i.comment ? `<span style="font-size:9.5px;color:var(--text-dim)">[${i.comment}]</span>` : ''}
+              </div>
+            </td>
+            <td><span class="badge-pill">${i.type}</span></td>
+            <td>
+              <span style="font-size:9.5px;font-weight:700;color:${i.running ? 'var(--emerald)' : 'var(--rose)'}">
+                ${i.running ? 'UP' : (i.disabled ? 'DIS' : 'DOWN')}
+              </span>
+            </td>
+            <td style="text-align:right">
+              <span class="rate-pill rx">↓ ${rxFormatted.val} ${rxFormatted.unit}</span>
+            </td>
+            <td style="text-align:right">
+              <span class="rate-pill tx">↑ ${txFormatted.val} ${txFormatted.unit}</span>
+            </td>
+            <td style="text-align:right;font-family:'JetBrains Mono';font-size:10px;color:var(--text-muted)">
+              ${totalAccumulated}
+            </td>
+          </tr>
+        `;
+      });
+
+      tableBody.innerHTML = rowsHtml;
     }
 
     // Main Data Fetcher
@@ -1392,8 +1530,7 @@
       const now = Date.now();
 
       try {
-        // Fetch from either /api/noc/data or /admin/api/mikrotik/monitoring-display-data
-        const url = `/api/noc/data?routerId=${encodeURIComponent(routerId)}`;
+        const url = `/api/noc/data?routerId=${encodeURIComponent(routerId)}&_t=${now}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -1438,7 +1575,7 @@
         // CPU Radial Arc
         const cpuVal = Math.round(r.cpuLoad || 0);
         document.getElementById('cpu-gauge-num').textContent = `${cpuVal}%`;
-        document.getElementById('cpu-detail-text').textContent = `${r.cpuCount || 1} Cores @ ${r.cpuFrequency || 0}MHz`;
+        document.getElementById('cpu-detail-text').textContent = `${r.cpuCount || 1} Cores`;
         setGaugeArc('cpu-gauge-bar', cpuVal);
         const cpuBar = document.getElementById('cpu-gauge-bar');
         const cpuNum = document.getElementById('cpu-gauge-num');
@@ -1458,7 +1595,7 @@
         const freeMb = Math.round((r.freeMemory || 0) / (1024 * 1024));
         const totalMb = Math.round((r.totalMemory || 0) / (1024 * 1024));
         document.getElementById('mem-gauge-num').textContent = `${memPercent}%`;
-        document.getElementById('mem-detail-text').textContent = `${freeMb} MB / ${totalMb} MB`;
+        document.getElementById('mem-detail-text').textContent = `${freeMb} MB Free`;
         setGaugeArc('mem-gauge-bar', memPercent);
 
         // HDD Storage
@@ -1476,132 +1613,96 @@
           document.getElementById('vital-server-ram').textContent = `${data.server.hostMemoryUsedMb || '-'} / ${data.server.hostMemoryTotalMb || '-'} MB (${data.server.hostMemPercent || 0}%)`;
         }
 
-        // 2. Traffic Calculations & Live Interfaces Matrix
+        // 2. Interfaces & Traffic
         const ifaces = data.interfaces || [];
-        document.getElementById('iface-count-badge').textContent = `${ifaces.length} Interfaces`;
+        latestInterfacesData = ifaces;
+        renderInterfaceTable();
 
-        // Populate Interface Selector dropdown if empty or router changed
+        const tr = data.traffic || {};
+        const wanName = tr.wanInterface || 'ether1-ISP';
+        lastKnownWanName = wanName;
+
+        // Populate Interface Selector dropdown if not populated
         const selector = document.getElementById('interface-chart-selector');
-        if (selector.options.length <= 1) {
-          ifaces.forEach(i => {
-            const opt = document.createElement('option');
-            opt.value = i.name;
-            opt.textContent = `${i.name} (${i.type})`;
-            selector.appendChild(opt);
+        if (selector.options.length <= 2) {
+          // Update default label with exact WAN name
+          selector.options[0].textContent = `⭐ WAN: ${wanName} (Trafik Utama Internet)`;
+          selector.options[0].value = '__WAN__';
+          
+          ifaces.filter(i => !i.isDynamic).forEach(i => {
+            if (i.name !== wanName) {
+              const opt = document.createElement('option');
+              opt.value = i.name;
+              opt.textContent = `${i.name} (${i.type})`;
+              selector.appendChild(opt);
+            }
           });
         }
 
-        // Calculate Speeds
-        let totalCurrentRxBps = 0;
-        let totalCurrentTxBps = 0;
-        let selectedIfaceRxBps = 0;
-        let selectedIfaceTxBps = 0;
+        // Determine current displayed RX & TX speed
+        let currentRxBps = 0;
+        let currentTxBps = 0;
+        let ifaceLabel = `WAN: ${wanName}`;
 
-        const tableBody = document.getElementById('interfaces-tbody');
-        let tableRowsHtml = '';
-
-        ifaces.forEach(i => {
-          const prev = previousTrafficSamples[i.name];
-          let rxSpeedBps = 0;
-          let txSpeedBps = 0;
-
-          if (prev && prev.time < now) {
-            const deltaSec = (now - prev.time) / 1000;
-            if (deltaSec > 0 && deltaSec < 15) {
-              const deltaRx = i.bytesIn >= prev.bytesIn ? (i.bytesIn - prev.bytesIn) : i.bytesIn;
-              const deltaTx = i.bytesOut >= prev.bytesOut ? (i.bytesOut - prev.bytesOut) : i.bytesOut;
-              rxSpeedBps = (deltaRx * 8) / deltaSec;
-              txSpeedBps = (deltaTx * 8) / deltaSec;
-            }
+        if (selectedInterface === '__WAN__') {
+          currentRxBps = tr.wanRxBps || 0;
+          currentTxBps = tr.wanTxBps || 0;
+          ifaceLabel = `WAN: ${wanName}`;
+          document.getElementById('kpi-rx-label').textContent = 'Download (RX) dari ISP';
+          document.getElementById('kpi-tx-label').textContent = 'Upload (TX) ke ISP';
+        } else if (selectedInterface === '__ALL__') {
+          currentRxBps = tr.totalRxBps || 0;
+          currentTxBps = tr.totalTxBps || 0;
+          ifaceLabel = 'Semua Interface';
+          document.getElementById('kpi-rx-label').textContent = 'Download Traffic (Total)';
+          document.getElementById('kpi-tx-label').textContent = 'Upload Traffic (Total)';
+        } else {
+          const matchIface = ifaces.find(i => i.name === selectedInterface);
+          if (matchIface) {
+            currentRxBps = matchIface.rxSpeedBps || 0;
+            currentTxBps = matchIface.txSpeedBps || 0;
+            ifaceLabel = matchIface.name;
           }
+          document.getElementById('kpi-rx-label').textContent = `Download: ${selectedInterface}`;
+          document.getElementById('kpi-tx-label').textContent = `Upload: ${selectedInterface}`;
+        }
 
-          previousTrafficSamples[i.name] = {
-            bytesIn: i.bytesIn,
-            bytesOut: i.bytesOut,
-            running: i.running,
-            time: now
-          };
+        const rxFormatted = formatSpeed(currentRxBps);
+        const txFormatted = formatSpeed(currentTxBps);
+        const totalBps = currentRxBps + currentTxBps;
+        const totalFormatted = formatSpeed(totalBps);
 
-          // Check if link went down for audio alert
-          if (prev && prev.running && !i.running && !i.disabled) {
-            playBeepAlert(440, 0.4); // Warning tone
-          }
+        document.getElementById('kpi-rx-val').textContent = rxFormatted.val;
+        document.getElementById('kpi-rx-unit').textContent = rxFormatted.unit;
+        document.getElementById('kpi-tx-val').textContent = txFormatted.val;
+        document.getElementById('kpi-tx-unit').textContent = txFormatted.unit;
+        document.getElementById('kpi-total-bandwidth').innerHTML = `<i class="bi bi-activity"></i> Total: ${totalFormatted.val} ${totalFormatted.unit}`;
+        document.getElementById('kpi-rx-interface').innerHTML = `<i class="bi bi-hdd-network"></i> ${ifaceLabel}`;
 
-          if (i.running && !i.disabled) {
-            totalCurrentRxBps += rxSpeedBps;
-            totalCurrentTxBps += txSpeedBps;
-          }
-
-          if (selectedInterface === i.name) {
-            selectedIfaceRxBps = rxSpeedBps;
-            selectedIfaceTxBps = txSpeedBps;
-          }
-
-          const rxFormatted = formatSpeed(rxSpeedBps);
-          const txFormatted = formatSpeed(txSpeedBps);
-          const totalAccumulated = formatBytes(i.bytesIn + i.bytesOut);
-
-          tableRowsHtml += `
-            <tr>
-              <td>
-                <div class="iface-name-col">
-                  <span class="link-led ${i.running ? 'up' : 'down'}" title="${i.running ? 'Link UP' : 'Link DOWN'}"></span>
-                  <span>${i.name}</span>
-                  ${i.comment ? `<span style="font-size:10px;color:var(--text-dim)">[${i.comment}]</span>` : ''}
-                </div>
-              </td>
-              <td><span class="badge-pill">${i.type}</span></td>
-              <td>
-                <span style="font-size:10px;font-weight:700;color:${i.running ? 'var(--emerald)' : 'var(--rose)'}">
-                  ${i.running ? 'RUNNING' : (i.disabled ? 'DISABLED' : 'DOWN')}
-                </span>
-              </td>
-              <td style="text-align:right">
-                <span class="rate-pill rx">↓ ${rxFormatted.val} ${rxFormatted.unit}</span>
-              </td>
-              <td style="text-align:right">
-                <span class="rate-pill tx">↑ ${txFormatted.val} ${txFormatted.unit}</span>
-              </td>
-              <td style="text-align:right;font-family:'JetBrains Mono';font-size:11px;color:var(--text-muted)">
-                ${totalAccumulated}
-              </td>
-            </tr>
-          `;
-        });
-
-        tableBody.innerHTML = tableRowsHtml;
-
-        // Chart & KPI values
-        const chartRxBps = selectedInterface === '__ALL__' ? totalCurrentRxBps : selectedIfaceRxBps;
-        const chartTxBps = selectedInterface === '__ALL__' ? totalCurrentTxBps : selectedIfaceTxBps;
-
-        const rxFormattedTotal = formatSpeed(chartRxBps);
-        const txFormattedTotal = formatSpeed(chartTxBps);
-        const combinedBps = chartRxBps + chartTxBps;
-        const combinedFormatted = formatSpeed(combinedBps);
-
-        document.getElementById('kpi-rx-val').textContent = rxFormattedTotal.val;
-        document.getElementById('kpi-rx-unit').textContent = rxFormattedTotal.unit;
-        document.getElementById('kpi-tx-val').textContent = txFormattedTotal.val;
-        document.getElementById('kpi-tx-unit').textContent = txFormattedTotal.unit;
-        document.getElementById('kpi-total-bandwidth').innerHTML = `<i class="bi bi-activity"></i> Total: ${combinedFormatted.val} ${combinedFormatted.unit}`;
-        document.getElementById('kpi-rx-interface').innerHTML = `<i class="bi bi-hdd-network"></i> ${selectedInterface === '__ALL__' ? 'All Interfaces' : selectedInterface}`;
-
-        // Peak tracking
-        const currentRxMbps = chartRxBps / (1000 * 1000);
-        const currentTxMbps = chartTxBps / (1000 * 1000);
+        // Peak Tracking
+        const currentRxMbps = currentRxBps / (1000 * 1000);
+        const currentTxMbps = currentTxBps / (1000 * 1000);
         if (currentRxMbps > peakRxRate) peakRxRate = currentRxMbps;
         if (currentTxMbps > peakTxRate) peakTxRate = currentTxMbps;
         document.getElementById('kpi-rx-peak').textContent = `Peak: ${peakRxRate.toFixed(1)} Mbps`;
         document.getElementById('kpi-tx-peak').textContent = `Peak: ${peakTxRate.toFixed(1)} Mbps`;
 
-        // Update Chart
-        const timeLabel = new Date().toTimeString().slice(3, 8);
-        chartHistory.labels.push(timeLabel);
-        chartHistory.rx.push(Number(currentRxMbps.toFixed(2)));
-        chartHistory.tx.push(Number(currentTxMbps.toFixed(2)));
+        // Update Chart Wave
+        if (selectedInterface === '__WAN__' && tr.history && tr.history.length > 0 && chartHistory.labels.length === 0) {
+          // Pre-populate chart with server history points on first load
+          tr.history.forEach(pt => {
+            chartHistory.labels.push(pt.label);
+            chartHistory.rx.push(pt.rxMbps);
+            chartHistory.tx.push(pt.txMbps);
+          });
+        } else {
+          const timeLabel = new Date().toTimeString().slice(0, 8);
+          chartHistory.labels.push(timeLabel);
+          chartHistory.rx.push(Number(currentRxMbps.toFixed(2)));
+          chartHistory.tx.push(Number(currentTxMbps.toFixed(2)));
+        }
 
-        if (chartHistory.labels.length > MAX_CHART_POINTS) {
+        while (chartHistory.labels.length > MAX_CHART_POINTS) {
           chartHistory.labels.shift();
           chartHistory.rx.shift();
           chartHistory.tx.shift();
@@ -1615,7 +1716,7 @@
           trafficChart.data.labels = chartHistory.labels;
           trafficChart.data.datasets[0].data = chartHistory.rx;
           trafficChart.data.datasets[1].data = chartHistory.tx;
-          trafficChart.update('none'); // non-blocking update
+          trafficChart.update('none');
         }
 
         // 3. Subscribers & Infrastructure (Right Column)
@@ -1625,10 +1726,9 @@
         const acs = data.acs || {};
         const billing = cl.billing || {};
 
-        // Top KPI
         document.getElementById('kpi-pppoe-online').textContent = pppoe.active || 0;
         document.getElementById('kpi-pppoe-total').textContent = `/ ${pppoe.total || 0} Total`;
-        document.getElementById('kpi-pppoe-offline').innerHTML = `<i class="bi bi-circle-fill" style="color:${(pppoe.offline || 0) > 0 ? 'var(--rose)' : 'var(--text-dim)'};font-size:7px"></i> ${pppoe.offline || 0} Offline`;
+        document.getElementById('kpi-pppoe-offline').innerHTML = `<i class="bi bi-circle-fill" style="color:${(pppoe.offline || 0) > 0 ? 'var(--rose)' : 'var(--text-dim)'};font-size:6px"></i> ${pppoe.offline || 0} Offline`;
         document.getElementById('kpi-pppoe-ratio').textContent = `${pppoe.activePercent || 0}% Active`;
 
         document.getElementById('kpi-hotspot-active').textContent = hotspot.active || 0;
@@ -1643,7 +1743,6 @@
           document.getElementById('kpi-optical-alert').style.color = 'var(--emerald)';
         }
 
-        // Right Column Bars
         document.getElementById('pppoe-ratio-num').textContent = `${pppoe.activePercent || 0}%`;
         document.getElementById('pppoe-bar-fill').style.width = `${pppoe.activePercent || 0}%`;
         document.getElementById('pppoe-bar-online').textContent = `Online: ${pppoe.active || 0}`;
@@ -1661,7 +1760,6 @@
         document.getElementById('ont-bar-online').textContent = `Online: ${acs.online || 0} / ${acs.total || 0}`;
         document.getElementById('ont-bar-critical').textContent = `Kritis: ${acs.critical || 0}`;
 
-        // Customer & Security
         document.getElementById('cust-active-val').textContent = `${billing.active || 0} Pelanggan`;
         document.getElementById('cust-suspended-val').textContent = `${billing.suspended || 0} Pelanggan`;
         document.getElementById('client-total-badge').textContent = `${(pppoe.active || 0) + (hotspot.active || 0)} Sesi Aktif`;
