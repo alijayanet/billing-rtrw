@@ -122,7 +122,14 @@ class SettingsDialog(
         binding.btnTestConn.setOnClickListener {
             hideKeyboard()
             val host = binding.etHost.text.toString().trim()
-            val port = binding.etPort.text.toString().trim().toIntOrNull() ?: 8728
+            val portStr = binding.etPort.text.toString().trim()
+            val port = portStr.toIntOrNull()
+            if (port == null || port !in 1..65535) {
+                binding.tvTestStatus.visibility = View.VISIBLE
+                binding.tvTestStatus.setTextColor(Color.parseColor("#EF4444"))
+                binding.tvTestStatus.text = "Port tidak valid! Masukkan angka port 1 - 65535."
+                return@setOnClickListener
+            }
             val user = binding.etUsername.text.toString().trim()
             val pass = binding.etPassword.text.toString()
 
@@ -144,9 +151,19 @@ class SettingsDialog(
 
         binding.btnSave.setOnClickListener {
             hideKeyboard()
+            val host = binding.etHost.text.toString().trim()
+            val portStr = binding.etPort.text.toString().trim()
+            val port = portStr.toIntOrNull()
+            if (port == null || port !in 1..65535) {
+                binding.tvTestStatus.visibility = View.VISIBLE
+                binding.tvTestStatus.setTextColor(Color.parseColor("#EF4444"))
+                binding.tvTestStatus.text = "Port tidak valid! Masukkan angka port 1 - 65535."
+                return@setOnClickListener
+            }
+
             val oldTheme = settings.themeMode
-            settings.host = binding.etHost.text.toString().trim()
-            settings.port = binding.etPort.text.toString().trim().toIntOrNull() ?: 8728
+            settings.host = host
+            settings.port = port
             settings.username = binding.etUsername.text.toString().trim()
             settings.password = binding.etPassword.text.toString()
             settings.wanInterface = binding.etWan.text.toString().trim()
@@ -154,6 +171,12 @@ class SettingsDialog(
             settings.refreshIntervalMs = (sec.coerceAtLeast(1L)) * 1000L
             settings.themeMode = selectedTheme
             settings.autoStartOnBoot = binding.cbAutoBoot.isChecked
+
+            android.widget.Toast.makeText(
+                context,
+                "Pengaturan tersimpan: $host:$port",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
 
             onConfigChanged(oldTheme != selectedTheme)
             dismiss()

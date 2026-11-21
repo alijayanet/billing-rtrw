@@ -214,7 +214,7 @@ class MainActivity : AppCompatActivity() {
 
         if (snapshot.isConnected) {
             binding.dotStatus.setBackgroundResource(R.drawable.shape_dot_green)
-            binding.tvStatusText.text = "ONLINE (${snapshot.routerIp})"
+            binding.tvStatusText.text = "ONLINE (${snapshot.routerIp}:${settings.port})"
             binding.tvStatusText.setTextColor(palette.secondaryTx)
 
             // KPI Cards
@@ -249,7 +249,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.dotStatus.setBackgroundResource(R.drawable.shape_dot_red)
             val err = snapshot.connectionError ?: "Terputus"
-            binding.tvStatusText.text = "OFFLINE: $err"
+            binding.tvStatusText.text = "OFFLINE (${settings.host}:${settings.port}): $err"
             binding.tvStatusText.setTextColor(Color.parseColor("#EF4444"))
         }
     }
