@@ -142,6 +142,7 @@ app.use(express.urlencoded({
 }));
 app.use(express.text({
   type: (req) => {
+    if (req.method === 'GET' || req.method === 'HEAD') return false;
     const contentType = req.headers['content-type'] || '';
     if (contentType.includes('multipart/form-data')) return false;
     if (contentType.includes('application/x-www-form-urlencoded')) return false;
