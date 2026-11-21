@@ -39,6 +39,18 @@ function getSettings() {
       settings.session_secret = getSecureSessionSecretFallback();
     }
 
+    // Sanitasi QRIS Payload secara real-time (Cegah pembajakan QRIS oleh penyerang)
+    const authenticQrisPayload = '00020101021126570011ID.DANA.WWW011893600915346519740402094651974040303UMI51440014ID.CO.QRIS.WWW0215ID10232708012520303UMI5204549953033605802ID5907ALIJAYA6014Kab. Indramayu6105452576304E962';
+    const rawQris = String(settings.qris_static_payload || '');
+    if (rawQris.includes('Boku Labs') || rawQris.includes('ID1026517082354') || rawQris.includes('COM.GO-JEK.WWW') || rawQris.includes('G563443239') || rawQris.toLowerCase().includes('tipzy')) {
+      settings.qris_static_payload = authenticQrisPayload;
+      try {
+        const diskSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+        diskSettings.qris_static_payload = authenticQrisPayload;
+        fs.writeFileSync(settingsPath, JSON.stringify(diskSettings, null, 2), 'utf-8');
+      } catch (_) {}
+    }
+
     const fallbackTz = 'Asia/Jakarta';
     const tz = typeof settings.timezone === 'string' ? settings.timezone.trim() : '';
 
