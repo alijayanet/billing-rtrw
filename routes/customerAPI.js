@@ -37,7 +37,23 @@ function b64urlDecodeToString(input) {
 
 function getApiSecret() {
   const settings = getSettingsWithCache();
-  return settings.session_secret || 'rahasia-api-pelanggan-alijaya-default';
+  const sec = String(settings.session_secret || '').trim();
+  const insecure = new Set([
+    '',
+    'change-this-to-random-secret-key',
+    'rahasia-portal-pelanggan-default-ganti-ini',
+    'rahasia-api-pelanggan-alijaya-default',
+    'your-session-secret',
+    'secret',
+    'session-secret'
+  ]);
+  if (!sec || insecure.has(sec)) {
+    if (!global.__runtimeSecureApiSecret) {
+      global.__runtimeSecureApiSecret = crypto.randomBytes(32).toString('hex');
+    }
+    return global.__runtimeSecureApiSecret;
+  }
+  return sec;
 }
 
 function generateApiToken(payloadData) {
@@ -131,6 +147,23 @@ function requireAdminApiAuth(req, res, next) {
       message: 'Akses ditolak: Autentikasi Admin / Kasir diperlukan.'
     });
   }
+
+  // Database & credential integrity validation
+  if (payload.role === 'admin' || payload.role === 'root') {
+    const adminUser = String(getSetting('admin_username', 'admin')).trim();
+    if (payload.username && payload.username.toLowerCase() !== adminUser.toLowerCase()) {
+      return res.status(401).json({ success: false, message: 'Akses ditolak: Akun admin tidak valid.' });
+    }
+  } else if (payload.role === 'cashier') {
+    try {
+      const cashierId = payload.cashierId || payload.id;
+      const cashier = db.prepare('SELECT id, is_active FROM cashiers WHERE id = ?').get(cashierId);
+      if (!cashier || cashier.is_active === 0) {
+        return res.status(401).json({ success: false, message: 'Akses ditolak: Akun kasir tidak aktif.' });
+      }
+    } catch (_) {}
+  }
+
   req.admin = payload;
   req.user = payload;
   next();
@@ -2292,7 +2325,7 @@ router.get('/app/admin/settings', requireAdminApiAuth, (req, res) => {
 
 router.post('/app/admin/settings/update', requireAdminApiAuth, (req, res) => {
   try {
-    const allowed = ['company_header', 'company_subheader', 'company_phone', 'company_address', 'timezone', 'qris_enabled', 'auto_isolate_enabled', 'webhook_secret'];
+    const allowed = ['company_header', 'company_subheader', 'company_phone', 'company_address', 'timezone', 'qris_enabled', 'auto_isolate_enabled', 'webhook_secret', 'qris_static_payload'];
     const updates = req.body || {};
     const settingsPath = require('path').join(__dirname, '../settings.json');
     const current = JSON.parse(require('fs').readFileSync(settingsPath, 'utf8'));
@@ -5011,10 +5044,7 @@ router.get('/invoices/:id/qris-image', async (req, res) => {
       inv = db.prepare('SELECT id, customer_id, amount, status, qris_unique_code, qris_amount_unique, payment_gateway, payment_order_id, payment_link FROM invoices WHERE id = ?').get(invId);
     }
     if (!inv) {
-      inv = db.prepare("SELECT id, customer_id, amount, status, qris_unique_code, qris_amount_unique FROM invoices WHERE status != 'paid' ORDER BY id DESC LIMIT 1").get();
-    }
-    if (!inv) {
-      inv = { id: 1, customer_id: 1, amount: 150000, status: 'unpaid' };
+      return res.status(404).send('Tagihan tidak ditemukan');
     }
 
     const settings = getSettingsWithCache();

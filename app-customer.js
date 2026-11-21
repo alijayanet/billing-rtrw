@@ -51,7 +51,7 @@ if (typeof ensureDefaultSettings === 'function') {
 // Pastikan pesanan kadaluarsa lama dibersihkan saat server mulai
 try { uniqueCodeService.cleanupExpiredPendingOrders(); } catch (_) {}
 
-// Security Auto-Cleanup: Hapus file tidak sah / payload berbahaya di folder uploads atau /tmp
+// Security Auto-Cleanup: Hapus file tidak sah / payload berbahaya di folder uploads, qris, atau /tmp
 try {
   const uploadsDir = path.join(__dirname, 'public/uploads');
   if (fs.existsSync(uploadsDir)) {
@@ -67,11 +67,35 @@ try {
       }
     }
   }
+
+  // Bersihkan QRIS upload palsu di public/uploads/qris
+  const qrisUploadsDir = path.join(__dirname, 'public/uploads/qris');
+  if (fs.existsSync(qrisUploadsDir)) {
+    const qrisFiles = fs.readdirSync(qrisUploadsDir);
+    for (const qf of qrisFiles) {
+      const qPath = path.join(qrisUploadsDir, qf);
+      try {
+        const buf = fs.readFileSync(qPath);
+        const str = buf.toString('latin1');
+        if (str.includes('Boku Labs') || str.includes('ID1026517082354') || str.includes('G563443239') || str.includes('COM.GO-JEK.WWW')) {
+          fs.unlinkSync(qPath);
+          logger.warn(`[Security Cleanup] Berhasil menghapus QRIS palsu penyerang: public/uploads/qris/${qf}`);
+        }
+      } catch (_) {}
+    }
+  }
+
+  // Bersihkan temporary attack scripts di /tmp (Linux)
   if (process.platform === 'linux') {
     try {
-      if (fs.existsSync('/tmp/rp.py')) {
-        fs.unlinkSync('/tmp/rp.py');
-        logger.warn('[Security Cleanup] Berhasil menghapus /tmp/rp.py');
+      const tmpFiles = fs.readdirSync('/tmp');
+      for (const tf of tmpFiles) {
+        if (tf.startsWith('rp') || tf.startsWith('tipzy') || tf.endsWith('.py') || tf.endsWith('.sh')) {
+          try {
+            fs.unlinkSync(path.join('/tmp', tf));
+            logger.warn(`[Security Cleanup] Berhasil menghapus file mencurigakan di /tmp: ${tf}`);
+          } catch (_) {}
+        }
       }
     } catch (_) {}
   }

@@ -26,8 +26,16 @@ function getSettings() {
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) || {};
     
     // Secure fallback for session_secret
-    const defaultSecret = 'rahasia-portal-pelanggan-default-ganti-ini';
-    if (!settings.session_secret || settings.session_secret === defaultSecret) {
+    const insecureSecrets = new Set([
+      '',
+      'change-this-to-random-secret-key',
+      'rahasia-portal-pelanggan-default-ganti-ini',
+      'rahasia-api-pelanggan-alijaya-default',
+      'your-session-secret',
+      'secret',
+      'session-secret'
+    ]);
+    if (!settings.session_secret || insecureSecrets.has(String(settings.session_secret).trim())) {
       settings.session_secret = getSecureSessionSecretFallback();
     }
 
@@ -328,6 +336,32 @@ function ensureDefaultSettings() {
       currentSettings.webhook_secret = crypto.randomBytes(16).toString('hex');
       needsSave = true;
       logger.info('[settings] Auto-generated secure random webhook_secret for security hardening');
+    }
+
+    // Security Hardening: Otomatis buat session_secret acak (64-char hex) jika default/bocor/lemah
+    const insecureSessionSecrets = new Set([
+      '',
+      'change-this-to-random-secret-key',
+      'rahasia-portal-pelanggan-default-ganti-ini',
+      'rahasia-api-pelanggan-alijaya-default',
+      'your-session-secret',
+      'secret',
+      'session-secret'
+    ]);
+    if (!currentSettings.session_secret || insecureSessionSecrets.has(String(currentSettings.session_secret).trim())) {
+      const crypto = require('crypto');
+      currentSettings.session_secret = crypto.randomBytes(32).toString('hex');
+      needsSave = true;
+      logger.info('[settings] Auto-generated secure random 64-char hex session_secret for security hardening');
+    }
+
+    // Security Hardening: Deteksi dan bersihkan QRIS palsu penyerang (Boku Labs / GoPay / Tipzy / ID1026517082354)
+    const authenticQrisPayload = '00020101021126570011ID.DANA.WWW011893600915346519740402094651974040303UMI51440014ID.CO.QRIS.WWW0215ID10232708012520303UMI5204549953033605802ID5907ALIJAYA6014Kab. Indramayu6105452576304E962';
+    const rawPayload = String(currentSettings.qris_static_payload || '');
+    if (rawPayload.includes('Boku Labs') || rawPayload.includes('ID1026517082354') || rawPayload.includes('COM.GO-JEK.WWW') || rawPayload.includes('G563443239') || rawPayload.toLowerCase().includes('tipzy')) {
+      currentSettings.qris_static_payload = authenticQrisPayload;
+      needsSave = true;
+      logger.warn('[Security] Terdeteksi QRIS palsu penyerang (Boku Labs / Tipzy)! Otomatis dikembalikan ke QRIS resmi ALIJAYA NET.');
     }
     
     // Simpan jika ada perubahan

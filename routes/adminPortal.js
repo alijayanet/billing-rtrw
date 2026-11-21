@@ -4118,7 +4118,11 @@ router.post('/settings/qris-upload', requireAdminSession, qrisUpload.single('qri
         payload = await extractQrTextFromImageBuffer(f.buffer);
       }
       if (!payload.startsWith('000201')) payload = '';
+      if (payload.includes('Boku Labs') || payload.includes('ID1026517082354') || payload.toLowerCase().includes('tipzy')) {
+        throw new Error('Payload QRIS ini terdeteksi sebagai QRIS penyerang / tidak diizinkan.');
+      }
     } catch (e) {
+      if (e.message && e.message.includes('terdeteksi sebagai QRIS penyerang')) throw e;
       payload = '';
     }
 
