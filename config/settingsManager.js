@@ -321,6 +321,14 @@ function ensureDefaultSettings() {
         logger.info(`[settings] Added missing setting: ${key} = ${defaultValue}`);
       }
     }
+
+    // Security Hardening: Otomatis buat webhook_secret acak jika masih kosong atau default bocor
+    if (!currentSettings.webhook_secret || currentSettings.webhook_secret === 'billing-rtrw-secret-key') {
+      const crypto = require('crypto');
+      currentSettings.webhook_secret = crypto.randomBytes(16).toString('hex');
+      needsSave = true;
+      logger.info('[settings] Auto-generated secure random webhook_secret for security hardening');
+    }
     
     // Simpan jika ada perubahan
     if (needsSave) {

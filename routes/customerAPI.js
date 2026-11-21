@@ -2282,7 +2282,7 @@ router.get('/app/admin/settings', requireAdminApiAuth, (req, res) => {
         digiflazz_enabled: s.digiflazz_enabled || '0', radius_enabled: s.radius_enabled || '0',
         multi_router_mode: s.multi_router_mode || 'disabled',
         auto_isolate_enabled: s.auto_isolate_enabled || '1',
-        webhook_secret: s.webhook_secret || 'billing-rtrw-secret-key'
+        webhook_secret: s.webhook_secret || ''
       }
     });
   } catch (e) {
@@ -2325,7 +2325,7 @@ router.get('/app/admin/webhook/logs', requireAdminApiAuth, (req, res) => {
 router.post('/app/admin/webhook/test', requireAdminApiAuth, (req, res) => {
   try {
     const s = getSettingsWithCache();
-    const secret = s.webhook_secret || 'billing-rtrw-secret-key';
+    const secret = s.webhook_secret || '';
     res.json({
       success: true,
       message: 'Koneksi Gateway Webhook Berhasil!',
