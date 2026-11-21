@@ -13,7 +13,7 @@ class AppSettings(context: Context) {
         set(value) = prefs.edit().putString(KEY_HOST, value.trim()).apply()
 
     var port: Int
-        get() = prefs.getInt(KEY_PORT, 8728)
+        get() = prefs.getInt(KEY_PORT, 8722)
         set(value) = prefs.edit().putInt(KEY_PORT, value).apply()
 
     var username: String

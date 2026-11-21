@@ -41,14 +41,20 @@ class MikrotikSocketClient(
     }
 
     private fun authenticate(username: String, password: String): Boolean {
-        // Step 1: Try RouterOS v6 Challenge Login
+        // Step 1: Send /login to request challenge or initiate auth
         writeSentence(listOf("/login"))
-        val challengeReplies = readSentence()
-
         var challengeHex: String? = null
-        for (reply in challengeReplies) {
-            if (reply.startsWith("=ret=")) {
-                challengeHex = reply.substring(5)
+
+        while (true) {
+            val sentence = readSentence()
+            if (sentence.isEmpty()) break
+            for (reply in sentence) {
+                if (reply.startsWith("=ret=")) {
+                    challengeHex = reply.substring(5)
+                }
+            }
+            val first = sentence.firstOrNull() ?: ""
+            if (first == "!done" || first == "!trap") {
                 break
             }
         }
@@ -69,11 +75,31 @@ class MikrotikSocketClient(
                     "=response=$responseHex"
                 )
             )
-            val authReplies = readSentence()
-            return authReplies.any { it == "!done" }
+
+            var isAuthSuccess = false
+            var trapMessage: String? = null
+            while (true) {
+                val sentence = readSentence()
+                if (sentence.isEmpty()) break
+                val first = sentence.firstOrNull() ?: ""
+                if (first == "!done") {
+                    if (trapMessage == null) {
+                        isAuthSuccess = true
+                    }
+                    break
+                }
+                if (first == "!trap") {
+                    trapMessage = sentence.find { it.startsWith("=message=") }?.substring(9) ?: "Login ditolak"
+                }
+            }
+            if (!isAuthSuccess) {
+                close()
+                throw IOException(trapMessage ?: "Username atau password salah")
+            }
+            return true
         }
 
-        // If no challenge returned, try direct plain auth (RouterOS 6.43+ and 7.x)
+        // Direct plain auth (RouterOS 6.43+ and 7.x)
         writeSentence(
             listOf(
                 "/login",
@@ -81,8 +107,27 @@ class MikrotikSocketClient(
                 "=password=$password"
             )
         )
-        val plainReplies = readSentence()
-        return plainReplies.any { it == "!done" }
+        var isAuthSuccess = false
+        var trapMessage: String? = null
+        while (true) {
+            val sentence = readSentence()
+            if (sentence.isEmpty()) break
+            val first = sentence.firstOrNull() ?: ""
+            if (first == "!done") {
+                if (trapMessage == null) {
+                    isAuthSuccess = true
+                }
+                break
+            }
+            if (first == "!trap") {
+                trapMessage = sentence.find { it.startsWith("=message=") }?.substring(9) ?: "Login ditolak"
+            }
+        }
+        if (!isAuthSuccess) {
+            close()
+            throw IOException(trapMessage ?: "Username atau password salah")
+        }
+        return true
     }
 
     @Synchronized
