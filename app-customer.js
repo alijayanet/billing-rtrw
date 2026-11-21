@@ -2345,6 +2345,67 @@ app.get(['/api/noc/data', '/noc/data'], async (req, res) => {
   }
 });
 
+// Mount NOC AI Voice Assistant & TTS (Public/Kiosk Safe)
+const telegramAi = require('./services/telegramAiService');
+const voiceTts = require('./services/voiceTtsService');
+
+app.post('/api/noc/ai-voice/ask', express.json(), async (req, res) => {
+  try {
+    const rawQuestion = String(req.body.message || '').trim();
+    if (!rawQuestion) {
+      return res.status(400).json({ ok: false, error: 'Pesan suara tidak boleh kosong' });
+    }
+
+    let nocContext = '';
+    try {
+      const liveData = await nocService.getNocData('settings_json');
+      if (liveData) {
+        nocContext = `[DATA REAL-TIME NOC SERVER SAAT INI: Router=${liveData.router?.boardName || 'MikroTik'}, CPU=${liveData.router?.cpuLoad || 0}%, Suhu=${liveData.router?.temperature || 0}°C, Voltase=${liveData.router?.voltage || 0}V, Uptime=${liveData.router?.uptime || '-'}, Trafik_WAN=${liveData.traffic?.wanRxMbps || 0} Mbps Download / ${liveData.traffic?.wanTxMbps || 0} Mbps Upload (${liveData.traffic?.wanInterface || 'ISP'}), PPPoE_Aktif=${liveData.clients?.pppoe?.active || 0} dari total ${liveData.clients?.pppoe?.total || 0} (${liveData.clients?.pppoe?.offline || 0} offline), Hotspot_Aktif=${liveData.clients?.hotspot?.active || 0} sesi, ONT_TR069=${liveData.acs?.online || 0} online dari total ${liveData.acs?.total || 0} (${liveData.acs?.critical || 0} redaman kritis >= -27dBm), Pelanggan_Billing=${liveData.clients?.billing?.active || 0} aktif / ${liveData.clients?.billing?.suspended || 0} terisolir]. Jawablah secara singkat, padat, ramah, dan to the point untuk dibacakan oleh suara asisten NOC.`;
+      }
+    } catch (_) {}
+
+    const senderName = 'Operator NOC';
+    const answer = await telegramAi.askAi({
+      question: `${nocContext}\n${rawQuestion}`,
+      senderName,
+      isAdmin: true,
+      extraContext: {
+        adminName: senderName,
+        contextSource: 'noc_wallboard',
+        req
+      }
+    });
+
+    const cleanDisplay = typeof telegramAi.cleanAiResponse === 'function' ? telegramAi.cleanAiResponse(answer) : answer;
+    const speechText = voiceTts.cleanTextForSpeech(cleanDisplay);
+
+    res.json({
+      ok: true,
+      text: cleanDisplay,
+      speechText
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/noc/ai-voice/tts', async (req, res) => {
+  try {
+    const text = String(req.query.text || '').trim();
+    if (!text) return res.status(400).send('Teks kosong');
+    const audioBuffer = await voiceTts.generateIndonesianSpeech(text);
+    if (!audioBuffer) return res.status(500).send('Gagal membuat audio');
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': audioBuffer.length,
+      'Cache-Control': 'public, max-age=86400'
+    });
+    res.send(audioBuffer);
+  } catch (err) {
+    res.status(500).send('Error TTS: ' + err.message);
+  }
+});
+
 // Mount customer portal
 const customerPortal = require('./routes/customerPortal');
 app.use('/customer', customerPortal);
@@ -2372,8 +2433,8 @@ app.use('/collector', collectorPortal);
 // ==========================================
 // VOICE AI ASSISTANT REST API (ANDROID & WEB)
 // ==========================================
-const telegramAi = require('./services/telegramAiService');
-const voiceTts = require('./services/voiceTtsService');
+// (telegramAi declared above)
+// (voiceTts declared above)
 
 function requireVoiceApiAuth(req, res, next) {
   const token = req.headers['x-api-token'] || req.query?.token || req.body?.apiToken || (req.headers['authorization'] ? req.headers['authorization'].replace(/^Bearer\s+/i, '') : null);

@@ -712,6 +712,110 @@
     .rate-pill.rx { color: var(--cyan); }
     .rate-pill.tx { color: var(--emerald); }
 
+    /* AI VOICE FLOATING HUD */
+    .ai-voice-hud {
+      position: fixed;
+      bottom: 12px;
+      right: 14px;
+      background: rgba(11, 15, 31, 0.94);
+      border: 1px solid rgba(0, 242, 254, 0.35);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 242, 254, 0.2);
+      border-radius: 30px;
+      padding: 5px 12px 5px 6px;
+      display: none;
+      align-items: center;
+      gap: 9px;
+      z-index: 1000;
+      backdrop-filter: blur(14px);
+      animation: hudSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 440px;
+    }
+    .ai-voice-hud.active {
+      display: flex;
+    }
+    @keyframes hudSlideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .ai-orb-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00f2fe, #3b82f6);
+      border: none;
+      color: #060813;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+      flex-shrink: 0;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .ai-orb-btn:hover {
+      transform: scale(1.08);
+    }
+    .ai-orb-btn.listening {
+      background: linear-gradient(135deg, #f43f5e, #f59e0b);
+      box-shadow: 0 0 16px rgba(244, 63, 94, 0.8);
+      animation: micPulse 0.9s infinite alternate;
+    }
+    @keyframes micPulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.18); }
+    }
+    .ai-hud-content {
+      display: flex;
+      flex-direction: column;
+      min-width: 140px;
+      max-width: 250px;
+      overflow: hidden;
+    }
+    .ai-hud-title {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .ai-hud-msg {
+      font-size: 11px;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 500;
+    }
+    .ai-wave-bars {
+      display: flex;
+      align-items: center;
+      gap: 2.5px;
+      height: 14px;
+    }
+    .ai-wave-bars span {
+      width: 2.5px;
+      height: 4px;
+      background: var(--cyan);
+      border-radius: 2px;
+      transition: height 0.15s ease;
+    }
+    .ai-voice-hud.speaking .ai-wave-bars span {
+      animation: soundwave 0.6s ease-in-out infinite alternate;
+    }
+    .ai-voice-hud.speaking .ai-wave-bars span:nth-child(1) { animation-delay: 0.1s; }
+    .ai-voice-hud.speaking .ai-wave-bars span:nth-child(2) { animation-delay: 0.25s; }
+    .ai-voice-hud.speaking .ai-wave-bars span:nth-child(3) { animation-delay: 0.15s; }
+    .ai-voice-hud.speaking .ai-wave-bars span:nth-child(4) { animation-delay: 0.3s; }
+    @keyframes soundwave {
+      0% { height: 3px; }
+      100% { height: 14px; }
+    }
+
     /* LOADING OVERLAY */
     .noc-overlay {
       position: fixed;
@@ -807,6 +911,12 @@
           <span id="cycle-btn-text">Rotasi</span>
         </button>
         <% } %>
+
+        <!-- AI Voice Assistant & Announcer Toggle -->
+        <button id="ai-voice-toggle-btn" class="btn-noc" onclick="toggleNocVoice()" title="Aktifkan AI Voice Announcer & Asisten Suara Interaktif">
+          <i class="bi bi-mic" id="ai-voice-btn-icon"></i>
+          <span id="ai-voice-btn-text">AI Voice</span>
+        </button>
 
         <!-- Audio Alert Toggle -->
         <button id="audio-toggle-btn" class="btn-noc" onclick="toggleAudioAlert()" title="Bunyi alarm jika link interface down">
@@ -1145,6 +1255,24 @@
     </main>
   </div>
 
+  <!-- AI VOICE FLOATING HUD -->
+  <div id="ai-voice-hud" class="ai-voice-hud">
+    <button class="ai-orb-btn" id="ai-orb-btn" onclick="startNocVoiceRecognition()" title="Klik untuk bicara dengan AI Voice">
+      <i class="bi bi-mic-fill" id="ai-orb-icon"></i>
+    </button>
+    <div class="ai-hud-content">
+      <div class="ai-hud-title">
+        <span class="pulse-dot" style="width:5px;height:5px"></span>
+        <span id="ai-hud-title-text">NOC AI ASSISTANT</span>
+      </div>
+      <div class="ai-hud-msg" id="ai-hud-msg">Siap mendengarkan pertanyaan...</div>
+    </div>
+    <div class="ai-wave-bars" id="ai-wave-bars">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <button class="btn-noc" style="padding:2px 6px;font-size:10px;border-radius:4px" onclick="toggleNocVoice(false)" title="Tutup Asisten Suara">&times;</button>
+  </div>
+
   <!-- Local Chart.js 4.4 with CDN Fallback -->
   <script src="/js/chart.umd.js"></script>
   <script>
@@ -1171,12 +1299,236 @@
     let lastKnownWanName = 'ether1-ISP';
     let latestInterfacesData = [];
 
+    // AI Voice & Announcer State
+    let isNocVoiceEnabled = false;
+    let isAiVoiceSpeaking = false;
+    let aiVoiceAudio = new Audio();
+    let speechRecognizer = null;
+    let isListeningVoice = false;
+    let lastAnnouncerState = {
+      downIfaces: new Set(),
+      lastCpuAlertTime: 0,
+      lastCriticalAcs: 0,
+      lastBlockedCount: 0,
+      lastBriefingHour: -1
+    };
+
     let chartHistory = {
       labels: [],
       rx: [],
       tx: []
     };
     const MAX_CHART_POINTS = 30;
+
+    // Toggle AI Voice ON / OFF
+    function toggleNocVoice(forceState) {
+      if (typeof forceState === 'boolean') {
+        isNocVoiceEnabled = forceState;
+      } else {
+        isNocVoiceEnabled = !isNocVoiceEnabled;
+      }
+
+      const btn = document.getElementById('ai-voice-toggle-btn');
+      const icon = document.getElementById('ai-voice-btn-icon');
+      const text = document.getElementById('ai-voice-btn-text');
+      const hud = document.getElementById('ai-voice-hud');
+
+      if (isNocVoiceEnabled) {
+        btn.classList.add('active');
+        icon.className = 'bi bi-mic-fill';
+        icon.style.color = 'var(--cyan)';
+        text.textContent = 'Voice: ON';
+        hud.classList.add('active');
+        document.getElementById('ai-hud-msg').textContent = 'AI Voice aktif • Siap memantau';
+        speakNocVoice('Asisten Suara NOC Alijaya Net aktif. Sistem siap memantau jaringan.');
+      } else {
+        btn.classList.remove('active');
+        icon.className = 'bi bi-mic';
+        icon.style.color = '';
+        text.textContent = 'AI Voice';
+        hud.classList.remove('active');
+        stopNocVoice();
+      }
+    }
+
+    // Speak AI Voice Announcement or Response
+    function speakNocVoice(text, onComplete) {
+      if (!isNocVoiceEnabled) return;
+      stopNocVoice();
+
+      isAiVoiceSpeaking = true;
+      const hud = document.getElementById('ai-voice-hud');
+      const hudMsg = document.getElementById('ai-hud-msg');
+      if (hud) hud.classList.add('speaking', 'active');
+      if (hudMsg) hudMsg.textContent = text;
+
+      // Try Google TTS via server endpoint first
+      const ttsUrl = `/api/noc/ai-voice/tts?text=${encodeURIComponent(text)}`;
+      aiVoiceAudio.src = ttsUrl;
+      aiVoiceAudio.play().then(() => {
+        aiVoiceAudio.onended = () => {
+          finishNocVoiceSpeech(onComplete);
+        };
+      }).catch(err => {
+        // Fallback to browser SpeechSynthesis
+        speakWithBrowserSpeech(text, onComplete);
+      });
+    }
+
+    function speakWithBrowserSpeech(text, onComplete) {
+      if (!window.speechSynthesis) {
+        finishNocVoiceSpeech(onComplete);
+        return;
+      }
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'id-ID';
+        u.rate = 1.05;
+        u.pitch = 1.0;
+        const voices = window.speechSynthesis.getVoices() || [];
+        const idVoice = voices.find(v => v.lang.startsWith('id') || v.name.toLowerCase().includes('indonesia'));
+        if (idVoice) u.voice = idVoice;
+
+        u.onend = () => finishNocVoiceSpeech(onComplete);
+        u.onerror = () => finishNocVoiceSpeech(onComplete);
+        window.speechSynthesis.speak(u);
+      } catch (e) {
+        finishNocVoiceSpeech(onComplete);
+      }
+    }
+
+    function finishNocVoiceSpeech(onComplete) {
+      isAiVoiceSpeaking = false;
+      const hud = document.getElementById('ai-voice-hud');
+      if (hud) hud.classList.remove('speaking');
+      if (typeof onComplete === 'function') onComplete();
+    }
+
+    function stopNocVoice() {
+      try {
+        aiVoiceAudio.pause();
+        aiVoiceAudio.currentTime = 0;
+      } catch (_) {}
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      isAiVoiceSpeaking = false;
+      const hud = document.getElementById('ai-voice-hud');
+      if (hud) hud.classList.remove('speaking');
+    }
+
+    // Voice Command / Speech Recognition
+    function startNocVoiceRecognition() {
+      if (!isNocVoiceEnabled) {
+        toggleNocVoice(true);
+      }
+      stopNocVoice();
+
+      const SpeechRec = window.webkitSpeechRecognition || window.SpeechRecognition;
+      if (!SpeechRec) {
+        speakNocVoice('Peramban Anda tidak mendukung input suara.');
+        return;
+      }
+
+      try {
+        if (speechRecognizer) {
+          speechRecognizer.abort();
+        }
+        speechRecognizer = new SpeechRec();
+        speechRecognizer.lang = 'id-ID';
+        speechRecognizer.continuous = false;
+        speechRecognizer.interimResults = false;
+
+        const orb = document.getElementById('ai-orb-btn');
+        const hudMsg = document.getElementById('ai-hud-msg');
+
+        speechRecognizer.onstart = () => {
+          isListeningVoice = true;
+          if (orb) orb.classList.add('listening');
+          if (hudMsg) hudMsg.textContent = 'Mendengarkan suara Anda...';
+        };
+
+        speechRecognizer.onresult = async (event) => {
+          const transcript = event.results[0][0].transcript.trim();
+          if (hudMsg) hudMsg.textContent = `"${transcript}"`;
+          await handleNocVoiceCommand(transcript);
+        };
+
+        speechRecognizer.onerror = (event) => {
+          console.warn('Speech error:', event.error);
+          if (orb) orb.classList.remove('listening');
+          isListeningVoice = false;
+          if (hudMsg) hudMsg.textContent = 'Tidak mendengar suara. Coba lagi.';
+        };
+
+        speechRecognizer.onend = () => {
+          if (orb) orb.classList.remove('listening');
+          isListeningVoice = false;
+        };
+
+        speechRecognizer.start();
+      } catch (e) {
+        console.error('Speech recognition error:', e);
+      }
+    }
+
+    // Handle Quick Local Voice Commands & AI Queries
+    async function handleNocVoiceCommand(text) {
+      const lower = text.toLowerCase();
+      const hudMsg = document.getElementById('ai-hud-msg');
+
+      // 1. Quick Local Commands
+      if (lower.includes('layar penuh') || lower.includes('fullscreen')) {
+        toggleFullscreen();
+        speakNocVoice('Mengubah mode layar penuh.');
+        return;
+      }
+      if (lower.includes('rotasi') || lower.includes('carousel')) {
+        toggleAutoCycle();
+        speakNocVoice(isAutoCycleEnabled ? 'Rotasi router diaktifkan.' : 'Rotasi router dimatikan.');
+        return;
+      }
+      if (lower.includes('semua interface') || lower.includes('semua antarmuka')) {
+        setIfaceFilter('all');
+        speakNocVoice('Menampilkan semua antarmuka jaringan.');
+        return;
+      }
+      if (lower.includes('physical') || lower.includes('fisik') || lower.includes('vlan')) {
+        setIfaceFilter('wan_phy');
+        speakNocVoice('Menampilkan antarmuka fisik dan vlan.');
+        return;
+      }
+      if (lower.includes('pppoe')) {
+        setIfaceFilter('pppoe');
+        speakNocVoice('Menampilkan sesi dinamis pe pe po e.');
+        return;
+      }
+      if (lower.includes('matikan suara') || lower.includes('diam') || lower.includes('bisu')) {
+        toggleNocVoice(false);
+        return;
+      }
+
+      // 2. Query to AI Backend
+      if (hudMsg) hudMsg.textContent = 'Meminta jawaban AI...';
+      try {
+        const res = await fetch('/api/noc/ai-voice/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+        const result = await res.json();
+        if (result.ok && (result.speechText || result.text)) {
+          const toSpeak = result.speechText || result.text;
+          speakNocVoice(toSpeak);
+        } else {
+          speakNocVoice('Maaf, saya tidak dapat menemukan data tersebut saat ini.');
+        }
+      } catch (e) {
+        console.error('AI voice ask error:', e);
+        speakNocVoice('Gagal menghubungi asisten AI.');
+      }
+    }
 
     // Web Audio Synthesizer for Outage Alerts
     let audioCtx = null;
@@ -1771,6 +2123,50 @@
         document.getElementById('cust-suspended-val').textContent = `${billing.suspended || 0} Pelanggan`;
         document.getElementById('client-total-badge').textContent = `${(pppoe.active || 0) + (hotspot.active || 0)} Sesi Aktif`;
         document.getElementById('sec-blocked-val').textContent = `${data.security ? (data.security.blockedCount || 0) : 0} Kali`;
+
+        // 4. Automated Smart Voice Announcer Trigger
+        if (isNocVoiceEnabled && !isAiVoiceSpeaking && !isListeningVoice) {
+          // A. Interface Link Down Alert (Physical only)
+          ifaces.filter(i => !i.isDynamic && !i.disabled).forEach(i => {
+            const wasDown = lastAnnouncerState.downIfaces.has(i.name);
+            if (!i.running && !wasDown) {
+              lastAnnouncerState.downIfaces.add(i.name);
+              speakNocVoice(`Peringatan: Jalur antarmuka ${i.name} terputus!`);
+            } else if (i.running && wasDown) {
+              lastAnnouncerState.downIfaces.delete(i.name);
+              speakNocVoice(`Pemberitahuan: Jalur antarmuka ${i.name} telah pulih normal.`);
+            }
+          });
+
+          // B. High CPU Alert (> 85%)
+          if (cpuVal >= 85 && (now - lastAnnouncerState.lastCpuAlertTime > 180000)) {
+            lastAnnouncerState.lastCpuAlertTime = now;
+            speakNocVoice(`Pemberitahuan darurat: Beban prosesor router tinggi mencapai ${cpuVal} persen.`);
+          }
+
+          // C. Critical Optical Power (LOS) Alert
+          if ((acs.critical || 0) > lastAnnouncerState.lastCriticalAcs && (acs.critical || 0) > 0) {
+            lastAnnouncerState.lastCriticalAcs = acs.critical;
+            speakNocVoice(`Pemberitahuan: Terdeteksi ${acs.critical} perangkat modem dengan redaman optik kritis.`);
+          }
+
+          // D. Security Brute Force Blocked
+          const blockedCount = data.security?.blockedCount || 0;
+          if (blockedCount > lastAnnouncerState.lastBlockedCount && lastAnnouncerState.lastBlockedCount > 0) {
+            lastAnnouncerState.lastBlockedCount = blockedCount;
+            speakNocVoice('Peringatan keamanan: Serangan brute force baru saja diblokir otomatis oleh firewall.');
+          } else {
+            lastAnnouncerState.lastBlockedCount = blockedCount;
+          }
+
+          // E. Hourly Briefing (at minute 0)
+          const curDate = new Date();
+          if (curDate.getMinutes() === 0 && curDate.getHours() !== lastAnnouncerState.lastBriefingHour) {
+            lastAnnouncerState.lastBriefingHour = curDate.getHours();
+            const hStr = curDate.getHours();
+            speakNocVoice(`Laporan berkala jam ${hStr}: Trafik download internet ${rxFormatted.val} ${rxFormatted.unit}, dengan ${pppoe.active || 0} pelanggan pe pe po e online.`);
+          }
+        }
 
       } catch (err) {
         console.error('NOC Load Error:', err);
