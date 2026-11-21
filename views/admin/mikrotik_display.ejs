@@ -345,7 +345,7 @@
     /* MAIN BODY 3-COLUMNS (ZERO SCROLL, FILL REMAINING HEIGHT) */
     .noc-main {
       display: grid;
-      grid-template-columns: 260px 1fr 270px;
+      grid-template-columns: 240px 1fr 250px;
       gap: 8px;
       flex: 1;
       min-height: 0;
@@ -378,6 +378,13 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       padding-bottom: 6px;
       flex-shrink: 0;
+      gap: 6px;
+    }
+
+    .card-title-bar > div:first-child {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .card-title-bar i {
