@@ -59,6 +59,11 @@ if [ -f "settings.json.bak" ]; then
 fi
 git stash pop 2>/dev/null || true
 
+# 6. Kunci file konfigurasi & database lokal agar Git tidak pernah menimpa atau menolak update ke depannya
+git update-index --skip-worktree settings.json 2>/dev/null || true
+git update-index --skip-worktree database/billing.db 2>/dev/null || true
+git update-index --skip-worktree data/wa-lid-map.json 2>/dev/null || true
+
 # 4. Cek apakah package.json mengalami perubahan
 PKG_CHANGED=false
 if [ "$HEAD_BEFORE" != "old" ] && [ "$HEAD_BEFORE" != "$HEAD_AFTER" ]; then
