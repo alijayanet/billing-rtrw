@@ -57,6 +57,9 @@ HEAD_AFTER=$(git rev-parse HEAD 2>/dev/null || echo "new")
 if [ -f "settings.json.bak" ]; then
   cp settings.json.bak settings.json 2>/dev/null || true
 fi
+if [ -d "database.bak" ] && [ -f "database.bak/billing.db" ]; then
+  [ ! -f "database/billing.db" ] && cp database.bak/billing.db database/billing.db 2>/dev/null || true
+fi
 git stash pop 2>/dev/null || true
 
 # 6. Kunci file konfigurasi & database lokal agar Git tidak pernah menimpa atau menolak update ke depannya
