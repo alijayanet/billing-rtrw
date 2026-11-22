@@ -1482,6 +1482,7 @@
             <span id="ont-bar-online">Online: 0</span>
             <span id="ont-bar-critical" style="color:var(--rose)">Kritis: 0</span>
           </div>
+          <div id="ont-servers-breakdown" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.06);font-size:8px;color:var(--text-dim)"></div>
         </div>
 
         <!-- Billing Customers Status -->
@@ -2459,6 +2460,21 @@
         document.getElementById('ont-bar-fill').style.width = `${ontPercent}%`;
         document.getElementById('ont-bar-online').textContent = `Online: ${acs.online || 0} / ${acs.total || 0}`;
         document.getElementById('ont-bar-critical').textContent = `Kritis: ${acs.critical || 0}`;
+
+        const ontServersBox = document.getElementById('ont-servers-breakdown');
+        if (ontServersBox) {
+          if (Array.isArray(acs.servers) && acs.servers.length > 0) {
+            ontServersBox.innerHTML = acs.servers.map(s => {
+              const label = String(s.name || 'ACS').replace('GenieACS API', 'GenieACS');
+              return `<span style="background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px;white-space:nowrap" title="${s.name}: ${s.online} Online / ${s.total} Total">
+                <i class="bi bi-hdd-network" style="color:var(--cyan);font-size:7.5px"></i> ${label}: <b style="color:var(--text-light)">${s.online}/${s.total}</b>
+              </span>`;
+            }).join('');
+            ontServersBox.style.display = 'flex';
+          } else {
+            ontServersBox.style.display = 'none';
+          }
+        }
 
         document.getElementById('cust-active-val').textContent = `${billing.active || 0} Pelanggan`;
         document.getElementById('cust-suspended-val').textContent = `${billing.suspended || 0} Pelanggan`;
