@@ -43,12 +43,22 @@ class AppSettings(context: Context) {
         }
         set(value) = prefs.edit().putString(KEY_THEME, value.name).apply()
 
+    var serverUrl: String
+        get() = prefs.getString(KEY_SERVER_URL, "http://192.168.8.8:3001/noc") ?: "http://192.168.8.8:3001/noc"
+        set(value) = prefs.edit().putString(KEY_SERVER_URL, value.trim()).apply()
+
+    var useWebEngine: Boolean
+        get() = prefs.getBoolean(KEY_USE_WEB_ENGINE, true)
+        set(value) = prefs.edit().putBoolean(KEY_USE_WEB_ENGINE, value).apply()
+
     var autoStartOnBoot: Boolean
         get() = prefs.getBoolean(KEY_AUTO_BOOT, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_BOOT, value).apply()
 
     companion object {
         private const val PREF_NAME = "alijaya_noc_tv_prefs"
+        private const val KEY_SERVER_URL = "pref_server_url"
+        private const val KEY_USE_WEB_ENGINE = "pref_use_web_engine"
         private const val KEY_HOST = "pref_host"
         private const val KEY_PORT = "pref_port"
         private const val KEY_USERNAME = "pref_username"

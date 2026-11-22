@@ -1869,6 +1869,28 @@
       }
       loadData();
       startPolling();
+
+      // Android TV Leanback detection: hide unnecessary desktop buttons on TV screen
+      if (navigator.userAgent.includes('AlijayaNocTV')) {
+        const apkBtn = document.querySelector('a[href*="noc-tv"]');
+        if (apkBtn) apkBtn.style.display = 'none';
+        const exitBtn = document.querySelector('a[href="/admin/mikrotik"]');
+        if (exitBtn) exitBtn.style.display = 'none';
+      }
+
+      // TV Remote & Keyboard Shortcuts: 1..5 for Theme, V for Voice, A for Audio, R for Cycle, F for Fullscreen
+      document.addEventListener('keydown', (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
+        if (e.key === '1') switchTheme('cyberpunk');
+        else if (e.key === '2') switchTheme('matrix');
+        else if (e.key === '3') switchTheme('sapphire');
+        else if (e.key === '4') switchTheme('amoled');
+        else if (e.key === '5') switchTheme('amber');
+        else if (e.key === 'v' || e.key === 'V') toggleNocVoice();
+        else if (e.key === 'a' || e.key === 'A') toggleAudioAlert();
+        else if (e.key === 'r' || e.key === 'R') toggleAutoCycle();
+        else if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+      });
     });
 
     // High-Tech Digital Clock

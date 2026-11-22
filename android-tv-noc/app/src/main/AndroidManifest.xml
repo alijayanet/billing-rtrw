@@ -27,6 +27,8 @@
         android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:banner="@drawable/tv_banner"
+        android:usesCleartextTraffic="true"
+        android:hardwareAccelerated="true"
         android:theme="@style/Theme.NocDisplayTV">
 
         <activity

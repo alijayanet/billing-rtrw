@@ -49,13 +49,68 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <!-- LEFT COLUMN: MIKROTIK CONNECTION FIELDS -->
+        <!-- LEFT COLUMN: SERVER & MIKROTIK CONNECTION FIELDS -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="16dp"
-            android:layout_weight="1.1"
+            android:layout_weight="1.2"
             android:orientation="vertical">
+
+            <!-- NOC Web Engine Toggle & Server URL -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#0F172A"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp">
+
+                <CheckBox
+                    android:id="@+id/cbUseWebEngine"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:buttonTint="#00F2FE"
+                    android:checked="true"
+                    android:focusable="true"
+                    android:text="🌐 Mode Tampilan: Web Wallboard (Identik noc.ejs)"
+                    android:textColor="#00F2FE"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="URL Server NOC Wallboard:"
+                    android:textColor="#E2E8F0"
+                    android:textSize="11sp" />
+
+                <EditText
+                    android:id="@+id/etServerUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="3dp"
+                    android:background="@drawable/bg_input_focused"
+                    android:focusable="true"
+                    android:hint="http://192.168.8.8:3001/noc"
+                    android:imeOptions="actionNext"
+                    android:inputType="textUri"
+                    android:paddingHorizontal="10dp"
+                    android:singleLine="true"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#64748B"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚡ Pengaturan Raw MikroTik (Mode Socket):"
+                android:textColor="#94A3B8"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
 
             <!-- Host & Port Row -->
             <LinearLayout

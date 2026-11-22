@@ -1,12 +1,130 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/rootContainer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_cyberpunk"
-    android:orientation="vertical"
-    android:padding="12dp">
+    android:background="@color/bg_cyberpunk">
+
+    <!-- 1. FULLSCREEN HIGH-PERFORMANCE LEANBACK TV WEBVIEW (NOC.EJS) -->
+    <WebView
+        android:id="@+id/webViewNoc"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:visibility="visible" />
+
+    <!-- 2. CYBERPUNK OFFLINE / AUTO-RETRY OVERLAY -->
+    <LinearLayout
+        android:id="@+id/offlineOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#E6050B14"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="540dp"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card_subtle"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="26dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="0.08"
+                android:text="⚡ ALIJAYA NOC DISPLAY TV"
+                android:textColor="@color/neon_cyan"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tvOfflineTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="Menghubungkan ke Server NOC..."
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvOfflineSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:text="Target: http://192.168.8.8:3001/noc"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvRetryCountdown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFamily="monospace"
+                android:text="Mencoba menghubungkan kembali dalam 5s..."
+                android:textColor="@color/neon_emerald"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnRetryNow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_btn_test"
+                    android:focusable="true"
+                    android:paddingHorizontal="16dp"
+                    android:text="⚡ COBA SEKARANG"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnSettingsFromOffline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:layout_marginStart="12dp"
+                    android:background="@drawable/bg_btn_save"
+                    android:focusable="true"
+                    android:paddingHorizontal="16dp"
+                    android:text="⚙ PENGATURAN URL / IP"
+                    android:textColor="#050B14"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:fontFamily="monospace"
+                android:text="Tekan tombol [MENU] pada remote TV untuk mengatur URL"
+                android:textColor="@color/text_secondary"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 3. NATIVE SOCKET DASHBOARD (FALLBACK JIKA ENGINE WEB DIMATIKAN) -->
+    <LinearLayout
+        android:id="@+id/nativeContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
 
     <!-- 1. TOP HEADER BAR -->
     <LinearLayout
@@ -459,4 +577,6 @@
             android:textSize="10sp" />
     </LinearLayout>
 
-</LinearLayout>
+    </LinearLayout>
+
+</FrameLayout>

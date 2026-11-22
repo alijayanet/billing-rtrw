@@ -13,6 +13,7 @@ import android.view.inputmethod.InputMethodManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.alijaya.nocdisplay.databinding.DialogSettingsBinding
 import net.alijaya.nocdisplay.mikrotik.MikrotikRepository
 import net.alijaya.nocdisplay.settings.AppSettings
@@ -49,6 +50,8 @@ class SettingsDialog(
     }
 
     private fun loadCurrentValues() {
+        binding.cbUseWebEngine.isChecked = settings.useWebEngine
+        binding.etServerUrl.setText(settings.serverUrl)
         binding.etHost.setText(settings.host)
         binding.etPort.setText(settings.port.toString())
         binding.etUsername.setText(settings.username)
@@ -121,6 +124,49 @@ class SettingsDialog(
 
         binding.btnTestConn.setOnClickListener {
             hideKeyboard()
+
+            // If Web Engine Mode: test HTTP connection to Server URL
+            if (binding.cbUseWebEngine.isChecked) {
+                val sUrl = binding.etServerUrl.text.toString().trim()
+                if (sUrl.isEmpty() || (!sUrl.startsWith("http://") && !sUrl.startsWith("https://"))) {
+                    binding.tvTestStatus.visibility = View.VISIBLE
+                    binding.tvTestStatus.setTextColor(Color.parseColor("#EF4444"))
+                    binding.tvTestStatus.text = "URL Server tidak valid! Harus diawali http:// atau https://"
+                    return@setOnClickListener
+                }
+
+                binding.tvTestStatus.visibility = View.VISIBLE
+                binding.tvTestStatus.setTextColor(Color.parseColor("#00F2FE"))
+                binding.tvTestStatus.text = "Menguji koneksi ke Server NOC: $sUrl..."
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val testUrl = if (sUrl.endsWith("/")) "${sUrl}api/noc/data" else if (sUrl.endsWith("/noc")) sUrl.replace("/noc", "/api/noc/data") else sUrl
+                        val url = java.net.URL(testUrl)
+                        val conn = url.openConnection() as java.net.HttpURLConnection
+                        conn.connectTimeout = 4000
+                        conn.readTimeout = 4000
+                        conn.requestMethod = "GET"
+                        val code = conn.responseCode
+                        withContext(Dispatchers.Main) {
+                            if (code in 200..399) {
+                                binding.tvTestStatus.setTextColor(Color.parseColor("#10B981"))
+                                binding.tvTestStatus.text = "✓ Berhasil terhubung ke Server Web NOC (HTTP $code)!"
+                            } else {
+                                binding.tvTestStatus.setTextColor(Color.parseColor("#EF4444"))
+                                binding.tvTestStatus.text = "✗ Server merespon status HTTP $code"
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            binding.tvTestStatus.setTextColor(Color.parseColor("#EF4444"))
+                            binding.tvTestStatus.text = "✗ Gagal koneksi: ${e.message}"
+                        }
+                    }
+                }
+                return@setOnClickListener
+            }
+
             val host = binding.etHost.text.toString().trim()
             val portStr = binding.etPort.text.toString().trim()
             val port = portStr.toIntOrNull()
@@ -151,34 +197,41 @@ class SettingsDialog(
 
         binding.btnSave.setOnClickListener {
             hideKeyboard()
+
+            // Save Web Engine settings
+            val oldWebMode = settings.useWebEngine
+            val oldUrl = settings.serverUrl
+            settings.useWebEngine = binding.cbUseWebEngine.isChecked
+            val inputUrl = binding.etServerUrl.text.toString().trim()
+            if (inputUrl.isNotEmpty()) {
+                settings.serverUrl = inputUrl
+            }
+
             val host = binding.etHost.text.toString().trim()
             val portStr = binding.etPort.text.toString().trim()
             val port = portStr.toIntOrNull()
-            if (port == null || port !in 1..65535) {
-                binding.tvTestStatus.visibility = View.VISIBLE
-                binding.tvTestStatus.setTextColor(Color.parseColor("#EF4444"))
-                binding.tvTestStatus.text = "Port tidak valid! Masukkan angka port 1 - 65535."
-                return@setOnClickListener
+            if (port != null && port in 1..65535) {
+                settings.host = host
+                settings.port = port
             }
-
-            val oldTheme = settings.themeMode
-            settings.host = host
-            settings.port = port
             settings.username = binding.etUsername.text.toString().trim()
             settings.password = binding.etPassword.text.toString()
             settings.wanInterface = binding.etWan.text.toString().trim()
             val sec = binding.etInterval.text.toString().trim().toLongOrNull() ?: 2L
             settings.refreshIntervalMs = (sec.coerceAtLeast(1L)) * 1000L
+
+            val oldTheme = settings.themeMode
             settings.themeMode = selectedTheme
             settings.autoStartOnBoot = binding.cbAutoBoot.isChecked
 
             android.widget.Toast.makeText(
                 context,
-                "Pengaturan tersimpan: $host:$port",
+                if (settings.useWebEngine) "Mode Web NOC aktif: ${settings.serverUrl}" else "Mode Socket aktif: $host:$port",
                 android.widget.Toast.LENGTH_SHORT
             ).show()
 
-            onConfigChanged(oldTheme != selectedTheme)
+            val changed = oldTheme != selectedTheme || oldWebMode != settings.useWebEngine || oldUrl != settings.serverUrl
+            onConfigChanged(changed)
             dismiss()
         }
 
