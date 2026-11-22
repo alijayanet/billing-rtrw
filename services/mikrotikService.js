@@ -264,7 +264,7 @@ async function getConnection(routerId = null) {
     port = settings.mikrotik_port || 8728;
     user = settings.mikrotik_user;
     password = settings.mikrotik_password;
-    logger.info('[MikroTik] Using router from settings.json (explicitly requested)');
+    logger.debug('[MikroTik] Using router from settings.json (explicitly requested)');
   } else if (routerId) {
     const router = db.prepare('SELECT * FROM routers WHERE id = ?').get(routerId);
     if (!router) throw new Error(`Router with ID ${routerId} not found`);
@@ -282,7 +282,7 @@ async function getConnection(routerId = null) {
       port = defaultRouter.port || 8728;
       user = defaultRouter.user;
       password = defaultRouter.password;
-      logger.info(`[MikroTik] Using default router from database: ${defaultRouter.name} (${defaultRouter.host})`);
+      logger.debug(`[MikroTik] Using default router from database: ${defaultRouter.name} (${defaultRouter.host})`);
     } else {
       // Fallback ke settings.json untuk backward compatibility
       const settings = getSettingsWithCache();
@@ -290,7 +290,7 @@ async function getConnection(routerId = null) {
       port = settings.mikrotik_port || 8728;
       user = settings.mikrotik_user;
       password = settings.mikrotik_password;
-      logger.info('[MikroTik] Using router from settings.json (no routers in database)');
+      logger.debug('[MikroTik] Using router from settings.json (no routers in database)');
     }
   }
 

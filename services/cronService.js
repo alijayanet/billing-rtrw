@@ -758,6 +758,25 @@ function startCronJobs() {
     }
   });
 
+  // 13. Daily Database Maintenance & Pruning (Setiap Hari Pukul 03:30 WIB)
+  scheduleJob('30 3 * * *', () => {
+    try {
+      logger.info('[CRON-DB-MAINTENANCE] Menjalankan pembersihan database harian...');
+      // 1. Bersihkan tasks TR-069 yang sudah selesai/gagal lebih dari 7 hari
+      const deletedTasks = db.prepare("DELETE FROM acs_tasks WHERE status IN ('completed', 'failed') AND created_at < datetime('now', '-7 days')").run();
+      // 2. Bersihkan session TR-069 yang sudah kadaluarsa lebih dari 7 hari
+      let deletedSessions = { changes: 0 };
+      try {
+        deletedSessions = db.prepare("DELETE FROM acs_sessions WHERE updated_at < datetime('now', '-7 days')").run();
+      } catch (_) {}
+      // 3. Truncate SQLite WAL file agar tidak membengkak di disk
+      db.pragma('wal_checkpoint(TRUNCATE)');
+      logger.info(`[CRON-DB-MAINTENANCE] Pembersihan selesai: ${deletedTasks.changes || 0} acs_tasks dihapus, ${deletedSessions.changes || 0} acs_sessions dihapus. WAL truncated.`);
+    } catch (e) {
+      logger.error(`[CRON-DB-MAINTENANCE] Error: ${e.message}`);
+    }
+  });
+
   logger.info('[CRON] Semua tugas penjadwalan telah aktif.');
 }
 

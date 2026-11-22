@@ -16,6 +16,10 @@ let cachedData = null;
 let lastFetchTime = 0;
 const CACHE_TTL_MS = 1000; // 1 second cache
 
+let cachedBlockedCount = 0;
+let lastBlockedCountCheck = 0;
+let lastClientActivityTime = 0;
+
 // In-memory traffic rate tracking per router and interface
 // previousTrafficSamples: routerId -> Map(ifaceName -> { bytesIn, bytesOut, time })
 const previousTrafficSamples = new Map();
@@ -46,8 +50,12 @@ function getNocRouters() {
 /**
  * Gather complete real-time NOC metrics
  * @param {string|number} routerId 
+ * @param {boolean} isUserRequest
  */
-async function getNocData(routerId = null) {
+async function getNocData(routerId = null, isUserRequest = true) {
+  if (isUserRequest) {
+    lastClientActivityTime = Date.now();
+  }
   const effectiveRouterId = (routerId && routerId !== 'null' && routerId !== 'settings' && routerId !== 'settings_json')
     ? (isNaN(Number(routerId)) ? routerId : Number(routerId))
     : 'settings_json';
@@ -308,10 +316,14 @@ async function getNocData(routerId = null) {
         if (r.status === 'suspended' || r.status === 'isolated') customerStats.suspended += r.c;
       }
 
-      // 3. Security watchdog blocked count
+      // 3. Security watchdog blocked count (cached for 30s to prevent repetitive full table scans)
       try {
-        const secRow = db.prepare("SELECT COUNT(*) as c FROM audit_trail WHERE action LIKE '%BLOCK%' OR action LIKE '%BRUTE%'").get();
-        if (secRow) securityStats.blockedCount = secRow.c;
+        if (now - lastBlockedCountCheck > 30000) {
+          const secRow = db.prepare("SELECT COUNT(*) as c FROM audit_trail WHERE action LIKE '%BLOCK%' OR action LIKE '%BRUTE%'").get();
+          if (secRow) cachedBlockedCount = secRow.c;
+          lastBlockedCountCheck = now;
+        }
+        securityStats.blockedCount = cachedBlockedCount;
       } catch (_) {}
     } catch (dbErr) {
       logger.debug(`[NOC Service] DB query error: ${dbErr.message}`);
@@ -409,16 +421,21 @@ async function getNocData(routerId = null) {
   }
 }
 
-// Background sampler so traffic history is always warm and accurate
+// Background sampler so traffic history is always warm and accurate while NOC is active
 let backgroundSamplerStarted = false;
 function ensureBackgroundSampler() {
   if (backgroundSamplerStarted) return;
   backgroundSamplerStarted = true;
   setInterval(async () => {
+    // Only sample if a user/dashboard has requested NOC data within the last 2 minutes
+    const now = Date.now();
+    if (now - lastClientActivityTime > 2 * 60 * 1000) {
+      return; // Idle mode: save CPU and MikroTik API resources
+    }
     try {
-      await getNocData('settings_json');
+      await getNocData('settings_json', false);
     } catch (_) {}
-  }, 2200);
+  }, 2500);
 }
 ensureBackgroundSampler();
 
