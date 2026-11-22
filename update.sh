@@ -44,11 +44,20 @@ echo -e "${GREEN}[OK]${NC} Backup tersimpan di settings.json.bak & database.bak"
 # 2. Bersihkan stale git lock jika ada
 [ -f ".git/index.lock" ] && rm -f ".git/index.lock" 2>/dev/null || true
 
-# 3. Git Pull dari GitHub
+# 3. Amankan perubahan lokal agar git pull tidak ditolak
+git stash 2>/dev/null || true
+
+# 4. Git Pull dari GitHub
 echo -e "${BLUE}[INFO]${NC} Menarik pembaruan dari GitHub..."
 HEAD_BEFORE=$(git rev-parse HEAD 2>/dev/null || echo "old")
 git pull origin main 2>/dev/null || git pull 2>/dev/null || true
 HEAD_AFTER=$(git rev-parse HEAD 2>/dev/null || echo "new")
+
+# 5. Kembalikan settings.json lokal server agar konfigurasi tidak hilang
+if [ -f "settings.json.bak" ]; then
+  cp settings.json.bak settings.json 2>/dev/null || true
+fi
+git stash pop 2>/dev/null || true
 
 # 4. Cek apakah package.json mengalami perubahan
 PKG_CHANGED=false
