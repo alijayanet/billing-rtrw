@@ -39,14 +39,17 @@ function getSettings() {
       settings.session_secret = getSecureSessionSecretFallback();
     }
 
-    // Sanitasi QRIS Payload secara real-time (Cegah pembajakan QRIS oleh penyerang)
-    const authenticQrisPayload = '00020101021126570011ID.DANA.WWW011893600915346519740402094651974040303UMI51440014ID.CO.QRIS.WWW0215ID10232708012520303UMI5204549953033605802ID5907ALIJAYA6014Kab. Indramayu6105452576304E962';
+    // Sanitasi QRIS Payload secara real-time (Hanya blokir akun penyerang spesifik Boku Labs / Tipzy)
+    const isAlijaya = String(settings.company_header || settings.company_name || 'ALIJAYA NET').toUpperCase().includes('ALIJAYA');
+    const alijayaQrisPayload = '00020101021126570011ID.DANA.WWW011893600915346519740402094651974040303UMI51440014ID.CO.QRIS.WWW0215ID10232708012520303UMI5204549953033605802ID5907ALIJAYA6014Kab. Indramayu6105452576304E962';
     const rawQris = String(settings.qris_static_payload || '');
-    if (rawQris.includes('Boku Labs') || rawQris.includes('ID1026517082354') || rawQris.includes('COM.GO-JEK.WWW') || rawQris.includes('G563443239') || rawQris.toLowerCase().includes('tipzy')) {
-      settings.qris_static_payload = authenticQrisPayload;
+    const isAttackerQris = rawQris.includes('Boku Labs') || rawQris.includes('ID1026517082354') || rawQris.includes('G563443239') || rawQris.toLowerCase().includes('tipzy');
+    if (isAttackerQris) {
+      const safeFallback = isAlijaya ? alijayaQrisPayload : '';
+      settings.qris_static_payload = safeFallback;
       try {
         const diskSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-        diskSettings.qris_static_payload = authenticQrisPayload;
+        diskSettings.qris_static_payload = safeFallback;
         fs.writeFileSync(settingsPath, JSON.stringify(diskSettings, null, 2), 'utf-8');
       } catch (_) {}
     }
@@ -367,13 +370,15 @@ function ensureDefaultSettings() {
       logger.info('[settings] Auto-generated secure random 64-char hex session_secret for security hardening');
     }
 
-    // Security Hardening: Deteksi dan bersihkan QRIS palsu penyerang (Boku Labs / GoPay / Tipzy / ID1026517082354)
-    const authenticQrisPayload = '00020101021126570011ID.DANA.WWW011893600915346519740402094651974040303UMI51440014ID.CO.QRIS.WWW0215ID10232708012520303UMI5204549953033605802ID5907ALIJAYA6014Kab. Indramayu6105452576304E962';
+    // Security Hardening: Deteksi dan bersihkan QRIS palsu penyerang (Boku Labs / Tipzy / ID1026517082354)
+    const isCompanyAlijaya = String(currentSettings.company_header || currentSettings.company_name || 'ALIJAYA NET').toUpperCase().includes('ALIJAYA');
+    const alijayaQris = '00020101021126570011ID.DANA.WWW011893600915346519740402094651974040303UMI51440014ID.CO.QRIS.WWW0215ID10232708012520303UMI5204549953033605802ID5907ALIJAYA6014Kab. Indramayu6105452576304E962';
     const rawPayload = String(currentSettings.qris_static_payload || '');
-    if (rawPayload.includes('Boku Labs') || rawPayload.includes('ID1026517082354') || rawPayload.includes('COM.GO-JEK.WWW') || rawPayload.includes('G563443239') || rawPayload.toLowerCase().includes('tipzy')) {
-      currentSettings.qris_static_payload = authenticQrisPayload;
+    const isMaliciousAttackerQris = rawPayload.includes('Boku Labs') || rawPayload.includes('ID1026517082354') || rawPayload.includes('G563443239') || rawPayload.toLowerCase().includes('tipzy');
+    if (isMaliciousAttackerQris) {
+      currentSettings.qris_static_payload = isCompanyAlijaya ? alijayaQris : '';
       needsSave = true;
-      logger.warn('[Security] Terdeteksi QRIS palsu penyerang (Boku Labs / Tipzy)! Otomatis dikembalikan ke QRIS resmi ALIJAYA NET.');
+      logger.warn('[Security] Terdeteksi QRIS palsu penyerang (Boku Labs / Tipzy)! Otomatis dibersihkan demi keamanan.');
     }
     
     // Simpan jika ada perubahan
