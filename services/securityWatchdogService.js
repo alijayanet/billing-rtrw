@@ -23,6 +23,7 @@ const failedAttemptsByIp = new Map();
 const blockedIps = new Map(); // ip -> unblockTime
 const mikrotikAlertCache = new Map(); // routerId:ip -> timestamp
 const processedLogIdsByRouter = new Map(); // routerId -> Set of log IDs
+const mikrotikFailureWindow = new Map(); // routerId:ip -> { type, count, targets, service, reasons, firstAttempt, lastAttempt, ... }
 
 const WINDOW_MS = 5 * 60 * 1000; // 5 menit window
 const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 menit untuk app login
@@ -264,66 +265,86 @@ class SecurityWatchdogService {
     let isNewlyBlocked = false;
     const targetsStr = Array.from(targets).slice(0, 3).join(', ') || 'unknown';
 
-    try {
-      // 1. Jika ada MAC Address (terutama kasus Hotspot Brute Force)
-      if (mac) {
+    // 1. Jika ada MAC Address (terutama kasus Hotspot Brute Force)
+    if (mac) {
+      const cleanMac = mac.toUpperCase();
+      try {
         const ipBindingMenu = conn.client.menu('/ip/hotspot/ip-binding');
         const bindings = await ipBindingMenu.get();
         const existingBinding = bindings.find(b => {
           const m = (b['mac-address'] || b.macAddress || '').toUpperCase();
-          return m === mac.toUpperCase();
+          return m === cleanMac;
         });
 
         if (!existingBinding) {
-          await ipBindingMenu.add({
-            macAddress: mac,
-            address: ip || undefined,
-            toAddress: ip || undefined,
-            type: 'blocked',
-            comment: `AI_BLOCKED: Hotspot Brute Force (${count}x gagal, user: ${targetsStr})`
-          });
-          actionsTaken.push(`MAC ${mac} dimasukkan ke Hotspot IP-Binding (type: blocked)`);
-          isNewlyBlocked = true;
+          try {
+            await ipBindingMenu.add({
+              macAddress: cleanMac,
+              type: 'blocked',
+              comment: `AI_BLOCKED: Hotspot Brute Force (${count}x gagal, ip: ${ip || '-'}, user: ${targetsStr})`
+            });
+            actionsTaken.push(`MAC ${cleanMac} dimasukkan ke Hotspot IP-Binding (type: blocked)`);
+            isNewlyBlocked = true;
+          } catch (addErr) {
+            if (String(addErr.message || '').toLowerCase().includes('already exists')) {
+              actionsTaken.push(`MAC ${cleanMac} sudah ada di Hotspot IP-Binding`);
+            } else {
+              throw addErr;
+            }
+          }
         } else if (existingBinding.type !== 'blocked') {
           await ipBindingMenu.set({
             type: 'blocked',
-            comment: `AI_BLOCKED: Hotspot Brute Force (${count}x gagal, user: ${targetsStr})`
+            comment: `AI_BLOCKED: Hotspot Brute Force (${count}x gagal, ip: ${ip || '-'}, user: ${targetsStr})`
           }, existingBinding['.id']);
-          actionsTaken.push(`MAC ${mac} diperbarui ke type: blocked di IP-Binding`);
+          actionsTaken.push(`MAC ${cleanMac} diperbarui ke type: blocked di IP-Binding`);
           isNewlyBlocked = true;
         } else {
-          actionsTaken.push(`MAC ${mac} sudah berstatus blocked`);
+          actionsTaken.push(`MAC ${cleanMac} sudah berstatus blocked`);
         }
+      } catch (err) {
+        logger.error(`[SecurityWatchdog] Gagal blokir IP-Binding MAC ${cleanMac} di MikroTik ${routerName}: ${err.message}`);
+        actionsTaken.push(`Error IP-Binding: ${err.message}`);
+      }
 
-        // Kick dari Hotspot Active
+      // Kick dari Hotspot Active
+      try {
         const activeMenu = conn.client.menu('/ip/hotspot/active');
         const activeUsers = await activeMenu.get();
         for (const u of activeUsers) {
           const uMac = (u['mac-address'] || u.macAddress || '').toUpperCase();
-          if (u.address === ip || uMac === mac.toUpperCase()) {
+          if (u.address === ip || uMac === cleanMac) {
             await activeMenu.remove(u['.id']).catch(() => {});
             actionsTaken.push(`Sesi Hotspot aktif user '${u.user}' diputus paksa`);
           }
         }
+      } catch (err) {
+        logger.warn(`[SecurityWatchdog] Gagal kick Hotspot Active di ${routerName}: ${err.message}`);
+      }
 
-        // Kick dari Hotspot Host
+      // Kick dari Hotspot Host
+      try {
         const hostMenu = conn.client.menu('/ip/hotspot/host');
         const hosts = await hostMenu.get();
         for (const h of hosts) {
           const hMac = (h['mac-address'] || h.macAddress || '').toUpperCase();
-          if (h.address === ip || hMac === mac.toUpperCase()) {
+          if (h.address === ip || hMac === cleanMac) {
             await hostMenu.remove(h['.id']).catch(() => {});
-            actionsTaken.push(`Host Hotspot ${ip || mac} dibersihkan`);
+            actionsTaken.push(`Host Hotspot ${ip || cleanMac} dibersihkan`);
           }
         }
+      } catch (err) {
+        logger.warn(`[SecurityWatchdog] Gagal bersihkan Hotspot Host di ${routerName}: ${err.message}`);
       }
+    }
 
-      // 2. Blokir Alamat IP pada /ip firewall address-list (timeout 24 jam)
-      if (ip && ip !== '127.0.0.1' && ip !== 'localhost') {
+    // 2. Blokir Alamat IP pada /ip firewall address-list (timeout 24 jam)
+    if (ip && ip !== '127.0.0.1' && ip !== 'localhost') {
+      try {
         const addrListMenu = conn.client.menu('/ip/firewall/address-list');
         const addrLists = await addrListMenu.get();
-        const existingList = addrLists.find(a => 
-          (a.list === 'BLACKLIST_BRUTEFORCE' || a.list === 'BLACKLIST_ANOMALY') && 
+        const existingList = addrLists.find(a =>
+          (a.list === 'BLACKLIST_BRUTEFORCE' || a.list === 'BLACKLIST_ANOMALY') &&
           a.address === ip
         );
 
@@ -342,10 +363,10 @@ class SecurityWatchdogService {
 
         // Pastikan filter drop aktif
         await this.ensureFirewallDropRules(conn);
+      } catch (err) {
+        logger.error(`[SecurityWatchdog] Gagal blokir Firewall Address-List IP ${ip} di MikroTik ${routerName}: ${err.message}`);
+        actionsTaken.push(`Error Firewall Address-List: ${err.message}`);
       }
-    } catch (err) {
-      logger.error(`[SecurityWatchdog] Gagal blokir target di MikroTik ${routerName}: ${err.message}`);
-      actionsTaken.push(`Error blokir: ${err.message}`);
     }
 
     return { actionsTaken, isNewlyBlocked };
@@ -590,7 +611,11 @@ class SecurityWatchdogService {
                 lowerMsg.includes('invalid username or password') ||
                 lowerMsg.includes('user not found') ||
                 lowerMsg.includes('invalid password') ||
-                lowerMsg.includes('cannot find user');
+                lowerMsg.includes('cannot find user') ||
+                lowerMsg.includes('wrong password') ||
+                lowerMsg.includes('authentication failed') ||
+                lowerMsg.includes('bad username') ||
+                lowerMsg.includes('invalid user');
 
               if (!isCredentialFailure) {
                 // Bukan kesalahan username/password, abaikan
@@ -638,9 +663,51 @@ class SecurityWatchdogService {
             }
           }
 
-          // Periksa setiap IP yang melampaui kriteria serangan brute force
+          // Bersihkan entri jendela waktu (rolling 5 menit) yang sudah kedaluwarsa
           const now = Date.now();
-          for (const [attackerIp, data] of failuresByIp.entries()) {
+          for (const [wKey, wVal] of mikrotikFailureWindow.entries()) {
+            if (now - wVal.lastAttempt > WINDOW_MS) {
+              mikrotikFailureWindow.delete(wKey);
+            }
+          }
+
+          // Gabungkan ke rolling window (untuk scan terjadwal) agar percobaan gagal
+          // yang terpotong batas cron 2 menit tetap terakumulasi dalam jendela 5 menit
+          const evaluatedFailures = new Map();
+          if (isManualTrigger) {
+            for (const [attackerIp, data] of failuresByIp.entries()) {
+              evaluatedFailures.set(attackerIp, data);
+            }
+          } else {
+            for (const [attackerIp, data] of failuresByIp.entries()) {
+              const windowKey = `${r.id}:${data.type}:${attackerIp}`;
+              let existing = mikrotikFailureWindow.get(windowKey);
+              if (!existing || (now - existing.lastAttempt > WINDOW_MS)) {
+                existing = {
+                  type: data.type,
+                  count: data.count,
+                  targets: new Set(data.targets),
+                  service: data.service,
+                  reasons: new Set(data.reasons),
+                  routerId: r.id,
+                  routerName: r.name,
+                  routerHost: r.host,
+                  firstAttempt: now,
+                  lastAttempt: now
+                };
+              } else {
+                existing.count += data.count;
+                for (const t of data.targets) existing.targets.add(t);
+                for (const rs of data.reasons) existing.reasons.add(rs);
+                existing.lastAttempt = now;
+              }
+              mikrotikFailureWindow.set(windowKey, existing);
+              evaluatedFailures.set(attackerIp, existing);
+            }
+          }
+
+          // Periksa setiap IP yang melampaui kriteria serangan brute force
+          for (const [attackerIp, data] of evaluatedFailures.entries()) {
             let isThreat = false;
             let threatReason = '';
 
@@ -651,23 +718,31 @@ class SecurityWatchdogService {
                 threatReason = `Brute force login admin (${data.service.toUpperCase()}) sebanyak ${data.count}x percobaan`;
               }
             } else if (data.type === 'hotspot') {
-              // Serangan Hotspot Brute Force (Tebak Voucher / User Acak):
-              // HANYA JIKA mencoba BEBERAPA USERNAME/VOUCHER BERBEDA (minimal minDistinctUsers berbeda dan minimal hotspotThreshold gagal)
+              // Serangan Hotspot Brute Force:
+              // 1. Tebak voucher acak (minDistinctUsers berbeda & minAttempts gagal dalam 5 menit)
+              // 2. Spam/brute-force 1-2 user berulang kali (>= singleUserThreshold dalam 5 menit)
               const distinctUsersCount = data.targets.size;
               const minDistinctUsers = Math.max(Number(getSetting('security_hotspot_distinct_users', 3)) || 3, 2);
               const minAttempts = hotspotThreshold;
+              const singleUserThreshold = Math.max(Number(getSetting('security_hotspot_single_user_threshold', Math.max(minAttempts * 2, 10))) || 10, minAttempts);
 
               if (distinctUsersCount >= minDistinctUsers && data.count >= minAttempts) {
                 isThreat = true;
                 threatReason = `Mencoba login Hotspot acak dengan ${distinctUsersCount} user/voucher berbeda (${data.count}x gagal)`;
+              } else if (data.count >= singleUserThreshold) {
+                isThreat = true;
+                threatReason = `Brute force login Hotspot berulang pada ${distinctUsersCount} user (${data.count}x gagal dalam 5 menit)`;
               } else {
-                // Jika hanya 1 atau 2 user (seperti user 'ompong' mencoba ulang atau cache peramban),
-                // BUKAN serangan acak, sehingga JANGAN DIBLOKIR.
-                logger.info(`[SecurityWatchdog] IP ${attackerIp} diabaikan: hanya mencoba ${distinctUsersCount} user (${Array.from(data.targets).join(', ')}), bukan brute force acak.`);
+                // Jika masih di bawah batas wajar (misal salah ketik / cache peramban beberapa kali),
+                // catat di jendela waktu 5 menit dan tunggu jika terus berulang.
+                logger.info(`[SecurityWatchdog] IP ${attackerIp} dipantau (${data.count}/${singleUserThreshold}x, ${distinctUsersCount} user: ${Array.from(data.targets).join(', ')}), belum mencapai ambang blokir.`);
               }
             }
 
             if (isThreat) {
+              if (!isManualTrigger) {
+                mikrotikFailureWindow.delete(`${r.id}:${data.type}:${attackerIp}`);
+              }
               const cacheKey = `${r.id}:${attackerIp}`;
               const lastAlert = mikrotikAlertCache.get(cacheKey) || 0;
 
