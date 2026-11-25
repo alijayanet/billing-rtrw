@@ -29,6 +29,94 @@ const WINDOW_MS = 5 * 60 * 1000; // 5 menit window
 const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 menit untuk app login
 const APP_CRITICAL_THRESHOLD = 5;
 
+const MONTHS_MAP = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+};
+
+/**
+ * Parse /system/clock MikroTik menjadi UTC epoch ms (relatif lokal) untuk pembanding umur log
+ */
+function parseMikrotikClockMs(clockObj) {
+  const now = new Date();
+  if (!clockObj || !clockObj.time) return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
+
+  const timeMatch = String(clockObj.time).trim().match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (!timeMatch) return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
+
+  const hh = Number(timeMatch[1]);
+  const mm = Number(timeMatch[2]);
+  const ss = Number(timeMatch[3]);
+  let year = now.getFullYear();
+  let month = now.getMonth();
+  let day = now.getDate();
+
+  const dateStr = String(clockObj.date || '').trim().toLowerCase();
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const mmmMatch = dateStr.match(/^([a-z]{3})\/(\d{1,2})\/(\d{4})$/);
+  if (isoMatch) {
+    year = Number(isoMatch[1]);
+    month = Number(isoMatch[2]) - 1;
+    day = Number(isoMatch[3]);
+  } else if (mmmMatch && MONTHS_MAP[mmmMatch[1]] !== undefined) {
+    month = MONTHS_MAP[mmmMatch[1]];
+    day = Number(mmmMatch[2]);
+    year = Number(mmmMatch[3]);
+  }
+
+  return Date.UTC(year, month, day, hh, mm, ss);
+}
+
+/**
+ * Hitung umur log MikroTik (ms) relatif terhadap jam router saat ini.
+ * Mengembalikan null jika format waktu tidak dikenali.
+ */
+function getMikrotikLogAgeMs(logTimeStr, routerNowMs) {
+  if (!logTimeStr) return null;
+  const raw = String(logTimeStr).trim().toLowerCase();
+  const ref = new Date(routerNowMs);
+  const refYear = ref.getUTCFullYear();
+  const refMonth = ref.getUTCMonth();
+  const refDay = ref.getUTCDate();
+
+  // 1. Format "HH:MM:SS" (log hari ini)
+  let m = raw.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (m) {
+    let logMs = Date.UTC(refYear, refMonth, refDay, Number(m[1]), Number(m[2]), Number(m[3]));
+    if (logMs - routerNowMs > 60 * 1000) {
+      // Melewati tengah malam (misal log 23:59:00, jam sekarang 00:01:00)
+      logMs -= 24 * 60 * 60 * 1000;
+    }
+    return routerNowMs - logMs;
+  }
+
+  // 2. Format "YYYY-MM-DD HH:MM:SS" (RouterOS v7)
+  m = raw.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (m) {
+    const logMs = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+    return routerNowMs - logMs;
+  }
+
+  // 3. Format "mmm/dd/YYYY HH:MM:SS"
+  m = raw.match(/^([a-z]{3})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (m && MONTHS_MAP[m[1]] !== undefined) {
+    const logMs = Date.UTC(Number(m[3]), MONTHS_MAP[m[1]], Number(m[2]), Number(m[4]), Number(m[5]), Number(m[6]));
+    return routerNowMs - logMs;
+  }
+
+  // 4. Format "mmm/dd HH:MM:SS"
+  m = raw.match(/^([a-z]{3})\/(\d{1,2})\s+(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (m && MONTHS_MAP[m[1]] !== undefined) {
+    const mon = MONTHS_MAP[m[1]];
+    let yr = refYear;
+    if (mon > refMonth + 1) yr -= 1;
+    const logMs = Date.UTC(yr, mon, Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5]));
+    return routerNowMs - logMs;
+  }
+
+  return null;
+}
+
 /**
  * Mengonversi IP address menjadi format lisan ramah suara TTS
  */
@@ -497,7 +585,14 @@ class SecurityWatchdogService {
           const conn = await mt.getConnection(r.id);
           if (!conn || !conn.client) continue;
 
-          // Ambil log dari MikroTik
+          // Ambil jam router & log dari MikroTik agar hanya memproses log baru (5 menit terakhir)
+          let routerClock = null;
+          try {
+            const clocks = await conn.client.menu('/system/clock').get();
+            if (Array.isArray(clocks) && clocks.length > 0) routerClock = clocks[0];
+          } catch (_) {}
+          const routerNowMs = parseMikrotikClockMs(routerClock);
+
           const logs = await conn.client.menu('/log').get();
           if (!Array.isArray(logs) || logs.length === 0) {
             await conn.api.close().catch(() => {});
@@ -510,12 +605,18 @@ class SecurityWatchdogService {
             processedLogIdsByRouter.set(r.id, processedSet);
           }
 
-          // Filter log kegagalan login
+          // Filter log kegagalan login HANYA dalam jendela waktu sekarang (WINDOW_MS = 5 menit)
           const failures = [];
           for (const l of logs) {
             const logId = l['.id'] || l.id;
             if (!isManualTrigger && processedSet.has(logId)) continue;
             processedSet.add(logId);
+
+            // Abaikan log lama dari buffer 2000+ baris MikroTik (misal setelah restart atau scan manual)
+            const logAgeMs = getMikrotikLogAgeMs(l.time, routerNowMs);
+            if (logAgeMs !== null && (logAgeMs > WINDOW_MS || logAgeMs < -120000)) {
+              continue;
+            }
 
             const msg = String(l.message || '');
             const lowerMsg = msg.toLowerCase();
@@ -530,10 +631,10 @@ class SecurityWatchdogService {
             }
           }
 
-          // Batasi ukuran set agar tidak bocor memori (pertahankan 1000 ID terakhir)
-          if (processedSet.size > 2500) {
+          // Batasi ukuran set agar tidak bocor memori (pertahankan 3000 ID terakhir > ukuran buffer 2000 log)
+          if (processedSet.size > 5000) {
             const arr = Array.from(processedSet);
-            processedSet = new Set(arr.slice(-1000));
+            processedSet = new Set(arr.slice(-3000));
             processedLogIdsByRouter.set(r.id, processedSet);
           }
 
